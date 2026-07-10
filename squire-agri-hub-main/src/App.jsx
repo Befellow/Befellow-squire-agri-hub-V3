@@ -77,7 +77,48 @@ const DISTRICTS = ["Hamirpur","Jhansi","Banda","Mahoba","Lalitpur","Chitrakoot",
 const ECO_PROFILES = ["Marginal (<1ha)","Small (1–2ha)","Semi-medium (2–4ha)","Medium (4–10ha)"];
 const PRODUCE_STAGES = ["Harvested","Cold Storage","Buyer Matched","Dispatched","Sold"];
 const BUYER_TYPES = ["Mandi Sell","B2B Buyer","B2C Premium","FPO Aggregation","Cold Storage Hold"];
-const MANDI_PER_KG = { "Wheat":22.75,"Paddy":23.0,"Mustard":56.5,"Gram":54.4,"Arhar (Pigeon Pea)":70.0,"Lentil":60.0,"Sunflower":67.6,"Sesame":90.0,"Soybean":46.0,"Maize":20.9,"Moong":72.0 };
+const MANDI_PER_KG = {
+  // --- Market Stability & Core Grains ---
+  "Wheat": 22.75, "Paddy": 23.00, "Mustard": 56.50, "Gram": 54.40, "Barley": 21.00,
+  "Maize": 20.90, "Oats": 24.00, "Oat": 24.00, "Rapeseed": 52.00, "Sunflower": 67.60,
+  "Groundnut": 65.00, "Soybean": 46.00, "Onion": 25.00, "Garlic": 110.00, "Ginger": 90.00,
+  "Turmeric": 85.00, "Coriander": 75.00, "Chilli": 45.00, "Tomato": 28.00, "Brinjal": 18.00,
+  "Cabbage": 16.00, "Cauliflower": 22.00, "Capsicum": 45.00, "Cucumber": 20.00, "Turnip": 15.00,
+  "Radish": 12.00, "Pumpkin": 14.00,
+
+  // --- High Profit / Cash Engines ---
+  "Sugarcane": 3.40, "Potato": 18.00, "Sweet Corn": 25.00, "Baby Corn": 45.00,
+  "Mango": 45.00, "Guava": 35.00, "Banana": 16.00, "Papaya": 22.00, "Pomegranate": 95.00,
+  "Dragon Fruit": 160.00, "Strawberry": 180.00, "Stevia": 120.00, "Lettuce": 60.00,
+  "Button Mushroom": 140.00, "Milky Mushroom": 120.00, "Oyster Mushroom": 150.00,
+  "Orchid": 250.00, "Carnation": 180.00, "Lilium": 300.00, "Gerbera": 140.00,
+  "Gladiolus": 120.00, "Tuberose": 130.00, "Cherry Tomato": 80.00, "Coloured Capsicum": 90.00,
+
+  // --- Restorative & Low-Water (Soil Builders) ---
+  "Arhar (Pigeon Pea)": 70.00, "Lentil": 60.00, "Green Gram": 72.00, "Black Gram": 68.00,
+  "Chickpea": 54.40, "Field Pea": 42.00, "Cowpea": 38.00, "Lathyrus": 35.00,
+  "Pearl Millet": 22.00, "Bajra": 22.00, "Sorghum": 24.00, "Amaranthus": 45.00,
+  "Moringa": 35.00, "Broccoli": 50.00, "Knol Khol", 25.00, "Spinach": 15.00,
+  "Okra": 24.00, "Fenugreek": 35.00, "French Bean": 40.00, "Cluster Bean": 28.00,
+  "Pea": 32.00, "Ash Gourd": 14.00, "Bottle Gourd": 12.00, "Bitter Gourd": 26.00,
+  "Ridge Gourd": 20.00, "Sponge Gourd": 18.00, "Watermelon": 15.00, "Sweet Potato": 22.00,
+  "Elephant Foot Yam": 35.00, "Colocasia": 25.00, "Berseem": 4.50, "Lucerne": 5.50,
+  "Guinea Grass": 3.50, "Napier Grass": 3.20, "Paddy Straw Mushroom": 110.00,
+
+  // --- Aromatic, Medicinal & Forestry Assets ---
+  "Mentha": 950.00, "Lemongrass": 140.00, "Citronella": 135.00, "Palmarosa": 160.00,
+  "Ashwagandha": 280.00, "Tulsi": 45.00, "Aloe Vera": 12.00, "Safed Musli": 850.00,
+  "Kalmegh": 65.00, "Isabgol": 125.00, "Senna": 55.00, "Brahmi": 40.00,
+  "Fennel": 95.00, "Cumin": 190.00, "Ajwain": 115.00, "Dill": 70.00, "Kalonji": 140.00,
+  "Rose": 80.00, "Jasmine": 120.00, "Chrysanthemum": 70.00, "Marigold": 35.00,
+  "Crossandra": 150.00, "Gaillardia": 40.00, "Dahlia": 50.00, "Petunia": 45.00,
+  "Calendula": 40.00, "Zinnia": 35.00, "Aonla": 28.00, "Ber": 20.00, "Jackfruit": 18.00,
+  "Mulberry": 45.00, "Jamun": 60.00, "Custard Apple": 50.00, "Fig": 80.00, "Bael": 15.00,
+  "Karonda": 30.00, "Phalsa": 70.00, "Teak": 45.00, "Poplar": 8.50, "Eucalyptus": 7.00,
+  "Subabul": 4.00, "Melia dubia": 6.50, "Shisham": 35.00, "Neem": 12.00, "Arjun": 10.00,
+  "Bamboo": 8.00, "Karanj": 14.00, "Babul": 9.00, "Gmelina": 18.00, "Kadam": 7.50,
+  "Jatropha": 15.00, "Sweet Sorghum": 4.50, "Tobacco (limited)": 45.00
+};
 
 // ─── AI CROP PLAN — calls /api/gemini (Vercel backend) ───────────
 async function generateCropPlan(farmer) {
