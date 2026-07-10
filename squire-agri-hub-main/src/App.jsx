@@ -98,7 +98,7 @@ const MANDI_PER_KG = {
   "Arhar (Pigeon Pea)": 70.00, "Lentil": 60.00, "Green Gram": 72.00, "Black Gram": 68.00,
   "Chickpea": 54.40, "Field Pea": 42.00, "Cowpea": 38.00, "Lathyrus": 35.00,
   "Pearl Millet": 22.00, "Bajra": 22.00, "Sorghum": 24.00, "Amaranthus": 45.00,
-  "Moringa": 35.00, "Broccoli": 50.00, "Knol Khol", 25.00, "Spinach": 15.00,
+  "Moringa": 35.00, "Broccoli": 50.00, "Knol Khol": 25.00, "Spinach": 15.00,
   "Okra": 24.00, "Fenugreek": 35.00, "French Bean": 40.00, "Cluster Bean": 28.00,
   "Pea": 32.00, "Ash Gourd": 14.00, "Bottle Gourd": 12.00, "Bitter Gourd": 26.00,
   "Ridge Gourd": 20.00, "Sponge Gourd": 18.00, "Watermelon": 15.00, "Sweet Potato": 22.00,
