@@ -347,7 +347,7 @@ function getBaseYield(crop) {
   if (lower.includes("grass") || lower.includes("berseem") || lower.includes("lucerne")) return 300; 
   if (["mango", "guava", "banana", "papaya", "pomegranate", "lemon", "orange", "fruit", "ber", "bael", "lime"].some(f => lower.includes(f))) return 120; 
   if (["tomato", "brinjal", "cabbage", "cauliflower", "capsicum", "cucumber", "gourd", "pumpkin", "okra", "bean", "spinach"].some(v => lower.includes(v))) return 140; 
-  return 15; // Safe base fallback for pulses, oilseeds, and aromatic low-yield arrays
+  return 15; 
 }
 
 const WATER_YIELD_MULT = { "Canal irrigation": 1.0, "Borewell (perennial)": 0.95, "Borewell (seasonal)": 0.80, "Check dam nearby": 0.75, "Drip irrigation": 1.05, "Rainfed only": 0.55 };
@@ -393,33 +393,16 @@ function calcPest(f) {
   const prob = Math.min(0.98, baseRisk * (WATER_PEST[f.waterAvail] || 1.0) * (unique <= 1 ? 1.6 : unique <= 2 ? 1.2 : 0.9) * (f.soc < 0.3 ? 1.3 : f.soc < 0.5 ? 1.1 : 0.85));
   const pct = Math.round(prob * 100);
   return { pct, prob, grade: pct >= 65 ? "High" : pct >= 40 ? "Moderate" : "Low", color: pct >= 65 ? C.red : pct >= 40 ? C.orange : C.green, pests: getPestCrops(lastCrop), lastCrop };
-} {
-  return (f.cropHistory||"Wheat").split(",").map(c=>c.trim()).map(crop=>{
-    const yld=parseFloat(((BASE_YIELD[crop]||15)*(WATER_YIELD_MULT[f.waterAvail]||0.7)*(f.soc<0.3?0.65:f.soc<0.5?0.82:1.0)*(f.nitrogen<150?0.75:f.nitrogen<250?0.90:1.0)*f.land).toFixed(1));
-    const price=MANDI_PRICES[crop]||3000, grossRev=Math.round(yld*price), inputCost=Math.round(grossRev*0.42), netProfit=grossRev-inputCost;
-    return { crop, yieldQtl:yld, price, grossRev, inputCost, netProfit, restorativeBonus:Math.round(netProfit*0.18) };
-  });
 }
 
-const PEST_BASE={"Wheat":0.32,"Paddy":0.48,"Mustard":0.38,"Gram":0.42,"Arhar (Pigeon Pea)":0.45,"Maize":0.28,"default":0.35};
-const WATER_PEST={"Rainfed only":0.7,"Borewell (seasonal)":1.0,"Canal irrigation":1.3,"Borewell (perennial)":1.2,"Drip irrigation":0.85,"Check dam nearby":0.9};
-const PEST_CROPS={"Wheat":["Aphids","Yellow Rust","Karnal Bunt"],"Paddy":["Brown Planthopper","Blast","Stem Borer"],"Mustard":["Aphids","Alternaria Blight"],"Gram":["Pod Borer","Wilt"],"default":["Aphids","Leaf Spot"]};
-function calcPest(f) {
-  const lastCrop=(f.cropHistory||"Wheat").split(",").map(c=>c.trim()).pop()||"Wheat";
-  const unique=new Set((f.cropHistory||"").split(",").map(c=>c.trim())).size;
-  const prob=Math.min(0.98,(PEST_BASE[lastCrop]||0.35)*(WATER_PEST[f.waterAvail]||1.0)*(unique<=1?1.6:unique<=2?1.2:0.9)*(f.soc<0.3?1.3:f.soc<0.5?1.1:0.85));
-  const pct=Math.round(prob*100);
-  return { pct, prob, grade:pct>=65?"High":pct>=40?"Moderate":"Low", color:pct>=65?C.red:pct>=40?C.orange:C.green, pests:PEST_CROPS[lastCrop]||PEST_CROPS.default, lastCrop };
-}
-
-const WATER_TRANS={"Canal irrigation":{ww:0.72,dd:0.78},"Borewell (perennial)":{ww:0.65,dd:0.80},"Borewell (seasonal)":{ww:0.55,dd:0.82},"Check dam nearby":{ww:0.50,dd:0.80},"Drip irrigation":{ww:0.60,dd:0.75},"Rainfed only":{ww:0.40,dd:0.90}};
-const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const MONSOON=[0.1,0.1,0.15,0.2,0.25,0.55,0.85,0.80,0.60,0.25,0.1,0.1];
+const WATER_TRANS = { "Canal irrigation":{ww:0.72,dd:0.78},"Borewell (perennial)":{ww:0.65,dd:0.80},"Borewell (seasonal)":{ww:0.55,dd:0.82},"Check dam nearby":{ww:0.50,dd:0.80},"Drip irrigation":{ww:0.60,dd:0.75},"Rainfed only":{ww:0.40,dd:0.90} };
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONSOON = [0.1,0.1,0.15,0.2,0.25,0.55,0.85,0.80,0.60,0.25,0.1,0.1];
 function calcWeather(f) {
-  const t=WATER_TRANS[f.waterAvail]||{ww:0.45,dd:0.85};
-  return MONTHS.map((month,i)=>{
-    const pw=Math.min(0.95,MONSOON[i]*t.ww+(1-MONSOON[i])*(1-t.dd));
-    const wetWeeks=Math.round(pw*4);
+  const t = WATER_TRANS[f.waterAvail] || {ww:0.45,dd:0.85};
+  return MONTHS.map((month,i) => {
+    const pw = Math.min(0.95, MONSOON[i]*t.ww+(1-MONSOON[i])*(1-t.dd));
+    const wetWeeks = Math.round(pw*4);
     return { month, wetWeeks, dryWeeks:4-wetWeeks, action:wetWeeks>=3?"Irrigate/Monitor":wetWeeks===2?"Normal ops":wetWeeks===1?"Supplement irrigation":"Drought alert", isSowing:[10,11,0].includes(i), isHarvest:[2,3,4].includes(i) };
   });
 }
