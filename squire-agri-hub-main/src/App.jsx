@@ -1485,74 +1485,104 @@ function Dashboard({ farmers, onSelect, onNew, onViewReports, onViewMachinery })
   );
 }
 
-// ─── MAIN APP ─────────────────────────────────────────────────────
+// ─── MAIN APP SYSTEM CORE WRAPPER LAYOUT ─────────────────────────
 export default function App() {
-  const [view, setView]=useState("dashboard");
-  const [farmers, setFarmers]=useState(INITIAL_FARMERS);
-  const [selected, setSelected]=useState(null);
-  const [rentals, setRentals]=useState(INITIAL_RENTALS);
+  const [view, setView] = useState("dashboard"); 
+  const [dashboardTab, setDashboardTab] = useState("overview"); // Handles main menu state changes cleanly
+  const [farmers, setFarmers] = useState(INITIAL_FARMERS);
+  const [selected, setSelected] = useState(null);
+  const [rentals, setRentals] = useState(INITIAL_RENTALS);
+  
+  // Sidebar persistent toggle state configuration matrix
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const handleSaveFarmer=f=>{ setFarmers(prev=>[...prev,f]); setView("dashboard"); };
-  const handleUpdateFarmer=u=>{ setFarmers(prev=>prev.map(f=>f.id===u.id?u:f)); setSelected(u); };
-  const handleSelectFarmer=f=>{ setSelected(f); setView("detail"); };
-  const handleAddRental=r=>setRentals(prev=>[...prev,r]);
-  const liveSelected=selected?farmers.find(f=>f.id===selected.id)||selected:null;
-  const breadcrumb={onboard:"Onboard Farmer",detail:liveSelected?.name||"",reports:"Reports",machinery:"Machinery Hub"};
+  const handleSaveFarmer = f => { setFarmers(prev => [...prev, f]); setView("dashboard"); setDashboardTab("farmers"); };
+  const handleUpdateFarmer = u => { setFarmers(prev => prev.map(f => f.id === u.id ? u : f)); setSelected(u); };
+  const handleSelectFarmer = f => { setSelected(f); setView("detail"); };
+  const handleAddRental = r => setRentals(prev => [...prev, r]);
+  const liveSelected = selected ? farmers.find(f => f.id === selected.id) || selected : null;
+
+  const NAV_ITEMS = [
+    { id: "overview", icon: "▦", label: "Overview" },
+    { id: "market", icon: "↗", label: "Market Sales" },
+    { id: "seed", icon: "🌱", label: "Seed & Inputs" },
+    { id: "farmers", icon: "👥", label: "Farmer Network" },
+    { id: "brain", icon: "🧠", label: "Digital Brain" },
+    { id: "outlets", icon: "🏪", label: "Squire Outlets" }
+  ];
 
   return (
-    <div style={{fontFamily:"'Inter',system-ui,sans-serif",background:C.cream,minHeight:"100vh"}}>
-
-      {/* Top header bar — only shown on non-dashboard views */}
-      {view!=="dashboard"&&(
-        <div style={{background:C.maroonDark,padding:"0 20px"}}>
-          <div style={{maxWidth:820,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:56}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setView("dashboard")}>
-              <div style={{width:32,height:32,borderRadius:8,background:C.gold,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:C.white,fontSize:16}}>S</div>
-              <div><div style={{color:C.white,fontWeight:800,fontSize:16,lineHeight:1}}>Squire</div><div style={{color:C.goldLight,fontSize:10,letterSpacing:1}}>DIGITAL BRAIN</div></div>
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              {["reports","machinery"].map(v=>(
-                <button key={v} onClick={()=>setView(v)} style={{background:view===v?"rgba(255,255,255,0.15)":"none",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,color:C.white,fontSize:12,cursor:"pointer",padding:"4px 10px",fontWeight:500}}>
-                  {v==="reports"?"📊 Reports":"🚜 Machinery"}
-                </button>
-              ))}
-            </div>
-          </div>
+    <div style={{ fontFamily: "'Inter',system-ui,sans-serif", background: C.cream, minHeight: "100vh", display: "flex" }}>
+      
+      {/* Global Application Navigation Sidebar Panel (Locked persistently across view transitions) */}
+      <aside style={{ 
+        width: sidebarOpen ? 248 : 0, 
+        opacity: sidebarOpen ? 1 : 0,
+        background: "linear-gradient(180deg,#241509 0%,#1A0E05 100%)", 
+        color: "#E9DFD2", 
+        position: "fixed", top: 0, left: 0, bottom: 0, 
+        display: "flex", flexDirection: "column", 
+        padding: sidebarOpen ? "28px 18px" : "28px 0px", 
+        zIndex: 90, transition: "all 0.22s ease-in-out", 
+        overflowX: "hidden", overflowY: "auto" 
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,.08)", marginBottom: 22, minWidth: 212 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#C8963E 0%,#6B1E3B 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 18 }}>S</div>
+          <div><div style={{ fontWeight: 600, fontSize: 17, color: "#fff", fontFamily: "serif" }}>Squire</div><div style={{ fontSize: 10, color: "#E8C77E", letterSpacing: "0.06em", textTransform: "uppercase" }}>Digital Brain</div></div>
         </div>
-      )}
-
-      {/* Breadcrumb */}
-      {view!=="dashboard"&&(
-        <div style={{background:C.soilLight,borderBottom:`1px solid ${C.border}`,padding:"8px 20px"}}>
-          <div style={{maxWidth:820,margin:"0 auto",fontSize:13,color:C.muted}}>
-            <span style={{cursor:"pointer",color:C.maroon}} onClick={()=>setView("dashboard")}>← Dashboard</span>
-            {" › "}<span style={{color:C.charcoal}}>{breadcrumb[view]}</span>
-          </div>
+        <nav style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 212 }}>
+          {NAV_ITEMS.map(n => (
+            <button key={n.id} onClick={() => { setView("dashboard"); setDashboardTab(n.id); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: (view === "dashboard" && dashboardTab === n.id) ? "rgba(200,150,62,.16)" : "transparent", color: (view === "dashboard" && dashboardTab === n.id) ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
+              <span style={{ fontSize: 14 }}>{n.icon}</span>{n.label}
+              {view === "dashboard" && dashboardTab === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
+            </button>
+          ))}
+        </nav>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0", minWidth: 212 }}>
+          <button onClick={() => setView("onboard")} style={{ background: C.maroon, color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
+          <button onClick={() => setView("reports")} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
+          <button onClick={() => setView("machinery")} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
         </div>
-      )}
-
-      {/* Dashboard — full layout with sidebar */}
-      {view==="dashboard"&&(
-        <Dashboard farmers={farmers} onSelect={handleSelectFarmer} onNew={()=>setView("onboard")} onViewReports={()=>setView("reports")} onViewMachinery={()=>setView("machinery")}/>
-      )}
-
-      {/* Other views — constrained width */}
-      {view!=="dashboard"&&(
-        <div style={{maxWidth:820,margin:"0 auto",padding:"24px 16px"}}>
-          {view==="onboard"&&(
-            <><div style={{fontWeight:800,fontSize:20,color:C.charcoal,marginBottom:20}}>Onboard New Farmer</div><OnboardForm onSave={handleSaveFarmer} onCancel={()=>setView("dashboard")}/></>
-          )}
-          {view==="detail"&&liveSelected&&(
-            <FarmerDetail farmer={liveSelected} onBack={()=>setView("dashboard")} onUpdateFarmer={handleUpdateFarmer} rentals={rentals} onAddRental={handleAddRental}/>
-          )}
-          {view==="reports"&&(
-            <Reports farmers={farmers} rentals={rentals} onBack={()=>setView("dashboard")}/>
-          )}
-          {view==="machinery"&&(
-            <MachineryHub rentals={rentals} onBack={()=>setView("dashboard")} onAddRental={handleAddRental} farmers={farmers}/>
-          )}
+        <div style={{ marginTop: "auto", paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10, minWidth: 212 }}>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#6B1E3B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#fff" }}>HV</div>
+          <div><div style={{ fontSize: 12.5, fontWeight: 600, color: "#F0E6D6" }}>Harshit Vimal</div><div style={{ fontSize: 10.5, color: "#9C8C7A" }}>Field Operations</div></div>
         </div>
-      )}
+      </aside>
+
+      {/* Main Framework Layout Container Panel Workspace */}
+      <div style={{ flex: 1, marginLeft: sidebarOpen ? 248 : 0, transition: "margin-left 0.22s ease-in-out", display: "flex", flexDirection: "column", minWidth: 0 }}>
+        
+        {/* Persistent Workspace Top Header Bar — Houses the Open/Close sidebar layout action cleanly */}
+        <header style={{ height: 56, background: "#241509", padding: "0 24px", display: "flex", alignItems: "center", gap: 16, color: C.white, zIndex: 40, borderBottom: `1px solid ${C.border}` }}>
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, width: 34, height: 34, color: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}
+            title={sidebarOpen ? "Hide Navigation Drawer Menu" : "Show Navigation Drawer Menu"}
+          >
+            ☰
+          </button>
+          <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}>Squire System Pilot Control Dashboard</div>
+        </header>
+
+        {/* Render Engine Content Outlet */}
+        <main style={{ padding: "30px 38px 60px", maxWidth: 1080, width: "100%", boxSizing: "border-box" }}>
+          {view === "dashboard" && (
+            <Dashboard farmers={farmers} activeSection={dashboardTab} onSelect={handleSelectFarmer} onNew={() => setView("onboard")} onViewReports={() => setView("reports")} onViewMachinery={() => setView("machinery")} />
+          )}
+          {view === "onboard" && (
+            <><div style={{ fontWeight: 800, fontSize: 20, color: C.charcoal, marginBottom: 20 }}>Onboard New Farmer Champion</div><OnboardForm onSave={handleSaveFarmer} onCancel={() => setView("dashboard")} /></>
+          )}
+          {view === "detail" && liveSelected && (
+            <FarmerDetail farmer={liveSelected} onBack={() => setView("dashboard")} onUpdateFarmer={handleUpdateFarmer} rentals={rentals} onAddRental={handleAddRental} />
+          )}
+          {view === "reports" && (
+            <Reports farmers={farmers} rentals={rentals} onBack={() => setView("dashboard")} />
+          )}
+          {view === "machinery" && (
+            <MachineryHub rentals={rentals} onBack={() => setView("dashboard")} onAddRental={handleAddRental} farmers={farmers} />
+          )}
+        </main>
+      </div>
     </div>
   );
 }
