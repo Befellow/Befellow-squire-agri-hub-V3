@@ -1339,154 +1339,158 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
   const filteredTxn = TXN.filter(r => !searchQ || Object.values(r).join(" ").toLowerCase().includes(searchQ.toLowerCase()));
   const filteredFarmers = farmers.filter(f => !searchQ || `${f.name} ${f.village} ${f.district} ${f.cropHistory}`.toLowerCase().includes(searchQ.toLowerCase()));
 
+  const scrollTo = (id) => { setActiveSection(id); };
+
   return (
-    <div style={{ display: "flex", minHeight: "92vh", fontFamily: "'Inter',sans-serif", position: "relative" }}>
-      
-      {/* PERSISTENT SIDEBAR - Collapse and expand animation logic handles resizing cleanly */}
-      <aside style={{ 
-        width: sidebarOpen ? 248 : 0, 
-        opacity: sidebarOpen ? 1 : 0,
-        background: "linear-gradient(180deg,#241509 0%,#1A0E05 100%)", 
-        color: "#E9DFD2", 
-        position: "absolute", top: 0, left: 0, bottom: 0, 
-        display: "flex", flexDirection: "column", 
-        padding: sidebarOpen ? "24px 18px" : "24px 0px", 
-        zIndex: 20, transition: "all 0.2s ease-in-out", 
-        overflowX: "hidden", overflowY: "auto" 
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 20, borderBottom: "1px solid rgba(255,255,255,.08)", marginBottom: 18, minWidth: 212 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#C8963E 0%,#6B1E3B 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 16 }}>S</div>
-          <div><div style={{ fontWeight: 600, fontSize: 16, color: "#fff", fontFamily: "serif" }}>Squire</div><div style={{ fontSize: 9, color: "#E8C77E", letterSpacing: "0.06em", textTransform: "uppercase" }}>Digital Brain</div></div>
+    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter',sans-serif" }}>
+      {/* Sidebar Layout panel */}
+      <aside style={{ width: 248, background: "linear-gradient(180deg,#241509 0%,#1A0E05 100%)", color: "#E9DFD2", position: "fixed", top: 0, left: 0, bottom: 0, display: "flex", flexDirection: "column", padding: "28px 18px", zIndex: 20, overflowY: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,.08)", marginBottom: 22 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#C8963E 0%,#6B1E3B 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 18 }}>S</div>
+          <div><div style={{ fontWeight: 600, fontSize: 17, color: "#fff", fontFamily: "serif" }}>Squire</div><div style={{ fontSize: 10, color: "#E8C77E", letterSpacing: "0.06em", textTransform: "uppercase" }}>Digital Brain</div></div>
         </div>
-        
-        {/* State Switching Navigation Links */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 212 }}>
+        <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {NAV.map(n => (
-            <button key={n.id} onClick={() => setActiveSection(n.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: activeSection === n.id ? "rgba(200,150,62,.16)" : "transparent", color: activeSection === n.id ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
+            <button key={n.id} onClick={() => scrollTo(n.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: activeSection === n.id ? "rgba(200,150,62,.16)" : "transparent", color: activeSection === n.id ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
               <span style={{ fontSize: 14 }}>{n.icon}</span>{n.label}
               {activeSection === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
             </button>
           ))}
         </nav>
-        
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0", minWidth: 212 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0" }}>
           <button onClick={onNew} style={{ background: "#6B1E3B", color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
           <button onClick={onViewReports} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
           <button onClick={onViewMachinery} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
         </div>
       </aside>
 
-      {/* CORE WORKSPACE VIEWPORT - Margins adjust dynamically to sidebar toggles */}
-      <div style={{ flex: 1, marginLeft: sidebarOpen ? 248 : 0, transition: "margin-left 0.2s ease-in-out", display: "flex", flexDirection: "column", minWidth: 0 }}>
-        
-        {/* UPPER TOPBAR PANEL PANEL — Contains the Open/Close control switch trigger safely */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, padding: "10px 16px", marginBottom: 20 }}>
-          <button 
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{ background: C.cream, border: `1px solid ${C.border}`, borderRadius: 6, width: 32, height: 32, color: C.charcoal, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}
-            title={sidebarOpen ? "Hide Left Sidebar" : "Show Left Sidebar"}
-          >
-            ☰
-          </button>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flex: 1, flexWrap: "wrap", gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#8A7C6C" }}>Jhansi Cluster Panel Portal</div>
-              <div style={{ fontSize: 12, color: C.muted, marginTop: 1 }}>Active Viewport: <strong style={{ color: C.maroon }}>{activeSection.toUpperCase()}</strong></div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.cream, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 12px", minWidth: 200 }}>
-              <span style={{ fontSize: 12, color: "#8A7C6C" }}>🔍</span>
-              <input value={searchQ} onChange={e => setSearchQ(e.target.value)} type="text" placeholder="Filter profiles, records..." style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, width: "100%", color: "#2B211B" }} />
+      {/* Main Workspace Frame Viewport */}
+      <main style={{ marginLeft: 248, flex: 1, padding: "30px 38px 60px", maxWidth: 1080 }}>
+        {/* Top Header Grid */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 22, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A7C6C", marginBottom: 4 }}>Bundelkhand Pilot · Jhansi Cluster</div>
+            <h1 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 28, color: "#2B211B" }}>Good morning, <em style={{ fontStyle: "italic", color: "#6B1E3B", fontWeight: 500 }}>Harshit</em></h1>
+            <div style={{ fontSize: 13, color: "#8A7C6C", marginTop: 4 }}>Live Dashboard Terminal Hub · Isolated Workspace Viewports</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #E8DFD2", borderRadius: 10, padding: "8px 12px", minWidth: 220 }}>
+              <span style={{ fontSize: 14, color: "#8A7C6C" }}>🔍</span>
+              <input value={searchQ} onChange={e => setSearchQ(e.target.value)} type="text" placeholder="Search farmers, crops, Mandi…" style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, width: "100%", color: "#2B211B" }} />
             </div>
           </div>
         </div>
 
-        {/* ISOLATED VIEW CONTENT ROUTER PANELS */}
-        <div style={{ width: "100%" }}>
-          {activeSection === "overview" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
-                {[ { label: "Active Network", value: `${farmers.length + 309}` }, { label: "MTD Revenue", value: "₹4.82L" }, { label: "Soil Index", value: "68/100" }, { label: "Stock Health", value: "82%" } ].map((k, i) => (
-                  <Card key={i} style={{ padding: "14px 16px" }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
-                    <div style={{ fontFamily: "monospace", fontSize: 22, fontWeight: 800, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
-                  </Card>
-                ))}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 500 }}>
-                ⚠️ <span><strong>2 seed varieties</strong> are currently running below metrics thresholds.</span>
-              </div>
-            </div>
-          )}
-
-          {activeSection === "market" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
-              <Card>
-                <h4 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700 }}>Live Regional Mandi Tracker</h4>
-                {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, arr]) => (
-                  <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: 13 }}>
-                    <span style={{ textTransform: "capitalize" }}>• {crop} Price:</span>
-                    <strong style={{ fontFamily: "monospace" }}>₹{arr[arr.length - 1].toLocaleString()}</strong>
+        {/* 1. OVERVIEW PAGE VIEWPORT */}
+        {activeSection === "overview" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+            <div style={{ display: "flex", alignItems: "center", background: "#fff", border: "1px solid #E8DFD2", borderRadius: 12, padding: "14px 20px" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#8A7C6C", letterSpacing: "0.05em", textTransform: "uppercase", marginRight: 18, whiteSpace: "nowrap" }}>Crop Season</div>
+              <div style={{ flex: 1, display: "flex", gap: 6, paddingTop: 22 }}>
+                {[{ label: "Kharif · Jun–Oct", flex: 0.42, active: true }, { label: "Rabi · Oct–Mar", flex: 0.42, active: false }, { label: "Zaid · Mar–Jun", flex: 0.16, active: false }].map((seg, i) => (
+                  <div key={i} style={{ flex: seg.flex, height: 8, borderRadius: 5, background: seg.active ? "linear-gradient(90deg,#C8963E 0%,#4A7C59 100%)" : "#E8DFD2", position: "relative" }}>
+                    <span style={{ position: "absolute", top: -18, left: 0, fontSize: 10.5, fontWeight: 600, color: seg.active ? "#6B1E3B" : "#8A7C6C", whiteSpace: "nowrap" }}>{seg.label}</span>
+                    {seg.active && <div style={{ position: "absolute", top: -4, left: "6%", width: 14, height: 14, borderRadius: "50%", background: "#6B1E3B", border: "2.5px solid #fff", boxShadow: "0 0 0 2px #6B1E3B" }} />}
                   </div>
                 ))}
-              </Card>
-              <Card>
-                <h4 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700 }}>Distribution Pipeline</h4>
-                {filteredTxn.slice(0, 4).map((r, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 0", alignItems: "center" }}>
-                    <span>{r.name}</span><Badge color="gold">{r.status}</Badge>
-                  </div>
-                ))}
-              </Card>
+              </div>
             </div>
-          )}
-
-          {activeSection === "seed" && (
-            <Card>
-              <h4 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>Supply Stock Volumes</h4>
-              {SEED_INV.map(m => (
-                <div key={m.name} style={{ marginBottom: 10, fontSize: 12.5 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>{m.name}</span><strong>{m.stock} Qtl</strong></div>
-                  <div style={{ height: 5, background: C.cream, borderRadius: 4, overflow: "hidden", marginTop: 3 }}><div style={{ width: `${(m.stock / m.max) * 100}%`, height: "100%", background: INV_C[m.status] }} /></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: 500 }}>
+              ⚠️ <span><strong>2 seed varieties</strong> below reorder threshold · <strong>1 Mandi price alert</strong> needs review</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+              {[{ label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true }, { label: "Outlet Revenue · MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true }, { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true }, { label: "Seed Stock Health", value: "82%", delta: "⚠ 2 items low", up: false }].map((k, i) => (
+                <div key={i} style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: "18px 20px" }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
+                  <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 600, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11.5, fontWeight: 600, marginTop: 2, color: k.up ? "#2F6B45" : "#8A5A12" }}>{k.delta}</div>
                 </div>
               ))}
-            </Card>
-          )}
+            </div>
+          </div>
+        )}
 
-          {activeSection === "farmers" && (
-            <Card>
-              <h4 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>Champion Network Profiles Matrix</h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {filteredFarmers.map(f => (
-                  <div key={f.id} onClick={() => onSelect(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 10, background: C.cream, borderRadius: 8, cursor: "pointer", border: `1px solid ${C.border}` }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>{f.name}</div>
-                      <div style={{ fontSize: 11, color: C.muted }}>{f.village} · {f.land}ha</div>
-                    </div>
-                    <Badge color={f.planGenerated ? "green" : "gold"}>{f.status}</Badge>
-                  </div>
-                ))}
+        {/* 2. MARKET SALES PAGE VIEWPORT */}
+        {activeSection === "market" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1.55fr 1fr", gap: 18 }}>
+            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+              <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 12 }}>Mandi Prices Tracking (₹/Qtl)</h3>
+              {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
+                <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px dashed #E8DFD2", fontSize: 13.5 }}>
+                  <span style={{ textTransform: "capitalize" }}><strong>{crop}</strong> Spot Price:</span>
+                  <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{priceArr[priceArr.length - 1].toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+              <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Real-Time Pipeline Tracking</h3>
+              {filteredTxn.map((r, i) => (
+                <div key={i} style={{ padding: "10px 0", borderBottom: "1px solid #E8DFD2", display: "flex", justifyContent: "space-between", fontSize: 12.5, alignItems: "center" }}>
+                  <div><strong>{r.name}</strong> ({r.crop})</div>
+                  <span style={{ background: SB_C[r.status].bg, color: SB_C[r.status].color, padding: "3px 9px", borderRadius: 20, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>{SB_C[r.status].label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 3. SEED & INPUTS PAGE VIEWPORT */}
+        {activeSection === "seed" && (
+          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Outlet Supply Inventory Ratios</h3>
+            {SEED_INV.map(m => (
+              <div key={m.name} style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                  <span>{m.name}</span><strong>{m.stock} Qtl MTD</strong>
+                </div>
+                <div style={{ height: 6, background: "#FAF6EF", borderRadius: 4, overflow: "hidden" }}><div style={{ width: `${(m.stock / m.max) * 100}%`, height: "100%", background: INV_C[m.status] }} /></div>
               </div>
-            </Card>
-          )}
+            ))}
+          </div>
+        )}
 
-          {activeSection === "brain" && (
-            <Card style={{ textAlign: "center", padding: 20 }}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: C.maroon }}>{assessed} Profiles</div>
-              <p style={{ fontSize: 13, color: C.muted, margin: "4px 0 0" }}>Restorative crop rotation blueprints calculated across Fatehpur clusters.</p>
-            </Card>
-          )}
+        {/* 4. FARMER NETWORK PAGE VIEWPORT */}
+        {activeSection === "farmers" && (
+          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Village Cluster Champion Network Records</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {filteredFarmers.map(f => (
+                <div key={f.id} onClick={() => onSelect(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#FAF6EF", borderRadius: 10, cursor: "pointer", border: "1px solid #E8DFD2" }}>
+                  <div><div style={{ fontWeight: 700, fontSize: 14, color: "#2B211B" }}>{f.name}</div><div style={{ fontSize: 12, color: "#8A7C6C" }}>{f.village}, {f.district} · {f.land}ha · {f.soilType}</div></div>
+                  <span style={{ background: f.planGenerated ? "#DCEEE1" : "#F7E8C9", color: f.planGenerated ? "#2F6B45" : "#8A5A12", fontSize: 10.5, fontWeight: 700, padding: "4px 10px", borderRadius: 20 }}>{f.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-          {activeSection === "outlets" && (
-            <Card>
-              <h4 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700 }}>Operational Shared Utilities</h4>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 12.5 }}>
-                <div style={{ background: C.cream, padding: 10, borderRadius: 6 }}>• Cold Storage: <strong>64% Fill</strong></div>
-                <div style={{ background: C.cream, padding: 10, borderRadius: 6 }}>• Daily Footfall: <strong>37 registered</strong></div>
-              </div>
-            </Card>
-          )}
-        </div>
-      </div>
+        {/* 5. DIGITAL BRAIN ADVISORY VIEWPORT */}
+        {activeSection === "brain" && (
+          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 24 }}>
+            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>AI Digital Blueprint Constraints Parameters</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, textAlign: "center" }}>
+              <div><div style={{ fontSize: 26, fontWeight: 800, color: C.maroon }}>{assessed}</div><div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Blueprints Issued</div></div>
+              <div><div style={{ fontSize: 26, fontWeight: 800, color: C.green }}>298</div><div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Soil Profiles Mapped</div></div>
+              <div><div style={{ fontSize: 26, fontWeight: 800, color: C.gold }}>14</div><div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Active Risk Advisories</div></div>
+            </div>
+          </div>
+        )}
+
+        {/* 6. SQUIRE OUTLETS PAGE VIEWPORT */}
+        {activeSection === "outlets" && (
+          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 24 }}>
+            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Squire Shared Logistics Infrastructure</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18, fontSize: 13 }}>
+              { [["Machinery Custom Hiring Bay", "2 of 2 deployed"], ["Cold Storage Occupancy matrix", "64% utilized occupancy"], ["Daily Outlet Active Footfall register", "37 champions registered today"]].map(([l, v]) => (
+                <div key={l} style={{ padding: "10px 0", borderBottom: "1px dashed #E8DFD2" }}>
+                  <div style={{ fontSize: 12, color: "#8A7C6C", marginBottom: 4 }}>{l}</div>
+                  <strong style={{ fontFamily: "monospace", fontSize: 15 }}>{v}</strong>
+                </div>
+              )) }
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
