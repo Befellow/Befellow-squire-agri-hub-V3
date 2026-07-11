@@ -122,16 +122,32 @@ const MANDI_PER_KG = {
 
 // ─── AI CROP PLAN — calls /api/gemini (Vercel backend) ───────────
 async function generateCropPlan(farmer) {
-  const prompt = `You are Squire Digital Brain — AI agricultural planning for restorative farming in semi-arid India (Bundelkhand/Central UP).
+  // Convert our structured categories into a clean text descriptor for the AI model's context window
+  const allowedCropsContext = Object.entries(CROP_OPTIONS)
+    .map(([category, list]) => `[${category}]: ${list.join(", ")}`)
+    .join("\n");
 
-FARMER: ${farmer.name}, ${farmer.village}, ${farmer.district}
-Land: ${farmer.land}ha | Soil: ${farmer.soilType} | N/P/K: ${farmer.nitrogen}/${farmer.phosphorus}/${farmer.potassium} kg/ha | SOC: ${farmer.soc}% | Water: ${farmer.waterAvail} | History: ${farmer.cropHistory} | Profile: ${farmer.economicProfile}
+  const prompt = `You are Squire Digital Brain — an advanced AI agricultural planning terminal specialized in restorative farming across semi-arid India (Bundelkhand and Central UP regions).
 
-Return ONLY valid compact JSON, no markdown, no extra text. Keep all string values under 60 chars.
+FARMER DATA:
+Name: ${farmer.name} | Cluster Village: ${farmer.village} | District: ${farmer.district}
+Cultivatable Land: ${farmer.land}ha | Current Soil Profile: ${farmer.soilType}
+Nutrient Matrix (N/P/K): ${farmer.nitrogen}/${farmer.phosphorus}/${farmer.potassium} kg/ha
+Soil Organic Carbon (SOC): ${farmer.soc}% | Available Water Source: ${farmer.waterAvail}
+Historical Monoculture (Last 3 Seasons): ${farmer.cropHistory}
+Economic Profile Tier: ${farmer.economicProfile}
 
-{"soilHealthScore":55,"soilHealthGrade":"Fair","degradationRisk":"High","keyIssues":["Low SOC","Monocropping","N deficiency"],"year1":{"season1":{"crop":"Mustard","variety":"Pusa Bold","sowMonth":"Oct","harvestMonth":"Feb","expectedYield":"8-10 qtl/acre","netProfit":"18000-22000","soilBenefit":"Breaks wheat cycle"},"season2":{"crop":"Moong","variety":"Pusa Vishal","sowMonth":"Mar","harvestMonth":"Jun","expectedYield":"4-5 qtl/acre","netProfit":"10000-14000","soilBenefit":"Fixes nitrogen"}},"year3Target":{"socImprovement":"+0.4%","profitIncrease":"+35%","crops":["Mustard","Gram","Sesame"]},"year5Target":{"socImprovement":"+0.8%","profitIncrease":"+65%","crops":["Mustard","Arhar","Sesame"]},"fertilizerPrescription":{"organic":"Vermicompost 2t/acre pre-sowing","bio":"Rhizobium+PSB at seed treatment","chemical":"DAP 50kg/acre basal only","schedule":"Organic pre-sow, bio seed, DAP basal"},"pestAlert":{"riskLevel":"High","likely":["Aphids","White rust"],"bioIntervention":"Neem oil 3ml/L at 30 DAS"},"weatherLogic":{"sowingWindow":"Oct 15 - Nov 10","irrigationSchedule":"2x: flowering Dec, pod-fill Jan","harvestWindow":"Feb 15 - Mar 5"},"mandiTiming":{"bestMonth":"March-April","expectedPrice":"5400-5800/qtl","recommendation":"Hold till March for 10% premium"},"inputShoppingList":[{"item":"Mustard Seed","qty":"2 kg/acre","cost":"280","source":"Squire Outlet"},{"item":"Vermicompost","qty":"2t/acre","cost":"1800","source":"Squire Outlet"},{"item":"DAP Fertilizer","qty":"50 kg/acre","cost":"1350","source":"Squire Outlet"},{"item":"Neem Oil","qty":"3L","cost":"450","source":"Squire Outlet"}],"planScore":72,"profitabilityIndex":"High"}
+CRITICAL INSTRUCTION:
+You must select crop rotations strategically from the following regionally verified Fatehpur catalog to reverse the farmer's 29.07% soil degradation index, maximize economic cash flows, and maintain high localized profitability metrics:
+${allowedCropsContext}
 
-Replace ALL values for this specific farmer. Same structure. Strings under 60 chars.`;
+Propose a highly targeted crop rotation strategy. If the profile indicates low water or low input constraints, cross-optimize with Aromatic, Medicinal, Pulses, or Forestry alternatives to mitigate stray cattle risks and build organic biomass.
+
+Return ONLY a valid, compact JSON object matching the template below. No markdown wrappers (\`\`\`json), no introductory text, no trailing comments. Keep all string explanation property values under 60 characters.
+
+{"soilHealthScore":55,"soilHealthGrade":"Fair","degradationRisk":"High","keyIssues":["Low SOC","Monocropping"],"year1":{"season1":{"crop":"Mustard","variety":"Pusa Bold","sowMonth":"Oct","harvestMonth":"Feb","expectedYield":"8-10 qtl/acre","netProfit":"18000-22000","soilBenefit":"Breaks wheat cycle"},"season2":{"crop":"Green Gram","variety":"Pusa Vishal","sowMonth":"Mar","harvestMonth":"Jun","expectedYield":"4-5 qtl/acre","netProfit":"10000-14000","soilBenefit":"Fixes nitrogen"}},"year3Target":{"socImprovement":"+0.4%","profitIncrease":"+35%","crops":["Mustard","Chickpea","Sesame"]},"year5Target":{"socImprovement":"+0.8%","profitIncrease":"+65%","crops":["Mustard","Arhar (Pigeon Pea)","Mentha"]},"fertilizerPrescription":{"organic":"Vermicompost 2t/acre pre-sowing","bio":"Rhizobium seed treatment","chemical":"DAP 50kg/acre basal","schedule":"Apply organic pre-sowing, DAP basal"},"pestAlert":{"riskLevel":"High","likely":["Aphids","Whitefly"],"bioIntervention":"Neem oil spray at 30 DAS"},"weatherLogic":{"sowingWindow":"Standard zone window","irrigationSchedule":"Critical growth stages","harvestWindow":"Optimal low-loss window"},"mandiTiming":{"bestMonth":"Post-harvest peak","expectedPrice":"Market tracking rate","recommendation":"Utilize Squire storage incentives"},"inputShoppingList":[{"item":"Target Seed","qty":"2 kg/acre","cost":"300","source":"Squire Outlet"}],"planScore":72,"profitabilityIndex":"High"}
+
+Replace ALL property values inside this JSON schema to fit the target farmer dynamically. Follow the structure precisely. No markdown block code wrappers.`;
 
   const res = await fetch("/api/gemini", {
     method: "POST",
