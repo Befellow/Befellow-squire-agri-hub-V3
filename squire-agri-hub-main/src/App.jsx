@@ -1291,8 +1291,7 @@ function MachineryHub({ rentals, onBack, onAddRental, farmers }) {
 }
 
 // ─── DASHBOARD TERMINAL MODULE ───────────────────────────────────
-function Dashboard({ farmers, onSelect, onNew, onViewReports, onViewMachinery }) {
-  const [activeSection, setActiveSection] = useState("overview");
+function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onViewMachinery }) {
   const [mandiRange, setMandiRange] = useState("7D");
   const [searchQ, setSearchQ] = useState("");
   
