@@ -122,32 +122,101 @@ const MANDI_PER_KG = {
 
 // ─── AI CROP PLAN — calls /api/gemini (Vercel backend) ───────────
 async function generateCropPlan(farmer) {
-  // Convert our structured categories into a clean text descriptor for the AI model's context window
+  // Compile the complete categorized crop matrix to feed directly into the AI context window
   const allowedCropsContext = Object.entries(CROP_OPTIONS)
     .map(([category, list]) => `[${category}]: ${list.join(", ")}`)
     .join("\n");
 
-  const prompt = `You are Squire Digital Brain — an advanced AI agricultural planning terminal specialized in restorative farming across semi-arid India (Bundelkhand and Central UP regions).
+  const prompt = `You are Squire Digital Brain — an enterprise agronomist and financial optimization engine calibrated for semi-arid India (Bundelkhand/Central UP).
 
-FARMER DATA:
-Name: ${farmer.name} | Cluster Village: ${farmer.village} | District: ${farmer.district}
-Cultivatable Land: ${farmer.land}ha | Current Soil Profile: ${farmer.soilType}
-Nutrient Matrix (N/P/K): ${farmer.nitrogen}/${farmer.phosphorus}/${farmer.potassium} kg/ha
-Soil Organic Carbon (SOC): ${farmer.soc}% | Available Water Source: ${farmer.waterAvail}
-Historical Monoculture (Last 3 Seasons): ${farmer.cropHistory}
-Economic Profile Tier: ${farmer.economicProfile}
+FARMER INPUT METRICS:
+* Name: ${farmer.name} | Village: ${farmer.village} | District: ${farmer.district}
+* Land Area: ${farmer.land} Ha | Soil Type: ${farmer.soilType}
+* Measured N-P-K Levels: ${farmer.nitrogen} - ${farmer.phosphorus} - ${farmer.potassium} kg/ha
+* Soil Organic Carbon (SOC): ${farmer.soc}%
+* Water Access Profile: ${farmer.waterAvail}
+* Monoculture History: ${farmer.cropHistory}
+* Financial Tier: ${farmer.economicProfile}
 
-CRITICAL INSTRUCTION:
-You must select crop rotations strategically from the following regionally verified Fatehpur catalog to reverse the farmer's 29.07% soil degradation index, maximize economic cash flows, and maintain high localized profitability metrics:
+YOUR CORE ADVISORY MISSION:
+1. Rebuild Soil Health: Move the Soil Organic Carbon (SOC) boundary upward, breaking destructive monoculture loops.
+2. Break MSP-Dependence via the Swaminathan C2+50% Formula: You must explicitly select high-value alternatives where Net Returns exceed the Comprehensive Cost of Production (C2) by at least 50% (Net Profit >= 1.5 x Total Input/Operational Costs). 
+
+CROP SELECTION CATALOG (Select ONLY from this regional matrix):
 ${allowedCropsContext}
 
-Propose a highly targeted crop rotation strategy. If the profile indicates low water or low input constraints, cross-optimize with Aromatic, Medicinal, Pulses, or Forestry alternatives to mitigate stray cattle risks and build organic biomass.
+MANDATORY STEP-BY-STEP OPTIMIZATION REASONING PROCESS:
+Before generating the plan arrays, mentally execute these calculation filters:
+* Step 1 [Soil Check]: Based on the farmer's low SOC and N-P-K deficits, select at least one restorative nitrogen-fixing pulse, green bioenergy crop, or deep-rooting variety to clear soil toxicity and break the historical rotation.
+* Step 2 [Stray Cattle Mitigation]: In Bundelkhand, stray cattle destroy standard open crops. If water is constrained, prioritize unpalatable aromatic/medicinal crops (like Mentha, Lemongrass, Ashwagandha) or agro-forestry boundaries to protect margins.
+* Step 3 [C2+50% Economic Filter]: Do not default to traditional grain commodities. Evaluate horticulture, spices (Garlic, Chilli), floriculture, or protected options. Calculate: Projected Gross Revenue minus (Input Seeds + Fertilizer + Squire Machinery Rental). Ensure Net Returns clear the C2+50% formula to guarantee an MSP-free premium threshold.
 
-Return ONLY a valid, compact JSON object matching the template below. No markdown wrappers (\`\`\`json), no introductory text, no trailing comments. Keep all string explanation property values under 60 characters.
+Output your prescriptive analysis ONLY as a valid, single, compact JSON object matching the exact keys below. Do not wrap in markdown \`\`\`json blocks, do not include introductory notes, and do not append trailing explanation text. Keep string metrics explicit and under 60 characters.
 
-{"soilHealthScore":55,"soilHealthGrade":"Fair","degradationRisk":"High","keyIssues":["Low SOC","Monocropping"],"year1":{"season1":{"crop":"Mustard","variety":"Pusa Bold","sowMonth":"Oct","harvestMonth":"Feb","expectedYield":"8-10 qtl/acre","netProfit":"18000-22000","soilBenefit":"Breaks wheat cycle"},"season2":{"crop":"Green Gram","variety":"Pusa Vishal","sowMonth":"Mar","harvestMonth":"Jun","expectedYield":"4-5 qtl/acre","netProfit":"10000-14000","soilBenefit":"Fixes nitrogen"}},"year3Target":{"socImprovement":"+0.4%","profitIncrease":"+35%","crops":["Mustard","Chickpea","Sesame"]},"year5Target":{"socImprovement":"+0.8%","profitIncrease":"+65%","crops":["Mustard","Arhar (Pigeon Pea)","Mentha"]},"fertilizerPrescription":{"organic":"Vermicompost 2t/acre pre-sowing","bio":"Rhizobium seed treatment","chemical":"DAP 50kg/acre basal","schedule":"Apply organic pre-sowing, DAP basal"},"pestAlert":{"riskLevel":"High","likely":["Aphids","Whitefly"],"bioIntervention":"Neem oil spray at 30 DAS"},"weatherLogic":{"sowingWindow":"Standard zone window","irrigationSchedule":"Critical growth stages","harvestWindow":"Optimal low-loss window"},"mandiTiming":{"bestMonth":"Post-harvest peak","expectedPrice":"Market tracking rate","recommendation":"Utilize Squire storage incentives"},"inputShoppingList":[{"item":"Target Seed","qty":"2 kg/acre","cost":"300","source":"Squire Outlet"}],"planScore":72,"profitabilityIndex":"High"}
+{
+  "soilHealthScore": 62,
+  "soilHealthGrade": "Optimized",
+  "degradationRisk": "Moderate",
+  "keyIssues": ["Type short issues array matching farmer metrics"],
+  "year1": {
+    "season1": {
+      "crop": "Write Selected Crop Name Exactly from Category List",
+      "variety": "Provide high-yielding regional variety seed name",
+      "sowMonth": "Oct-Nov",
+      "harvestMonth": "Feb-Mar",
+      "expectedYield": "Expected output metric per acre",
+      "netProfit": "Calculate targeted C2+50 percent profit range in INR",
+      "soilBenefit": "Explicit restorative/biomass contribution statement"
+    },
+    "season2": {
+      "crop": "Write Selected Crop Name Exactly from Category List",
+      "variety": "Provide high-yielding regional variety seed name",
+      "sowMonth": "Mar-Apr",
+      "harvestMonth": "Jun-Jul",
+      "expectedYield": "Expected output metric per acre",
+      "netProfit": "Calculate targeted C2+50 percent profit range in INR",
+      "soilBenefit": "Explicit restorative/biomass contribution statement"
+    }
+  },
+  "year3Target": {
+    "socImprovement": "+0.45%",
+    "profitIncrease": "+55%",
+    "crops": ["Crop1", "Crop2", "Crop3"]
+  },
+  "year5Target": {
+    "socImprovement": "+0.90%",
+    "profitIncrease": "+110%",
+    "crops": ["Crop1", "Crop2", "Agroforestry/Asset"]
+  },
+  "fertilizerPrescription": {
+    "organic": "Specific bio-rematerialization input instructions",
+    "bio": "Rhizobium/Azotobacter seed inoculant specifics",
+    "chemical": "Targeted mineral supplementation constraints",
+    "schedule": "Efficient localized placement schedule"
+  },
+  "pestAlert": {
+    "riskLevel": "Low-Moderate",
+    "likely": ["List targeted pathogene variants"],
+    "bioIntervention": "Botanical/Neem/Pheromone efficient practice rule"
+  },
+  "weatherLogic": {
+    "sowingWindow": "Precision local window constraints",
+    "irrigationSchedule": "Water-saving crop growth stage timings",
+    "harvestWindow": "Low-loss harvest target window"
+  },
+  "mandiTiming": {
+    "bestMonth": "Optimal commercial off-season month",
+    "expectedPrice": "Premium localized direct-buyer price projection",
+    "recommendation": "Squire FPO aggregation / Direct premium marketplace advice"
+  },
+  "inputShoppingList": [
+    { "item": "Seed/Input name", "qty": "Per acre volume", "cost": "Estimated cost", "source": "Squire Outlet" }
+  ],
+  "planScore": 88,
+  "profitabilityIndex": "C2+50% Free Market Premium"
+}
 
-Replace ALL property values inside this JSON schema to fit the target farmer dynamically. Follow the structure precisely. No markdown block code wrappers.`;
+Ensure all generated crop fields map explicitly to the selected varieties in the verified catalog text array. Do not use generic placeholders.`;
 
   const res = await fetch("/api/gemini", {
     method: "POST",
