@@ -522,7 +522,7 @@ function OnboardForm({ onSave, onCancel }) {
 }
 
 // ─── ECONOMICS TAB ───────────────────────────────────────────────
-function EconomicsTab({ farmer, plan, rentals }) {
+function EconomicsTab({ farmer, plan, machineryRentalCost }) {
   const [scenario, setScenario] = useState("base");
   const landAcres = parseFloat((farmer.land * 2.47).toFixed(1));
 
@@ -550,7 +550,7 @@ function EconomicsTab({ farmer, plan, rentals }) {
       return acc + (String(item.qty).toLowerCase().includes("acre") ? cost * landAcres : cost);
     }, 0),
     labor: 4500 * landAcres,       // Interculture, weeding, spraying, harvesting labor
-    machinery: rentals.filter(r => r.farmerId === farmer.id).reduce((a, r) => a + r.totalCost, 0) || (1200 * landAcres),
+    machinery: parseFloat(machineryRentalCost) || (1200 * landAcres), // Uses the parent component value safely
     postHarvest: 1500 * landAcres  // Threshing, bagging, transport, aggregation logistics
   };
 
@@ -637,7 +637,7 @@ function EconomicsTab({ farmer, plan, rentals }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Projected Gross Market Sales:</span>
-              <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: C.goldLight }}>城乡 ₹{Math.round(calculatedGrossCurrent).toLocaleString()}</span>
+              <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: C.goldLight }}>₹{Math.round(calculatedGrossCurrent).toLocaleString()}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Net Farmer Return Cushion:</span>
@@ -684,16 +684,16 @@ function EconomicsTab({ farmer, plan, rentals }) {
               <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                 <div style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>₹{Math.round(y.gross / 1000)}K</div>
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 90, width: "100%", justifyContent: "center" }}>
-                  <div style={{ width: 16, height: `${grossHeight}%`, background: mod.color, borderRadius: "3px 3px 0 0", position: "relative" }} title="Gross revenue output" />
-                  <div style={{ width: 16, height: `${costHeight}%`, background: C.border, borderRadius: "3px 3px 0 0" }} title="Production input cost" />
+                  <div style={{ width: 16, height: `${grossHeight}%`, background: mod.color, borderRadius: "3px 3px 0 0" }} />
+                  <div style={{ width: 16, height: `${costHeight}%`, background: C.border, borderRadius: "3px 3px 0 0" }} />
                 </div>
-                <div style={{ fontSize: 11, color: C.charcoal, fontWeight: 700 }}>Yr {y.yr}</div>
+                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>Yr {y.yr}</div>
               </div>
             );
           })}
         </div>
         <div style={{ display: "flex", gap: 16, fontSize: 11, color: C.muted, borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
-          <span><span style={{ display: "inline-block", width: 10, height: 10, background: mod.color, borderRadius: 2, marginRight:4 }} />Projected Gross Sales Valuation</span>
+          <span><span style={{ display: "inline-block", width: 10, height: 10, background: mod.color, borderRadius: 2, marginRight: 4 }} />Projected Gross Sales Valuation</span>
           <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.border, borderRadius: 2, marginRight: 4 }} />Comprehensive C2 Cost Ledger</span>
         </div>
       </Card>
