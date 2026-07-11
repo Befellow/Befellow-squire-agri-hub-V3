@@ -322,10 +322,78 @@ function calcDRS(f) {
   return { drs, grade:drs>=70?"Critical":drs>=50?"High":drs>=30?"Moderate":"Low", color:drs>=70?C.red:drs>=50?C.orange:drs>=30?C.gold:C.green };
 }
 
-const MANDI_PRICES={"Wheat":2275,"Paddy":2300,"Mustard":5650,"Gram":5440,"Arhar (Pigeon Pea)":7000,"Lentil":6000,"Sunflower":6760,"Sesame":9000,"Soybean":4600,"Maize":2090};
-const WATER_YIELD_MULT={"Canal irrigation":1.0,"Borewell (perennial)":0.95,"Borewell (seasonal)":0.80,"Check dam nearby":0.75,"Drip irrigation":1.05,"Rainfed only":0.55};
-const BASE_YIELD={"Wheat":32,"Paddy":28,"Mustard":14,"Gram":12,"Arhar (Pigeon Pea)":10,"Lentil":9,"Sunflower":12,"Sesame":6,"Soybean":15,"Maize":35};
+// Dynamically converts per-kg wholesale pricing to per-quintal (x100) across all 148 crops
+function getMandiPricePerQtl(crop) {
+  return (MANDI_PER_KG[crop] || 30.00) * 100;
+}
+
+// Calibrated baseline yields (quintals/hectare) for Bundelkhand/Fatehpur clusters
+function getBaseYield(crop) {
+  const yields = {
+    "Wheat": 32, "Paddy": 28, "Maize": 35, "Barley": 26, "Oats": 24, "Oat": 24, "Bajra": 22, "Pearl Millet": 22, "Sorghum": 24,
+    "Chickpea": 12, "Lentil": 9, "Field Pea": 11, "Green Gram": 8, "Black Gram": 7, "Cowpea": 8, "Lathyrus": 9,
+    "Mustard": 14, "Rapeseed": 13, "Sesame": 6, "Groundnut": 18, "Soybean": 15, "Sunflower": 12, "Linseed": 8, "Castor": 10,
+    "Sugarcane": 380, "Potato": 220, "Tomato": 180, "Chilli": 40, "Onion": 160, "Garlic": 50, "Ginger": 120, "Turmeric": 150,
+    "Mentha": 15, "Lemongrass": 250, "Ashwagandha": 12, "Safed Musli": 8, "Moringa": 90,
+    "Mango": 85, "Guava": 70, "Banana": 280, "Papaya": 150, "Pomegranate": 65, "Dragon Fruit": 90, "Strawberry": 45,
+    "Button Mushroom": 120, "Milky Mushroom": 110, "Oyster Mushroom": 100, "Paddy Straw Mushroom": 90
+  };
+  
+  if (yields[crop] !== undefined) return yields[crop];
+  
+  // Dynamic botanical type-matching fallbacks for unlisted varieties
+  const lower = crop.toLowerCase();
+  if (lower.includes("mushroom")) return 100;
+  if (lower.includes("grass") || lower.includes("berseem") || lower.includes("lucerne")) return 300; 
+  if (["mango", "guava", "banana", "papaya", "pomegranate", "lemon", "orange", "fruit", "ber", "bael", "lime"].some(f => lower.includes(f))) return 120; 
+  if (["tomato", "brinjal", "cabbage", "cauliflower", "capsicum", "cucumber", "gourd", "pumpkin", "okra", "bean", "spinach"].some(v => lower.includes(v))) return 140; 
+  return 15; // Safe base fallback for pulses, oilseeds, and aromatic low-yield arrays
+}
+
+const WATER_YIELD_MULT = { "Canal irrigation": 1.0, "Borewell (perennial)": 0.95, "Borewell (seasonal)": 0.80, "Check dam nearby": 0.75, "Drip irrigation": 1.05, "Rainfed only": 0.55 };
+
 function calcProfit(f) {
+  return (f.cropHistory || "Wheat").split(",").map(c => c.trim()).map(crop => {
+    const baseYld = getBaseYield(crop);
+    const priceQtl = getMandiPricePerQtl(crop);
+    const yld = parseFloat((baseYld * (WATER_YIELD_MULT[f.waterAvail] || 0.7) * (f.soc < 0.3 ? 0.65 : f.soc < 0.5 ? 0.82 : 1.0) * (f.nitrogen < 150 ? 0.75 : f.nitrogen < 250 ? 0.90 : 1.0) * f.land).toFixed(1));
+    const grossRev = Math.round(yld * priceQtl);
+    const inputCost = Math.round(grossRev * 0.42);
+    const netProfit = grossRev - inputCost;
+    return { crop, yieldQtl: yld, price: priceQtl, grossRev, inputCost, netProfit, restorativeBonus: Math.round(netProfit * 0.18) };
+  });
+}
+
+// Stochastic Pest Risk Indexing
+function getPestIndex(crop) {
+  const baseRisk = { "Wheat": 0.32, "Paddy": 0.48, "Mustard": 0.38, "Chickpea": 0.42, "Potato": 0.52, "Tomato": 0.55, "Chilli": 0.48, "Mentha": 0.25 };
+  return baseRisk[crop] || 0.35;
+}
+
+function getPestCrops(crop) {
+  const pests = {
+    "Wheat": ["Aphids", "Yellow Rust", "Karnal Bunt"],
+    "Paddy": ["Brown Planthopper", "Blast", "Stem Borer"],
+    "Mustard": ["Aphids", "Alternaria Blight", "White Rust"],
+    "Chickpea": ["Pod Borer", "Wilt", "Ascochyta Blight"],
+    "Potato": ["Late Blight", "Early Blight", "Potato Tuber Moth"],
+    "Tomato": ["Fruit Borer", "Early Blight", "Leaf Curl Virus"],
+    "Chilli": ["Thrips", "Mites", "Anthracnose Fruit Rot"],
+    "Mentha": ["Suckers", "Termites", "Leaf Roller"]
+  };
+  return pests[crop] || ["Aphids", "Whiteflies", "Leaf Spot"];
+}
+
+const WATER_PEST = { "Rainfed only": 0.7, "Borewell (seasonal)": 1.0, "Canal irrigation": 1.3, "Borewell (perennial)": 1.2, "Drip irrigation": 0.85, "Check dam nearby": 0.9 };
+
+function calcPest(f) {
+  const lastCrop = (f.cropHistory || "Wheat").split(",").map(c => c.trim()).pop() || "Wheat";
+  const unique = new Set((f.cropHistory || "").split(",").map(c => c.trim())).size;
+  const baseRisk = getPestIndex(lastCrop);
+  const prob = Math.min(0.98, baseRisk * (WATER_PEST[f.waterAvail] || 1.0) * (unique <= 1 ? 1.6 : unique <= 2 ? 1.2 : 0.9) * (f.soc < 0.3 ? 1.3 : f.soc < 0.5 ? 1.1 : 0.85));
+  const pct = Math.round(prob * 100);
+  return { pct, prob, grade: pct >= 65 ? "High" : pct >= 40 ? "Moderate" : "Low", color: pct >= 65 ? C.red : pct >= 40 ? C.orange : C.green, pests: getPestCrops(lastCrop), lastCrop };
+} {
   return (f.cropHistory||"Wheat").split(",").map(c=>c.trim()).map(crop=>{
     const yld=parseFloat(((BASE_YIELD[crop]||15)*(WATER_YIELD_MULT[f.waterAvail]||0.7)*(f.soc<0.3?0.65:f.soc<0.5?0.82:1.0)*(f.nitrogen<150?0.75:f.nitrogen<250?0.90:1.0)*f.land).toFixed(1));
     const price=MANDI_PRICES[crop]||3000, grossRev=Math.round(yld*price), inputCost=Math.round(grossRev*0.42), netProfit=grossRev-inputCost;
