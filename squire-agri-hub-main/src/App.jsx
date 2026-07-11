@@ -523,211 +523,232 @@ function OnboardForm({ onSave, onCancel }) {
 
 // ─── ECONOMICS TAB ───────────────────────────────────────────────
 function EconomicsTab({ farmer, plan, machineryRentalCost }) {
-  const [scenario, setScenario] = useState("base");
+  const [timeHorizon, setTimeHorizon] = useState(1); // 1, 3, or 5 years
+  const [activeScenario, setActiveSection] = useState("base");
   const landAcres = parseFloat((farmer.land * 2.47).toFixed(1));
 
-  // 1. EXTRACT REAL VALUES FROM AI BLUEPRINT OR APPLY LOCAL C2 BASELINES
+  // Extract seasonal metadata from the dynamic AI blueprint payload
   const s1 = plan?.year1?.season1;
   const s2 = plan?.year1?.season2;
 
-  // Extract explicit numeric profit values from AI strings (e.g., "18000-22000" -> 20000)
-  const parseAIProfit = (str) => {
-    if (!str) return 0;
-    const numbers = String(str).replace(/[^0-9-]/g, "").split("-");
-    if (numbers.length === 2) return (parseInt(numbers[0]) + parseInt(numbers[1])) / 2;
-    return parseInt(numbers[0]) || 0;
+  const cropS1 = s1?.crop || "Mustard";
+  const cropS2 = s2?.crop || "Green Gram";
+
+  // Safe string-parsing helper utilities to extract numeric boundaries
+  const parseNumber = (str, defaultVal = 0) => {
+    if (!str) return defaultVal;
+    const clean = String(str).replace(/[^0-9.-]/g, "").split("-");
+    const num = parseFloat(clean[0]);
+    return isNaN(num) ? defaultVal : num;
   };
 
-  const aiNetProfitS1 = parseAIProfit(s1?.netProfit) * landAcres;
-  const aiNetProfitS2 = parseAIProfit(s2?.netProfit) * landAcres;
-  const totalTargetNetProfit = aiNetProfitS1 + aiNetProfitS2;
+  // Convert raw pricing per kg from our synchronized master array
+  const priceKgS1 = MANDI_PER_KG[cropS1] || 30.00;
+  const priceKgS2 = MANDI_PER_KG[cropS2] || 30.00;
 
-  // 2. DETAILED C2 COMPREHENSIVE COST BREAKDOWN (Per Acre Baseline)
-  const costStructure = {
-    sowing: 2200 * landAcres,      // Tillage, seedbed prep, sowing labor
-    inputs: (plan?.inputShoppingList || []).reduce((acc, item) => {
-      const cost = parseFloat(String(item.cost).replace(/[^0-9.]/g, "")) || 0;
-      return acc + (String(item.qty).toLowerCase().includes("acre") ? cost * landAcres : cost);
-    }, 0),
-    labor: 4500 * landAcres,       // Interculture, weeding, spraying, harvesting labor
-    machinery: parseFloat(machineryRentalCost) || (1200 * landAcres), // Uses the parent component value safely
-    postHarvest: 1500 * landAcres  // Threshing, bagging, transport, aggregation logistics
+  // Baseline yield conversions (Convert qtl/acre strings to total kilograms for land size)
+  const baseYieldAcreS1 = parseNumber(s1?.expectedYield, 8);
+  const baseYieldAcreS2 = parseNumber(s2?.expectedYield, 4);
+
+  const totalKgS1 = Math.round(baseYieldAcreS1 * 100 * landAcres);
+  const totalKgS2 = Math.round(baseYieldAcreS2 * 100 * landAcres);
+
+  // Crop-Wise Operational Investment Cost Breakdown (Per Kilogram of Output target)
+  const buildCropLedger = (crop, priceKg, totalKg, seedCostShare) => {
+    const totalGross = totalKg * priceKg;
+    const structures = {
+      sowing: 2200 * landAcres * seedCostShare,
+      inputs: ((plan?.inputShoppingList || []).reduce((a, item) => a + parseNumber(item.cost), 0) * seedCostShare) || (1800 * landAcres * seedCostShare),
+      labor: 4500 * landAcres * seedCostShare,
+      machinery: (parseFloat(machineryRentalCost) / 2) || (1200 * landAcres * seedCostShare),
+      logistics: 1500 * landAcres * seedCostShare
+    };
+    const totalC2 = structures.sowing + structures.inputs + structures.labor + structures.machinery + structures.logistics;
+    return { name: crop, priceKg, totalKg, gross: totalGross, ...structures, totalC2 };
   };
 
-  const totalC2CostCurrent = costStructure.sowing + costStructure.inputs + costStructure.labor + costStructure.machinery + costStructure.postHarvest;
-  
-  // Enforce Swaminathan C2+50% boundary: Gross revenue must yield at least a 50% net return cushion over C2 costs
-  const calculatedGrossCurrent = totalTargetNetProfit > 0 ? (totalC2CostCurrent + totalTargetNetProfit) : (totalC2CostCurrent * 1.65);
-  const netPLCurrent = calculatedGrossCurrent - totalC2CostCurrent;
-  const restBonusCurrent = Math.round(netPLCurrent * 0.18);
+  const ledgerS1 = buildCropLedger(cropS1, priceKgS1, totalKgS1, 0.6);
+  const ledgerS2 = buildCropLedger(cropS2, priceKgS2, totalKgS2, 0.4);
 
-  // 3. MULTI-YEAR SCENARIO MODELING (Swaminathan C2+50% Growth Projection Engine)
-  const modifiers = {
-    base: { yG: [1, 1.10, 1.22, 1.35, 1.50], cD: [1, 0.96, 0.91, 0.86, 0.80], label: "C2 + 50% Standard", color: C.maroon },
-    optimistic: { yG: [1, 1.16, 1.32, 1.55, 1.80], cD: [1, 0.92, 0.85, 0.78, 0.70], label: "High Efficiency (Optimistic)", color: C.green },
-    pessimistic: { yG: [1, 1.02, 1.05, 1.10, 1.15], cD: [1, 0.99, 0.97, 0.95, 0.92], label: "Climate Stress (Pessimistic)", color: C.orange }
+  const totalYear1C2 = ledgerS1.totalC2 + ledgerS2.totalC2;
+  const totalYear1Gross = ledgerS1.gross + ledgerS2.gross;
+
+  // Multi-Year Compounding Matrix Engine
+  const scenarios = {
+    base: { yG: [1, 1.12, 1.25, 1.38, 1.55], cD: [1, 0.95, 0.90, 0.85, 0.78], label: "C2+50% Standard Strategy" },
+    optimistic: { yG: [1, 1.18, 1.35, 1.60, 1.85], cD: [1, 0.90, 0.82, 0.74, 0.68], label: "High-Efficiency Horizon" },
+    pessimistic: { yG: [1, 1.02, 1.04, 1.08, 1.12], cD: [1, 0.99, 0.96, 0.94, 0.91], label: "Climate/Market Strain" }
   };
-  const mod = modifiers[scenario];
+  const mod = scenarios[activeScenario];
 
   const projectionYears = [1, 2, 3, 4, 5].map((yr, i) => {
-    const gross = Math.round(calculatedGrossCurrent * mod.yG[i]);
-    const operationalCost = Math.round(totalC2CostCurrent * mod.cD[i]);
-    const netProfit = gross - operationalCost;
-    const premiumBonus = i >= 1 ? Math.round(netProfit * 0.18) : restBonusCurrent;
-    return {
-      yr,
-      gross,
-      costs: operationalCost,
-      net: netProfit,
-      bonus: premiumBonus,
-      totalComp: netProfit + premiumBonus,
-      soc: parseFloat(Math.min(farmer.soc + i * 0.14, 1.6).toFixed(2)),
-      roi: parseFloat(((netProfit / operationalCost) * 100).toFixed(1))
-    };
+    const gross = Math.round(totalYear1Gross * mod.yG[i]);
+    const costs = Math.round(totalYear1C2 * mod.cD[i]);
+    const net = gross - costs;
+    const bonus = Math.round(net * 0.18);
+    return { yr, gross, costs, net, bonus, totalComp: net + bonus, roi: costs > 0 ? ((net / costs) * 100) : 0 };
   });
 
-  const cumulativeGross = projectionYears.reduce((a, y) => a + y.gross, 0);
-  const cumulativeNet = projectionYears.reduce((a, y) => a + y.net, 0);
-  const cumulativeInvestment = projectionYears.reduce((a, y) => a + y.costs, 0);
-  const chartMax = Math.max(...projectionYears.map(y => y.gross), 1);
+  // Calculate dynamic data coordinates for the line graph
+  const maxVal = Math.max(...projectionYears.map(y => y.gross), 1);
+  const getLinePoints = (key) => {
+    return projectionYears.map((y, i) => `${(i * 90) + 20},${110 - (y[key] / maxVal) * 90}`).join(" ");
+  };
+
+  // Compute active dataset values based on 1, 3, or 5 Year tab state
+  const selectedYearData = projectionYears[timeHorizon - 1];
+  const totalHorizonCost = projectionYears.slice(0, timeHorizon).reduce((a, y) => a + y.costs, 0);
+  const totalHorizonNet = projectionYears.slice(0, timeHorizon).reduce((a, y) => a + y.net, 0);
+
+  // SVG Pie Chart Slice Engine
+  const totalPie = totalHorizonCost + totalHorizonNet;
+  const costPct = totalPie > 0 ? (totalHorizonCost / totalPie) : 0.5;
+  const costAngle = costPct * 360;
+  const xEnd = 50 + 40 * Math.cos((costAngle - 90) * (Math.PI / 180));
+  const yEnd = 50 + 40 * Math.sin((costAngle - 90) * (Math.PI / 180));
+  const largeArcFlag = costPct > 0.5 ? 1 : 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div>
-        <h3 style={{ fontWeight: 800, fontSize: 18, color: C.charcoal, margin: 0 }}>💰 Comprehensive Operational Ledger</h3>
-        <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>Swaminathan C2 Costs + Free Market Premium Breakdown ({landAcres} Acres)</p>
+      {/* Configuration Header Row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h3 style={{ fontWeight: 800, fontSize: 18, color: C.charcoal, margin: 0 }}>📊 Financial Ledger Optimization</h3>
+          <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0" }}>Swaminathan C2 Production Ledger & Output Projections</p>
+        </div>
+        {/* Year Horizon Tabs Selector */}
+        <div style={{ display: "flex", background: C.border, borderRadius: 8, padding: 3, gap: 2 }}>
+          {[1, 3, 5].map(yr => (
+            <button key={yr} onClick={() => setTimeHorizon(yr)} style={{ border: "none", padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", background: timeHorizon === yr ? C.maroon : "transparent", color: timeHorizon === yr ? C.white : C.muted, transition: "all 0.2s" }}>
+              {yr} Year Tab
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Scenario Filter Toggles */}
-      <div style={{ display: "flex", gap: 8 }}>
-        {Object.entries(modifiers).map(([key, s]) => (
-          <button key={key} onClick={() => setScenario(key)} style={{ padding: "6px 14px", borderRadius: 20, border: `2px solid ${scenario === key ? s.color : C.border}`, background: scenario === key ? s.color : C.white, color: scenario === key ? C.white : C.muted, fontWeight: 700, fontSize: 12, cursor: "pointer", transition: "all 0.2s" }}>
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Current Season Step-by-Step Ledger Card */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16, alignItems: "start" }}>
-        <Card style={{ padding: 18 }}>
-          <h4 style={{ fontWeight: 700, color: C.maroon, fontSize: 14, marginBottom: 12, borderBottom: `1px solid ${C.border}`, paddingBottom: 6 }}>📋 Seasonal Production Cost Breakdown (C2)</h4>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {[
-              { label: "1. Sowing & Land Prep (Tillage, Bed formation)", val: costStructure.sowing },
-              { label: "2. Seed & Fertilizer Inputs (Shopping List)", val: costStructure.inputs },
-              { label: "3. Operational Labor (Weeding, Harvesting)", val: costStructure.labor },
-              { label: "4. Custom Hiring (Squire Machinery Bay)", val: costStructure.machinery },
-              { label: "5. Post-Harvest Logistics (Threshing, Transport)", val: costStructure.postHarvest }
-            ].map((item, index) => (
-              <div key={index} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderBottom: `1px dashed ${C.border}`, paddingBottom: 6 }}>
-                <span style={{ color: C.charcoal }}>{item.label}</span>
-                <span style={{ fontFamily: "monospace", fontWeight: 600 }}>₹{Math.round(item.val).toLocaleString()}</span>
+      {/* Crop-Wise Ledger Breakdown Panels */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {[ledgerS1, ledgerS2].map((ledger, idx) => (
+          <Card key={idx} style={{ padding: 16 }}>
+            <h4 style={{ fontWeight: 700, color: C.maroon, fontSize: 14, margin: "0 0 10px", borderBottom: `1px solid ${C.border}`, paddingBottom: 6 }}>
+              Season {idx + 1}: {ledger.name} Ledger ({landAcres} Ac)
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", color: C.green, fontWeight: 700, background: C.greenPale, padding: "4px 8px", borderRadius: 4 }}>
+                <span>Harvest Sale Price (SI Base):</span>
+                <span>₹{ledger.priceKg.toFixed(2)} / kg</span>
               </div>
-            ))}
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700, color: C.red, paddingTop: 6 }}>
-              <span>Total Comprehensive Production Cost (C2)</span>
-              <span style={{ fontFamily: "monospace" }}>== ₹{Math.round(totalC2CostCurrent).toLocaleString()}</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* C2+50 Execution Yield Outcomes */}
-        <Card style={{ background: C.maroonDark, color: C.white, padding: 18 }}>
-          <h4 style={{ fontWeight: 700, color: C.goldLight, fontSize: 14, marginBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.15)", paddingBottom: 6 }}>🎯 C2 + 50% Profit Realization Index</h4>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Projected Gross Market Sales:</span>
-              <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: C.goldLight }}>₹{Math.round(calculatedGrossCurrent).toLocaleString()}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Net Farmer Return Cushion:</span>
-              <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "monospace", color: "#90EE90" }}>₹{Math.round(netPLCurrent).toLocaleString()}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed rgba(255,255,255,0.15)", paddingBottom: 10 }}>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Squire FPO Restorative Premium:</span>
-              <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace", color: "#90EE90" }}>+₹{Math.round(restBonusCurrent).toLocaleString()}</span>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.06)", padding: 10, borderRadius: 8, textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 0.5 }}>Actual Margin Cushion Score</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: C.goldLight, marginTop: 2, fontFamily: "monospace" }}>
-                {totalC2CostCurrent > 0 ? Math.round((netPLCurrent / totalC2CostCurrent) * 100) : 0}% Above C2
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "0 4px" }}>
+                <span style={{ color: C.muted }}>Total Yield Output volume:</span>
+                <span style={{ fontWeight: 600 }}>{ledger.totalKg.toLocaleString()} kg</span>
               </div>
-              <div style={{ fontSize: 10, color: "#90EE90", marginTop: 2 }}>✓ Exceeds Swaminathan 50% Minimum Net Margin Gate</div>
-            </div>
-          </div>
-        </Card>
-      </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "0 4px", borderBottom: `1px solid ${C.border}`, paddingBottom: 6 }}>
+                <span style={{ color: C.muted }}>Gross Market Realization:</span>
+                <span style={{ fontWeight: 700, color: C.blue }}>₹{Math.round(ledger.gross).toLocaleString()}</span>
+              </div>
 
-      {/* 5-Year Capital Accumulation Analytics Rows */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
-        {[
-          { icon: "📈", label: "5-Year Cumulative Sales", val: `₹${(cumulativeGross / 100000).toFixed(2)}L`, color: C.blue },
-          { icon: "💵", label: "5-Year Net Pocket Returns", val: `₹${(cumulativeNet / 100000).toFixed(2)}L`, color: C.green },
-          { icon: "🔬", label: "Avg Return on Investment / Year", val: `${parseFloat((projectionYears.reduce((a, y) => a + y.roi, 0) / 5).toFixed(1))}%`, color: C.maroon }
-        ].map((stat, idx) => (
-          <Card key={idx} style={{ padding: 12, textAlign: "center" }}>
-            <div style={{ fontSize: 18 }}>{stat.icon}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: stat.color, marginTop: 4 }}>{stat.val}</div>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{stat.label}</div>
+              {[
+                { l: "• Sowing & Seedbed Tillage Costs", v: ledger.sowing },
+                { l: "• Input Seed & Bio-Fertilizers share", v: ledger.inputs },
+                { l: "• Weeding & Interculture Labor costs", v: ledger.labor },
+                { l: "• Custom Hiring (Squire Machinery Bay)", v: ledger.machinery },
+                { l: "• Post-Harvest Logistics & Transport", v: ledger.logistics }
+              ].map((cItem, cIdx) => (
+                <div key={cIdx} style={{ display: "flex", justifyContent: "space-between", color: C.charcoal, padding: "0 4px" }}>
+                  <span>{cItem.l}</span>
+                  <span style={{ fontFamily: "monospace" }}>₹{Math.round(cItem.v).toLocaleString()}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, color: C.red, borderTop: `1px dashed ${C.border}`, paddingTop: 6, padding: "6px 4px 0" }}>
+                <span>Total Comprehensive Cost (C2)</span>
+                <span style={{ fontFamily: "monospace" }}>₹{Math.round(ledger.totalC2).toLocaleString()}</span>
+              </div>
+            </div>
           </Card>
         ))}
       </div>
 
-      {/* Graphical Growth Projections Grid */}
-      <Card style={{ padding: 18 }}>
-        <h4 style={{ fontWeight: 700, color: C.maroon, fontSize: 14, marginBottom: 14 }}>📊 5-Year Financial Horizon Engine ({mod.label})</h4>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 130, marginBottom: 10, paddingTop: 10 }}>
-          {projectionYears.map((y, i) => {
-            const grossHeight = Math.round((y.gross / chartMax) * 90);
-            const costHeight = Math.round((y.costs / chartMax) * 90);
-            return (
-              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                <div style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>₹{Math.round(y.gross / 1000)}K</div>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 90, width: "100%", justifyContent: "center" }}>
-                  <div style={{ width: 16, height: `${grossHeight}%`, background: mod.color, borderRadius: "3px 3px 0 0" }} />
-                  <div style={{ width: 16, height: `${costHeight}%`, background: C.border, borderRadius: "3px 3px 0 0" }} />
-                </div>
-                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>Yr {y.yr}</div>
-              </div>
-            );
-          })}
-        </div>
-        <div style={{ display: "flex", gap: 16, fontSize: 11, color: C.muted, borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
-          <span><span style={{ display: "inline-block", width: 10, height: 10, background: mod.color, borderRadius: 2, marginRight: 4 }} />Projected Gross Sales Valuation</span>
-          <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.border, borderRadius: 2, marginRight: 4 }} />Comprehensive C2 Cost Ledger</span>
-        </div>
-      </Card>
+      {/* Analytics Visualization Panel: Line Graph + SVG Pie Chart */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
+        {/* Line Graph Row */}
+        <Card style={{ padding: 16 }}>
+          <h4 style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 12 }}>📈 5-Year Comprehensive Growth Horizon (Line Graph)</h4>
+          <svg viewBox="0 0 400 130" width="100%" style={{ overflow: "visible" }}>
+            {[0, 0.25, 0.5, 0.75, 1].map((t, i) => (
+              <line key={i} x1="20" y1={t * 90 + 20} x2="380" y2={t * 90 + 20} stroke="#EFE8DB" strokeWidth="1" strokeDasharray="3 3" />
+            ))}
+            <polyline points={getLinePoints("gross")} stroke={C.blue} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points={getLinePoints("costs")} stroke={C.red} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points={getLinePoints("net")} stroke={C.green} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            {projectionYears.map((y, i) => (
+              <text key={i} x={(i * 90) + 20} y="125" textAnchor="middle" fontSize="10" fontWeight="700" fill={C.muted}>Yr {y.yr}</text>
+            ))}
+          </svg>
+          <div style={{ display: "flex", gap: 12, fontSize: 10.5, color: C.muted, marginTop: 8, borderTop: `1px solid ${C.border}`, paddingTop: 6 }}>
+            <span><span style={{ display: "inline-block", width: 8, height: 8, background: C.blue, marginRight: 4, borderRadius: 2 }} />Gross Sales</span>
+            <span><span style={{ display: "inline-block", width: 8, height: 8, background: C.red, marginRight: 4, borderRadius: 2 }} />C2 Costs</span>
+            <span><span style={{ display: "inline-block", width: 8, height: 8, background: C.green, marginRight: 4, borderRadius: 2 }} />Net Income</span>
+          </div>
+        </Card>
 
-      {/* Detailed Multi-Year Tabular Matrix Ledger */}
-      <Card style={{ padding: 16 }}>
-        <h4 style={{ fontWeight: 700, color: C.maroon, fontSize: 14, marginBottom: 12 }}>📋 Multi-Year Structural P&L Balance Sheet</h4>
+        {/* SVG Pie Chart Component */}
+        <Card style={{ padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <h4 style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 8, width: "100%", textAlign: "left" }}>
+            🍩 Cumulative Capital Breakdown ({timeHorizon} Yr Horizon)
+          </h4>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, width: "100%" }}>
+            <svg viewBox="0 0 100 100" width="100" height="100" style={{ transform: "rotate(-90deg)", overflow: "visible" }}>
+              <circle cx="50" cy="50" r="40" fill={C.green} />
+              {costPct > 0 && (
+                <path d={`M 50 50 L 50 10 A 40 40 0 ${largeArcFlag} 1 ${xEnd} ${yEnd} Z`} fill="#EDE6DA" />
+              )}
+              <circle cx="50" cy="50" r="22" fill={C.white} />
+            </svg>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, fontSize: 11.5 }}>
+              <div>
+                <span style={{ display: "inline-block", width: 10, height: 10, background: "#EDE6DA", borderRadius: 2, marginRight: 6 }} />
+                Total Investment (C2): <strong>₹{Math.round(totalHorizonCost).toLocaleString()}</strong>
+              </div>
+              <div>
+                <span style={{ display: "inline-block", width: 10, height: 10, background: C.green, borderRadius: 2, marginRight: 6 }} />
+                Net Retained Returns: <strong>₹{Math.round(totalHorizonNet).toLocaleString()}</strong>
+              </div>
+              <div style={{ background: C.cream, padding: "4px 8px", borderRadius: 4, fontWeight: 700, color: C.maroon, fontSize: 12, marginTop: 4, textAlign: "center" }}>
+                Target ROI: {totalHorizonCost > 0 ? Math.round((totalHorizonNet / totalHorizonCost) * 100) : 0}%
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Comprehensive Tabular Balance Sheet Row */}
+      <Card style={{ padding: 14 }}>
+        <h4 style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 10 }}>📋 Multi-Year Structural Balance Sheet Projections</h4>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ background: C.cream, borderBottom: `2px solid ${C.maroon}` }}>
-                {["Financial Performance Track", "Year 1", "Year 2", "Year 3", "Year 4", "Year 5"].map((h, i) => (
-                  <th key={i} style={{ padding: "8px 10px", textAlign: i === 0 ? "left" : "right", color: C.charcoal, fontWeight: 700 }}>{h}</th>
+                {["Financial Performance metric", "Year 1", "Year 2", "Year 3", "Year 4", "Year 5"].map((h, i) => (
+                  <th key={i} style={{ padding: "6px 8px", textAlign: i === 0 ? "left" : "right", color: C.charcoal, fontWeight: 700 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {[
-                { label: "Gross Market Valuation", key: "gross", color: C.blue, bold: false },
+                { label: "Gross Market Valuation Output", key: "gross", color: C.blue, bold: false },
                 { label: "Comprehensive Cost Ledger (C2)", key: "costs", color: C.red, bold: false },
                 { label: "Net Operational Income P&L", key: "net", color: C.green, bold: true },
-                { label: "Squire Restorative Premium", key: "bonus", color: C.maroon, bold: false },
+                { label: "Squire FPO Restorative Premium", key: "bonus", color: C.maroon, bold: false },
                 { label: "Total Combined Capital Yield", key: "totalComp", color: C.green, bold: true },
-                { label: "Return on Investment (ROI %)", key: "roi", color: C.charcoal, bold: false, raw: true },
-                { label: "Remediated Soil Health (SOC %)", key: "soc", color: C.green, bold: false, raw: true }
+                { label: "Return on Investment (ROI %)", key: "roi", color: C.charcoal, bold: false, suffix: "%" }
               ].map((row, idx) => (
-                <tr key={idx} style={{ borderBottom: `1px solid ${C.border}`, background: row.bold ? "#FDFDFD" : "transparent" }}>
-                  <td style={{ padding: "9px 10px", fontWeight: row.bold ? 700 : 400, color: C.charcoal }}>{row.label}</td>
+                <tr key={idx} style={{ borderBottom: `1px solid ${C.border}`, background: row.bold ? "rgba(45,106,79,0.02)" : "transparent" }}>
+                  <td style={{ padding: "8px", fontWeight: row.bold ? 700 : 400, color: C.charcoal }}>{row.label}</td>
                   {projectionYears.map((year, yIdx) => {
                     const value = year[row.key];
-                    const displayVal = row.raw ? (row.key === "roi" ? `${value}%` : `${value}% SOC`) : `₹${Math.round(value).toLocaleString()}`;
                     return (
-                      <td key={yIdx} style={{ padding: "9px 10px", textAlign: "right", fontWeight: row.bold ? 700 : 400, color: row.key === "net" || row.key === "totalComp" ? C.green : row.color, fontFamily: "monospace" }}>
-                        {displayVal}
+                      <td key={yIdx} style={{ padding: "8px", textAlign: "right", fontWeight: row.bold ? 700 : 400, color: row.key === "net" || row.key === "totalComp" ? C.green : row.color, fontFamily: "monospace" }}>
+                        {row.suffix ? `${parseFloat(value.toFixed(1))}%` : `₹${Math.round(value).toLocaleString()}`}
                       </td>
                     );
                   })}
