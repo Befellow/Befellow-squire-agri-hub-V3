@@ -1292,316 +1292,194 @@ function MachineryHub({ rentals, onBack, onAddRental, farmers }) {
 
 // ─── DASHBOARD ───────────────────────────────────────────────────
 function Dashboard({ farmers, onSelect, onNew, onViewReports, onViewMachinery }) {
-  const [activeSection, setActiveSection]=useState("overview");
-  const [mandiRange, setMandiRange]=useState("7D");
-  const [searchQ, setSearchQ]=useState("");
+  const [activeSection, setActiveSection] = useState("overview");
+  const [mandiRange, setMandiRange] = useState("7D");
+  const [searchQ, setSearchQ] = useState("");
 
-  const assessed=farmers.filter(f=>f.planGenerated).length;
-  const allProduce=farmers.flatMap(f=>f.produce);
+  const assessed = farmers.filter(f => f.planGenerated).length;
+  const allProduce = farmers.flatMap(f => f.produce);
 
-  const MANDI_DATA={
-    "7D":{labels:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],wheat:[2280,2295,2310,2305,2320,2335,2340],mustard:[5680,5700,5740,5720,5760,5790,5800],gram:[5020,5035,5060,5045,5070,5090,5100]},
-    "30D":{labels:["W1","W2","W3","W4"],wheat:[2150,2210,2260,2340],mustard:[5400,5500,5650,5800],gram:[4800,4900,5000,5100]},
-    "90D":{labels:["Apr","May","Jun"],wheat:[2080,2190,2310],mustard:[5150,5420,5720],gram:[4600,4850,5060]},
+  const MANDI_DATA = {
+    "7D": { labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], wheat: [2280, 2295, 2310, 2305, 2320, 2335, 2340], mustard: [5680, 5700, 5740, 5720, 5760, 5790, 5800], gram: [5020, 5035, 5060, 5045, 5070, 5090, 5100] },
+    "30D": { labels: ["W1", "W2", "W3", "W4"], wheat: [2150, 2210, 2260, 2340], mustard: [5400, 5500, 5650, 5800], gram: [4800, 4900, 5000, 5100] },
+    "90D": { labels: ["Apr", "May", "Jun"], wheat: [2080, 2190, 2310], mustard: [5150, 5420, 5720], gram: [4600, 4850, 5060] },
   };
-  const md=MANDI_DATA[mandiRange];
+  const md = MANDI_DATA[mandiRange];
 
-  const NAV=[{id:"overview",icon:"▦",label:"Overview"},{id:"market",icon:"↗",label:"Market Sales"},{id:"seed",icon:"🌱",label:"Seed & Inputs"},{id:"farmers",icon:"👥",label:"Farmer Network"},{id:"brain",icon:"🧠",label:"Digital Brain"},{id:"outlets",icon:"🏪",label:"Squire Outlets"}];
-  const TXN=[{name:"Ramesh Tiwari",crop:"Wheat",qty:"12 Qtl",price:"₹2,340",mandi:"Jhansi",status:"sold"},{name:"Meera Devi",crop:"Mustard",qty:"6 Qtl",price:"₹5,800",mandi:"Jhansi",status:"sold"},{name:"Vijay Kushwaha",crop:"Gram",qty:"9 Qtl",price:"₹5,050",mandi:"Banda",status:"transit"},{name:"Anita Rajput",crop:"Wheat",qty:"15 Qtl",price:"₹2,310",mandi:"Mahoba",status:"sold"},{name:"Mahendra Singh",crop:"Mustard",qty:"4 Qtl",price:"₹5,650",mandi:"Jhansi",status:"pending"},{name:"Suresh Yadav",crop:"Gram",qty:"7 Qtl",price:"₹4,980",mandi:"Banda",status:"sold"}];
-  const SEED_INV=[{name:"Wheat HD-3086",stock:38,threshold:25,max:40,status:"healthy"},{name:"Gram Pusa-256",stock:14,threshold:15,max:24,status:"low"},{name:"Mustard Pusa Bold",stock:9,threshold:12,max:24,status:"critical"},{name:"Bajra HHB-67",stock:22,threshold:10,max:24,status:"healthy"},{name:"Moong Pusa Vishal",stock:11,threshold:10,max:15,status:"healthy"}];
-  const INV_C={healthy:"#4A7C59",low:"#C8963E",critical:"#B2402F"};
-  const SB_C={sold:{bg:"#DCEEE1",color:"#2F6B45",label:"Sold"},transit:{bg:"#DCEAF2",color:"#3B6E91",label:"In Transit"},pending:{bg:"#F7E8C9",color:"#8A5A12",label:"Pending"}};
-  const REV_DATA=[{crop:"Wheat",rev:182000,color:"#6B1E3B"},{crop:"Mustard",rev:134000,color:"#C8963E"},{crop:"Gram",rev:96000,color:"#4A7C59"},{crop:"Moong",rev:52000,color:"#3B6E91"},{crop:"Bajra",rev:38000,color:"#8A7C6C"}];
-  const revMax=Math.max(...REV_DATA.map(d=>d.rev));
-  const INPUT_MIX=[{label:"Seeds",pct:45,color:"#6B1E3B"},{label:"Fertilizer & Bio",pct:30,color:"#C8963E"},{label:"Machinery Rental",pct:15,color:"#4A7C59"},{label:"Cold Storage",pct:10,color:"#3B6E91"}];
+  const NAV = [
+    { id: "overview", icon: "▦", label: "Overview" },
+    { id: "market", icon: "↗", label: "Market Sales" },
+    { id: "seed", icon: "🌱", label: "Seed & Inputs" },
+    { id: "farmers", icon: "👥", label: "Farmer Network" },
+    { id: "brain", icon: "🧠", label: "Digital Brain" },
+    { id: "outlets", icon: "🏪", label: "Squire Outlets" }
+  ];
 
-  const filteredTxn=TXN.filter(r=>!searchQ||Object.values(r).join(" ").toLowerCase().includes(searchQ.toLowerCase()));
-  const filteredFarmers=farmers.filter(f=>!searchQ||`${f.name} ${f.village} ${f.district} ${f.cropHistory}`.toLowerCase().includes(searchQ.toLowerCase()));
+  const TXN = [
+    { name: "Ramesh Tiwari", crop: "Wheat", qty: "12 Qtl", price: "₹2,340", mandi: "Jhansi", status: "sold" },
+    { name: "Meera Devi", crop: "Mustard", qty: "6 Qtl", price: "₹5,800", mandi: "Jhansi", status: "sold" },
+    { name: "Vijay Kushwaha", crop: "Gram", qty: "9 Qtl", price: "₹5,050", mandi: "Banda", status: "transit" },
+    { name: "Anita Rajput", crop: "Wheat", qty: "15 Qtl", price: "₹2,310", mandi: "Mahoba", status: "sold" },
+    { name: "Mahendra Singh", crop: "Mustard", qty: "4 Qtl", price: "₹5,650", mandi: "Jhansi", status: "pending" },
+    { name: "Suresh Yadav", crop: "Gram", qty: "7 Qtl", price: "₹4,980", mandi: "Banda", status: "sold" }
+  ];
 
-  const scrollTo=(id)=>{ setActiveSection(id); document.getElementById("dash-"+id)?.scrollIntoView({behavior:"smooth",block:"start"}); };
+  const SEED_INV = [
+    { name: "Wheat HD-3086", stock: 38, threshold: 25, max: 40, status: "healthy" },
+    { name: "Gram Pusa-256", stock: 14, threshold: 15, max: 24, status: "low" },
+    { name: "Mustard Pusa Bold", stock: 9, threshold: 12, max: 24, status: "critical" },
+    { name: "Bajra HHB-67", stock: 22, threshold: 10, max: 24, status: "healthy" },
+    { name: "Moong Pusa Vishal", stock: 11, threshold: 10, max: 15, status: "healthy" }
+  ];
+
+  const INV_C = { healthy: "#4A7C59", low: "#C8963E", critical: "#B2402F" };
+  const SB_C = { sold: { bg: "#DCEEE1", color: "#2F6B45", label: "Sold" }, transit: { bg: "#DCEAF2", color: "#3B6E91", label: "In Transit" }, pending: { bg: "#F7E8C9", color: "#8A5A12", label: "Pending" } };
+  const REV_DATA = [ { crop: "Wheat", rev: 182000, color: "#6B1E3B" }, { crop: "Mustard", rev: 134000, color: "#C8963E" }, { crop: "Gram", rev: 96000, color: "#4A7C59" }, { crop: "Moong", rev: 52000, color: "#3B6E91" }, { crop: "Bajra", rev: 38000, color: "#8A7C6C" } ];
+  const revMax = Math.max(...REV_DATA.map(d => d.rev));
+  const INPUT_MIX = [ { label: "Seeds", pct: 45, color: "#6B1E3B" }, { label: "Fertilizer & Bio", pct: 30, color: "#C8963E" }, { label: "Machinery Rental", pct: 15, color: "#4A7C59" }, { label: "Cold Storage", pct: 10, color: "#3B6E91" } ];
+
+  const filteredTxn = TXN.filter(r => !searchQ || Object.values(r).join(" ").toLowerCase().includes(searchQ.toLowerCase()));
+  const filteredFarmers = farmers.filter(f => !searchQ || `${f.name} ${f.village} ${f.district} ${f.cropHistory}`.toLowerCase().includes(searchQ.toLowerCase()));
 
   return (
-    <div style={{display:"flex",minHeight:"100vh",fontFamily:"'Inter',sans-serif"}}>
-      {/* Sidebar */}
-      <aside style={{width:248,background:"linear-gradient(180deg,#241509 0%,#1A0E05 100%)",color:"#E9DFD2",position:"fixed",top:0,left:0,bottom:0,display:"flex",flexDirection:"column",padding:"28px 18px",zIndex:20,overflowY:"auto"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,paddingBottom:24,borderBottom:"1px solid rgba(255,255,255,.08)",marginBottom:22}}>
-          <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#C8963E 0%,#6B1E3B 100%)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,color:"#fff",fontSize:18}}>S</div>
-          <div><div style={{fontWeight:600,fontSize:17,color:"#fff",fontFamily:"serif"}}>Squire</div><div style={{fontSize:10,color:"#E8C77E",letterSpacing:"0.06em",textTransform:"uppercase"}}>Digital Brain</div></div>
+    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter',sans-serif" }}>
+      {/* Persistent Left Sidebar */}
+      <aside style={{ width: 248, background: "linear-gradient(180deg,#241509 0%,#1A0E05 100%)", color: "#E9DFD2", position: "fixed", top: 0, left: 0, bottom: 0, display: "flex", flexDirection: "column", padding: "28px 18px", zIndex: 20, overflowY: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,.08)", marginBottom: 22 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#C8963E 0%,#6B1E3B 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 18 }}>S</div>
+          <div><div style={{ fontWeight: 600, fontSize: 17, color: "#fff", fontFamily: "serif" }}>Squire</div><div style={{ fontSize: 10, color: "#E8C77E", letterSpacing: "0.06em", textTransform: "uppercase" }}>Digital Brain</div></div>
         </div>
-        <nav style={{display:"flex",flexDirection:"column",gap:2}}>
-          {NAV.map(n=>(
-            <button key={n.id} onClick={()=>scrollTo(n.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:9,background:activeSection===n.id?"rgba(200,150,62,.16)":"transparent",color:activeSection===n.id?"#E8C77E":"#C9B8A8",fontSize:13.5,fontWeight:500,border:"none",cursor:"pointer",textAlign:"left",position:"relative"}}>
-              <span style={{fontSize:14}}>{n.icon}</span>{n.label}
-              {activeSection===n.id&&<span style={{position:"absolute",left:-18,top:"50%",transform:"translateY(-50%)",width:3,height:18,background:"#C8963E",borderRadius:"0 3px 3px 0"}}/>}
+        <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {NAV.map(n => (
+            <button key={n.id} onClick={() => setActiveSection(n.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: activeSection === n.id ? "rgba(200,150,62,.16)" : "transparent", color: activeSection === n.id ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
+              <span style={{ fontSize: 14 }}>{n.icon}</span>{n.label}
+              {activeSection === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
             </button>
           ))}
         </nav>
-        <div style={{display:"flex",flexDirection:"column",gap:8,margin:"20px 0"}}>
-          <button onClick={onNew} style={{background:"#6B1E3B",color:"#fff",border:"none",borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",textAlign:"left"}}>+ Onboard Farmer</button>
-          <button onClick={onViewReports} style={{background:"rgba(255,255,255,.07)",color:"#E9DFD2",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:500,cursor:"pointer",textAlign:"left"}}>📊 Statistical Reports</button>
-          <button onClick={onViewMachinery} style={{background:"rgba(255,255,255,.07)",color:"#E9DFD2",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,padding:"9px 14px",fontSize:13,fontWeight:500,cursor:"pointer",textAlign:"left"}}>🚜 Machinery Hub</button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0" }}>
+          <button onClick={onNew} style={{ background: "#6B1E3B", color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
+          <button onClick={onViewReports} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
+          <button onClick={onViewMachinery} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
         </div>
-        <div style={{marginTop:"auto",paddingTop:18,borderTop:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:32,height:32,borderRadius:"50%",background:"#6B1E3B",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:600,color:"#fff"}}>HV</div>
-          <div><div style={{fontSize:12.5,fontWeight:600,color:"#F0E6D6"}}>Harshit Vimal</div><div style={{fontSize:10.5,color:"#9C8C7A"}}>Field Operations</div></div>
+        <div style={{ marginTop: "auto", paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#6B1E3B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#fff" }}>HV</div>
+          <div><div style={{ fontSize: 12.5, fontWeight: 600, color: "#F0E6D6" }}>Harshit Vimal</div><div style={{ fontSize: 10.5, color: "#9C8C7A" }}>Field Operations</div></div>
         </div>
       </aside>
 
-      {/* Main */}
-      <main style={{marginLeft:248,flex:1,padding:"30px 38px 60px",maxWidth:1080}}>
-        {/* Topbar */}
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:24,marginBottom:22,flexWrap:"wrap"}}>
+      {/* Main Workspace Frame */}
+      <main style={{ marginLeft: 248, flex: 1, padding: "30px 38px 60px", maxWidth: 1080 }}>
+        {/* Universal Sub-Header Search Row */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 22, flexWrap: "wrap" }}>
           <div>
-            <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",color:"#8A7C6C",marginBottom:4}}>Bundelkhand Pilot · Jhansi Cluster</div>
-            <h1 style={{fontFamily:"serif",fontWeight:600,fontSize:28,color:"#2B211B"}}>Good morning, <em style={{fontStyle:"italic",color:"#6B1E3B",fontWeight:500}}>Harshit</em></h1>
-            <div style={{fontSize:13,color:"#8A7C6C",marginTop:4}}>Friday, 27 June 2026 · Here's how the outlet is performing</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A7C6C", marginBottom: 4 }}>Bundelkhand Pilot · Jhansi Cluster</div>
+            <h1 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 28, color: "#2B211B" }}>Good morning, <em style={{ fontStyle: "italic", color: "#6B1E3B", fontWeight: 500 }}>Harshit</em></h1>
+            <div style={{ fontSize: 13, color: "#8A7C6C", marginTop: 4 }}>Live Dashboard Workspace · Dedicated Page Content Panel</div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,background:"#fff",border:"1px solid #E8DFD2",borderRadius:10,padding:"8px 12px",minWidth:220}}>
-              <span style={{fontSize:14,color:"#8A7C6C"}}>🔍</span>
-              <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} type="text" placeholder="Search farmers, crops, Mandi…" style={{border:"none",outline:"none",background:"transparent",fontSize:13,width:"100%",color:"#2B211B"}}/>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #E8DFD2", borderRadius: 10, padding: "8px 12px", minWidth: 220 }}>
+              <span style={{ fontSize: 14, color: "#8A7C6C" }}>🔍</span>
+              <input value={searchQ} onChange={e => setSearchQ(e.target.value)} type="text" placeholder="Search farmers, crops, Mandi…" style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, width: "100%", color: "#2B211B" }} />
             </div>
-          </div>
-        </div>
-
-        {/* Season strip */}
-        <div style={{display:"flex",alignItems:"center",marginBottom:22,background:"#fff",border:"1px solid #E8DFD2",borderRadius:12,padding:"14px 20px"}}>
-          <div style={{fontSize:11,fontWeight:600,color:"#8A7C6C",letterSpacing:"0.05em",textTransform:"uppercase",marginRight:18,whiteSpace:"nowrap"}}>Crop Season</div>
-          <div style={{flex:1,display:"flex",gap:6,paddingTop:22}}>
-            {[{label:"Kharif · Jun–Oct",flex:0.42,active:true},{label:"Rabi · Oct–Mar",flex:0.42,active:false},{label:"Zaid · Mar–Jun",flex:0.16,active:false}].map((seg,i)=>(
-              <div key={i} style={{flex:seg.flex,height:8,borderRadius:5,background:seg.active?"linear-gradient(90deg,#C8963E 0%,#4A7C59 100%)":"#E8DFD2",position:"relative"}}>
-                <span style={{position:"absolute",top:-18,left:0,fontSize:10.5,fontWeight:600,color:seg.active?"#6B1E3B":"#8A7C6C",whiteSpace:"nowrap"}}>{seg.label}</span>
-                {seg.active&&<div style={{position:"absolute",top:-4,left:"6%",width:14,height:14,borderRadius:"50%",background:"#6B1E3B",border:"2.5px solid #fff",boxShadow:"0 0 0 2px #6B1E3B"}}/>}
-              </div>
-            ))}
           </div>
         </div>
 
-        {/* Alert */}
-        <div style={{display:"flex",alignItems:"center",gap:10,background:"#F7E8C9",color:"#8A5A12",border:"1px solid #EBD49C",borderRadius:11,padding:"11px 16px",marginBottom:26,fontSize:13,fontWeight:500}}>
-          ⚠️ <span><strong>2 seed varieties</strong> below reorder threshold · <strong>1 Mandi price alert</strong> needs review</span>
-        </div>
+        {/* Dynamic Conditional Routing Outlet */}
+        {activeSection === "overview" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+              {[ { label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true }, { label: "Outlet Revenue · MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true }, { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true }, { label: "Seed Stock Health", value: "82%", delta: "⚠ 2 items low", up: false } ].map((k, i) => (
+                <div key={i} style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: "18px 20px" }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
+                  <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 600, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 2, color: k.up ? "#2F6B45" : "#8A5A12" }}>{k.delta}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: 500 }}>
+              ⚠️ <span><strong>2 seed varieties</strong> below reorder threshold · <strong>1 Mandi price alert</strong> needs review</span>
+            </div>
+          </div>
+        )}
 
-        {/* OVERVIEW */}
-        <section id="dash-overview" style={{marginBottom:40,scrollMarginTop:24}}>
-          <span style={{display:"inline-block",fontSize:10.5,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#6B1E3B",background:"#F4E2EA",padding:"3px 10px",borderRadius:20,marginBottom:8}}>Overview</span>
-          <h2 style={{fontFamily:"serif",fontWeight:600,fontSize:23,color:"#2B211B",marginBottom:16}}>Outlet at a Glance</h2>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>
-            {[{label:"Active Farmers",value:`${farmers.length+309}`,delta:"▲ 18 this month",up:true,spark:[200,210,220,230,240,255,farmers.length+309],color:"#4A7C59"},{label:"Outlet Revenue · MTD",value:"₹4.82L",delta:"▲ 12% vs last month",up:true,spark:[340000,360000,380000,400000,430000,460000,482000],color:"#C8963E"},{label:"Soil Health Index",value:null,delta:"▲ 6 pts vs baseline",up:true,ring:{value:68,max:100,color:"#4A7C59"}},{label:"Seed Stock Health",value:null,delta:"⚠ 2 items low",up:false,ring:{value:82,max:100,color:"#C8963E"}}].map((k,i)=>(
-              <div key={i} style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:"18px 20px",boxShadow:"0 1px 2px rgba(43,33,27,.04),0 6px 18px rgba(43,33,27,.06)"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:11.5,fontWeight:600,color:"#8A7C6C",textTransform:"uppercase",letterSpacing:"0.04em"}}>{k.label}</div>
-                    {k.value&&<div style={{fontFamily:"monospace",fontSize:26,fontWeight:600,color:"#2B211B",marginTop:2}}>{k.value}</div>}
-                    {k.ring&&<div style={{fontFamily:"monospace",fontSize:26,fontWeight:600,color:"#2B211B",marginTop:2}}>{k.ring.value}<span style={{fontSize:14,color:"#8A7C6C"}}>{k.ring.value===68?"/100":"%"}</span></div>}
-                    <div style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:11.5,fontWeight:600,marginTop:2,color:k.up?"#2F6B45":"#8A5A12"}}>{k.delta}</div>
+        {activeSection === "market" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1.55fr 1fr", gap: 18 }}>
+            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+              <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 12 }}>Live Mandi Pricing Matrix Tracker (₹/Qtl)</h3>
+              {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
+                <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px dashed #E8DFD2", fontSize: 13 }}>
+                  <span><strong>{crop.toUpperCase()}</strong> baseline spot price:</span>
+                  <span style={{ fontFamily: "monospace", fontWeight: 600, color: C.green }}>₹{priceArr[priceArr.length - 1].toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+              <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Real-Time Distribution Pipeline</h3>
+              {filteredTxn.map((r, i) => (
+                <div key={i} style={{ padding: "10px 0", borderBottom: "1px solid #E8DFD2", display: "flex", justifyBetween: "space-between", fontSize: 12.5 }}>
+                  <div><strong>{r.name}</strong> ({r.crop})</div>
+                  <span style={{ background: SB_C[r.status].bg, color: SB_C[r.status].color, padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 700 }}>{SB_C[r.status].label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeSection === "seed" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 18 }}>
+            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+              <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Current Stock Volume Indicators</h3>
+              {SEED_INV.map(m => (
+                <div key={m.name} style={{ marginBottom: 10 }}>
+                  <div style={{ display: "flex", justifyBetween: "space-between", fontSize: 12, marginBottom: 3 }}>
+                    <span>{m.name}</span><strong>{m.stock} Qtl</strong>
                   </div>
-                  {k.spark&&<Sparkline points={k.spark} color={k.color}/>}
-                  {k.ring&&<RingGauge value={k.ring.value} max={k.ring.max} color={k.ring.color} size={58}/>}
+                  <div style={{ height: 6, background: "#FAF6EF", borderRadius: 4 }}><div style={{ width: `${(m.stock / m.max) * 100}%`, height: "100%", background: INV_C[m.status] }} /></div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </section>
+        )}
 
-        {/* MARKET SALES */}
-        <section id="dash-market" style={{marginBottom:40,scrollMarginTop:24}}>
-          <span style={{display:"inline-block",fontSize:10.5,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#6B1E3B",background:"#F4E2EA",padding:"3px 10px",borderRadius:20,marginBottom:8}}>Market Sales</span>
-          <h2 style={{fontFamily:"serif",fontWeight:600,fontSize:23,color:"#2B211B",marginBottom:16}}>Mandi Prices & Transactions</h2>
-          <div style={{display:"grid",gridTemplateColumns:"1.55fr 1fr",gap:18,marginBottom:18}}>
-            <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:20}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <h3 style={{fontFamily:"serif",fontWeight:600,fontSize:16}}>Mandi Price Trend (₹/Qtl)</h3>
-                <div style={{display:"flex",background:"#FAF6EF",border:"1px solid #E8DFD2",borderRadius:8,padding:3,gap:2}}>
-                  {["7D","30D","90D"].map(r=><button key={r} onClick={()=>setMandiRange(r)} style={{border:"none",padding:"5px 11px",borderRadius:6,fontSize:11.5,fontWeight:600,cursor:"pointer",background:mandiRange===r?"#6B1E3B":"transparent",color:mandiRange===r?"#fff":"#8A7C6C"}}>{r}</button>)}
-                </div>
-              </div>
-              <div style={{display:"flex",gap:12,marginBottom:10}}>
-                {[["Wheat","#6B1E3B"],["Mustard","#C8963E"],["Gram","#4A7C59"]].map(([label,color])=>(
-                  <span key={label} style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:11.5,fontWeight:600,color:"#8A7C6C",border:"1px solid #E8DFD2",padding:"4px 10px",borderRadius:20,background:"#fff"}}>
-                    <span style={{width:9,height:9,borderRadius:"50%",background:color,display:"inline-block"}}/>{label}
-                  </span>
-                ))}
-              </div>
-              <svg viewBox="0 0 400 130" width="100%" style={{overflow:"visible"}}>
-                {[0,0.25,0.5,0.75,1].map((t,i)=><line key={i} x1="0" y1={t*100+10} x2="400" y2={t*100+10} stroke="#EFE8DB" strokeWidth="1"/>)}
-                {[{data:md.wheat,color:"#6B1E3B",min:2000,max:2500},{data:md.mustard,color:"#C8963E",min:5000,max:6000},{data:md.gram,color:"#4A7C59",min:4500,max:5500}].map(({data,color,min,max})=>{
-                  const n=data.length;
-                  const pts=data.map((v,i)=>`${(i/(n-1))*380+10},${110-((v-min)/(max-min))*90}`).join(" ");
-                  return <polyline key={color} points={pts} stroke={color} strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round"/>;
-                })}
-                {md.labels.map((lbl,i)=><text key={i} x={(i/(md.labels.length-1))*380+10} y="128" textAnchor="middle" fontSize="9" fill="#8A7C6C">{lbl}</text>)}
-              </svg>
-            </div>
-            <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:20}}>
-              <h3 style={{fontFamily:"serif",fontWeight:600,fontSize:16,marginBottom:14}}>This Week's Snapshot</h3>
-              {[["Avg. Wheat Price","₹2,340"],["Avg. Mustard Price","₹5,800"],["Avg. Gram Price","₹5,100"],["Total Volume Sold","186 Qtl"],["Top Mandi","Jhansi Mandi"],["Best Buyer","Bundeli Agro Traders"]].map(([l,v])=>(
-                <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px dashed #E8DFD2"}}>
-                  <span style={{fontSize:12.5,color:"#8A7C6C"}}>{l}</span><span style={{fontFamily:"monospace",fontSize:15,fontWeight:600,color:"#6B1E3B"}}>{v}</span>
+        {activeSection === "farmers" && (
+          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Active Network Registry Champions</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {filteredFarmers.map(f => (
+                <div key={f.id} onClick={() => onSelect(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#FAF6EF", borderRadius: 10, cursor: "pointer", border: "1px solid #E8DFD2" }}>
+                  <div><div style={{ fontWeight: 700, fontSize: 14, color: "#2B211B" }}>{f.name}</div><div style={{ fontSize: 12, color: "#8A7C6C" }}>{f.village}, {f.district} · {f.land}ha · {f.soilType}</div></div>
+                  <span style={{ background: f.planGenerated ? "#DCEEE1" : "#F7E8C9", color: f.planGenerated ? "#2F6B45" : "#8A5A12", fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 20 }}>{f.status}</span>
                 </div>
               ))}
             </div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1.2fr",gap:18}}>
-            <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:20}}>
-              <h3 style={{fontFamily:"serif",fontWeight:600,fontSize:16,marginBottom:14}}>Revenue by Crop · This Month</h3>
-              {REV_DATA.map(d=>(
-                <div key={d.crop} style={{marginBottom:12}}>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span style={{fontWeight:600}}>{d.crop}</span><span style={{fontFamily:"monospace",color:"#8A7C6C"}}>₹{(d.rev/1000).toFixed(0)}K</span></div>
-                  <div style={{height:22,background:"#FAF6EF",borderRadius:6,overflow:"hidden"}}><div style={{width:`${Math.round((d.rev/revMax)*100)}%`,height:"100%",background:d.color,borderRadius:6}}/></div>
-                </div>
-              ))}
-            </div>
-            <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:20}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                <h3 style={{fontFamily:"serif",fontWeight:600,fontSize:16}}>Recent Transactions</h3>
-                <span style={{fontSize:11,color:"#8A7C6C"}}>{filteredTxn.length} records</span>
-              </div>
-              <div style={{overflowX:"auto"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}>
-                  <thead><tr>{["Farmer","Crop","Qty","₹/Qtl","Mandi","Status"].map(h=><th key={h} style={{textAlign:"left",fontSize:10.5,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:"#8A7C6C",padding:"0 8px 8px",borderBottom:"1.5px solid #E8DFD2"}}>{h}</th>)}</tr></thead>
-                  <tbody>
-                    {filteredTxn.map((r,i)=>{const b=SB_C[r.status]||SB_C.pending; return <tr key={i} style={{borderBottom:"1px solid #E8DFD2"}}><td style={{padding:"9px 8px"}}>{r.name}</td><td style={{padding:"9px 8px"}}>{r.crop}</td><td style={{padding:"9px 8px",fontFamily:"monospace"}}>{r.qty}</td><td style={{padding:"9px 8px",fontFamily:"monospace"}}>{r.price}</td><td style={{padding:"9px 8px"}}>{r.mandi}</td><td style={{padding:"9px 8px"}}><span style={{background:b.bg,color:b.color,fontSize:10.5,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{b.label}</span></td></tr>;})}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
+        )}
 
-        {/* SEED & INPUT SALES */}
-        <section id="dash-seed" style={{marginBottom:40,scrollMarginTop:24}}>
-          <span style={{display:"inline-block",fontSize:10.5,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#6B1E3B",background:"#F4E2EA",padding:"3px 10px",borderRadius:20,marginBottom:8}}>Seed & Input Sales</span>
-          <h2 style={{fontFamily:"serif",fontWeight:600,fontSize:23,color:"#2B211B",marginBottom:16}}>Inventory & Sell-Through</h2>
-          <div style={{display:"grid",gridTemplateColumns:"1.55fr 1fr",gap:18,marginBottom:18}}>
-            <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:20}}>
-              <h3 style={{fontFamily:"serif",fontWeight:600,fontSize:16,marginBottom:16}}>Seed Inventory Levels</h3>
-              {SEED_INV.map(s=>(
-                <div key={s.name} style={{marginBottom:16}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
-                    <span style={{fontSize:13,fontWeight:600}}><span style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:INV_C[s.status],marginRight:6}}/>{s.name}</span>
-                    <span style={{fontFamily:"monospace",fontSize:11.5,color:"#8A7C6C"}}>{s.stock}/{s.threshold} Qtl</span>
-                  </div>
-                  <div style={{position:"relative",height:9,background:"#FAF6EF",borderRadius:6}}>
-                    <div style={{width:`${Math.round((s.stock/s.max)*100)}%`,height:"100%",background:INV_C[s.status],borderRadius:6}}/>
-                    <div style={{position:"absolute",top:-3,left:`${Math.round((s.threshold/s.max)*100)}%`,width:2,height:15,background:"#2B211B",opacity:0.35}}/>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:20}}>
-              <h3 style={{fontFamily:"serif",fontWeight:600,fontSize:16,marginBottom:12}}>Low Stock Alerts</h3>
-              {[{text:<><strong>Mustard Pusa Bold</strong> — 9 Qtl, below 12 Qtl threshold. Reorder in 3 days.</>,critical:true},{text:<><strong>Gram Pusa-256</strong> — 14 Qtl, nearing threshold. Monitor demand.</>,critical:false}].map((a,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",borderRadius:9,background:a.critical?"#F6DCD7":"#F7E8C9",marginBottom:8}}>
-                  <span style={{fontSize:15,marginTop:1}}>{a.critical?"🔴":"🟡"}</span>
-                  <div style={{fontSize:12,fontWeight:500,color:"#2B211B"}}>{a.text}</div>
-                </div>
-              ))}
-              <h3 style={{fontFamily:"serif",fontWeight:600,fontSize:16,marginTop:20,marginBottom:12}}>Input Sales Mix</h3>
-              {INPUT_MIX.map(m=>(
-                <div key={m.label} style={{marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
-                    <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:9,height:9,borderRadius:"50%",background:m.color,display:"inline-block"}}/>{m.label}</span>
-                    <span style={{fontFamily:"monospace",fontWeight:600}}>{m.pct}%</span>
-                  </div>
-                  <div style={{height:6,background:"#FAF6EF",borderRadius:4,overflow:"hidden"}}><div style={{width:`${m.pct}%`,height:"100%",background:m.color,borderRadius:4}}/></div>
-                </div>
-              ))}
+        {activeSection === "brain" && (
+          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 24 }}>
+            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 12 }}>Agronomic Blueprint Analysis</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, textAlign: "center" }}>
+              <div><div style={{ fontSize: 24, fontWeight: 800, color: C.maroon }}>{assessed}</div><div style={{ fontSize: 11, color: C.muted }}>Blueprints Generated</div></div>
+              <div><div style={{ fontSize: 24, fontWeight: 800, color: C.green }}>298</div><div style={{ fontSize: 11, color: C.muted }}>Soil Profiles Audited</div></div>
+              <div><div style={{ fontSize: 24, fontWeight: 800, color: C.gold }}>14</div><div style={{ fontSize: 11, color: C.muted }}>Pest Advisories Dispatched</div></div>
             </div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1.2fr",gap:18}}>
-            <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:20}}>
-              <h3 style={{fontFamily:"serif",fontWeight:600,fontSize:16,marginBottom:14}}>Top Selling Varieties · This Month</h3>
-              {[["Wheat HD-3086",34],["Mustard Pusa Bold",24],["Gram Pusa-256",19],["Moong Pusa Vishal",14],["Bajra HHB-67",9]].map(([name,pct],i)=>(
-                <div key={name} style={{display:"flex",alignItems:"center",gap:12,marginBottom:13}}>
-                  <div style={{width:22,height:22,borderRadius:6,background:"#FAF6EF",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"monospace",fontSize:11,fontWeight:700,color:"#6B1E3B",flexShrink:0}}>{i+1}</div>
-                  <div style={{flex:1}}>
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12.5,marginBottom:5}}><span style={{fontWeight:600}}>{name}</span><span style={{fontFamily:"monospace",color:"#8A7C6C"}}>{pct}%</span></div>
-                    <div style={{height:6,background:"#FAF6EF",borderRadius:4,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:"linear-gradient(90deg,#C8963E 0%,#6B1E3B 100%)",borderRadius:4}}/></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:20}}>
-              <h3 style={{fontFamily:"serif",fontWeight:600,fontSize:16,marginBottom:14}}>Seed Sales Summary</h3>
-              {[["Total Seed Revenue · MTD","₹1.46L"],["Units Sold This Month","94 Qtl"],["Avg. Margin","17.5%"],["Farmers Served (Inputs)","211"],["Active Vendor Partners","3"],["Next Restock ETA","24 Jun 2026"]].map(([l,v])=>(
-                <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px dashed #E8DFD2"}}>
-                  <span style={{fontSize:12.5,color:"#8A7C6C"}}>{l}</span><span style={{fontFamily:"monospace",fontSize:15,fontWeight:600}}>{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        )}
 
-        {/* FARMER NETWORK */}
-        <section id="dash-farmers" style={{marginBottom:40,scrollMarginTop:24}}>
-          <span style={{display:"inline-block",fontSize:10.5,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#6B1E3B",background:"#F4E2EA",padding:"3px 10px",borderRadius:20,marginBottom:8}}>Farmer Network</span>
-          <h2 style={{fontFamily:"serif",fontWeight:600,fontSize:23,color:"#2B211B",marginBottom:16}}>Village Clusters & Champions</h2>
-          <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:20,marginBottom:16}}>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
-              {[["Babina","Suresh Yadav",88],["Moth","Meera Devi",76],["Mauranipur","Vijay Kushwaha",84],["Garautha","Anita Rajput",64]].map(([name,champ,n])=>(
-                <div key={name} style={{background:"#FAF6EF",border:"1px solid #E8DFD2",borderRadius:11,padding:14}}>
-                  <div style={{fontWeight:700,fontSize:13.5,marginBottom:2}}>{name}</div>
-                  <div style={{fontSize:11,color:"#8A7C6C",marginBottom:10}}>Champion: {champ}</div>
-                  <div style={{fontFamily:"monospace",fontSize:20,fontWeight:600,color:"#6B1E3B"}}>{n}</div>
-                  <div style={{fontSize:10.5,color:"#8A7C6C",textTransform:"uppercase",letterSpacing:"0.04em"}}>Farmers</div>
+        {activeSection === "outlets" && (
+          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 24 }}>
+            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Squire Shared Logistics Infrastructure</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18, fontSize: 13 }}>
+              { [["Machinery rental availability", "2 of 2 deployed"], ["Cold Storage Occupancy capacity", "64% utilized"], ["Daily Active Footfall register", "37 champions"]].map(([l, v]) => (
+                <div key={l} style={{ padding: "10px 0", borderBottom: "1px dashed #E8DFD2" }}>
+                  <div style={{ fontSize: 12, color: "#8A7C6C", marginBottom: 4 }}>{l}</div>
+                  <strong style={{ fontFamily: "monospace", fontSize: 16 }}>{v}</strong>
                 </div>
-              ))}
+              )) }
             </div>
           </div>
-          <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:20}}>
-            <h3 style={{fontFamily:"serif",fontWeight:600,fontSize:16,marginBottom:14}}>Live Farmer Records</h3>
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {filteredFarmers.map(f=>(
-                <div key={f.id} onClick={()=>onSelect(f)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:"#FAF6EF",borderRadius:10,cursor:"pointer",border:"1px solid #E8DFD2",flexWrap:"wrap",gap:8}}>
-                  <div><div style={{fontWeight:700,fontSize:14,color:"#2B211B"}}>{f.name}</div><div style={{fontSize:12,color:"#8A7C6C"}}>{f.village}, {f.district} · {f.land}ha · {f.soilType}</div></div>
-                  <div style={{display:"flex",gap:6}}>
-                    <span style={{background:f.planGenerated?"#DCEEE1":"#F7E8C9",color:f.planGenerated?"#2F6B45":"#8A5A12",fontSize:10.5,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{f.status}</span>
-                    {f.produce.length>0&&<span style={{background:"#DCEAF2",color:"#3B6E91",fontSize:10.5,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{f.produce.length} batch{f.produce.length>1?"es":""}</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* DIGITAL BRAIN */}
-        <section id="dash-brain" style={{marginBottom:40,scrollMarginTop:24}}>
-          <span style={{display:"inline-block",fontSize:10.5,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#6B1E3B",background:"#F4E2EA",padding:"3px 10px",borderRadius:20,marginBottom:8}}>Digital Brain</span>
-          <h2 style={{fontFamily:"serif",fontWeight:600,fontSize:23,color:"#2B211B",marginBottom:16}}>AI Blueprint Status</h2>
-          <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:24}}>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
-              {[{value:Math.round((assessed/Math.max(farmers.length,1))*100),max:100,color:"#6B1E3B",label:"Blueprints Issued",sub:`${assessed} of ${farmers.length} farmers`},{value:96,max:100,color:"#4A7C59",label:"Soil Tests Completed",sub:"298 of 312 farms"},{value:78,max:100,color:"#C8963E",label:"Pest Alerts Active",sub:"14 advisories sent"}].map((b,i)=>(
-                <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,textAlign:"center",padding:8}}>
-                  <RingGauge value={b.value} max={b.max} color={b.color} size={84}/>
-                  <div style={{fontSize:12,fontWeight:600,marginTop:2}}>{b.label}</div>
-                  <div style={{fontSize:10.5,color:"#8A7C6C"}}>{b.sub}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* OUTLETS */}
-        <section id="dash-outlets" style={{marginBottom:40,scrollMarginTop:24}}>
-          <span style={{display:"inline-block",fontSize:10.5,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"#6B1E3B",background:"#F4E2EA",padding:"3px 10px",borderRadius:20,marginBottom:8}}>Squire Outlets</span>
-          <h2 style={{fontFamily:"serif",fontWeight:600,fontSize:23,color:"#2B211B",marginBottom:16}}>Outlet Operations</h2>
-          <div style={{background:"#fff",border:"1px solid #E8DFD2",borderRadius:14,padding:24}}>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18}}>
-              {[["Machinery Rental Bay","2 of 2 in use"],["Cold Storage Occupancy","64%"],["Outlet Footfall Today","37 farmers"],["Avg. Soil Health",`${Math.round((farmers.reduce((a,f)=>a+f.soc,0)/Math.max(farmers.length,1))*100)}pts`],["Active Machinery Bookings","2 confirmed"],["Produce in Cold Storage",`${allProduce.filter(p=>p.stage==="Cold Storage").length} batches`]].map(([l,v])=>(
-                <div key={l} style={{padding:"14px 0",borderBottom:"1px dashed #E8DFD2"}}>
-                  <div style={{fontSize:12,color:"#8A7C6C",marginBottom:4}}>{l}</div>
-                  <div style={{fontFamily:"monospace",fontSize:18,fontWeight:600}}>{v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <div style={{marginTop:50,paddingTop:20,borderTop:"1px solid #E8DFD2",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-          <p style={{fontSize:11,color:"#8A7C6C"}}>Squire Digital Brain · Internal Operations Dashboard · Bundelkhand Pilot</p>
-          <span style={{fontSize:10,fontWeight:700,color:"#8A7C6C",background:"#FAF6EF",border:"1px solid #E8DFD2",padding:"3px 9px",borderRadius:20}}>Live data from app</span>
-        </div>
+        )}
       </main>
     </div>
   );
