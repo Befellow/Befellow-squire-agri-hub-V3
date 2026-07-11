@@ -1342,217 +1342,222 @@ function Dashboard({ farmers, onSelect, onNew, onViewReports, onViewMachinery })
   const filteredFarmers = farmers.filter(f => !searchQ || `${f.name} ${f.village} ${f.district} ${f.cropHistory}`.toLowerCase().includes(searchQ.toLowerCase()));
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter',sans-serif" }}>
-      {/* Persistent Left Sidebar */}
-      <aside style={{ width: 248, background: "linear-gradient(180deg,#241509 0%,#1A0E05 100%)", color: "#E9DFD2", position: "fixed", top: 0, left: 0, bottom: 0, display: "flex", flexDirection: "column", padding: "28px 18px", zIndex: 20, overflowY: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,.08)", marginBottom: 22 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Top Utility Header Bar — Houses page title context indicators */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A7C6C", marginBottom: 4 }}>Bundelkhand Pilot · Jhansi Cluster</div>
+          <h1 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 26, color: "#2B211B", margin: 0 }}>Good morning, <em style={{ fontStyle: "italic", color: "#6B1E3B", fontWeight: 500 }}>Harshit</em></h1>
+          <div style={{ fontSize: 13, color: "#8A7C6C", marginTop: 4 }}>Live Dashboard Terminal · Operational Outlet Tracking panel</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #E8DFD2", borderRadius: 10, padding: "8px 12px", minWidth: 220 }}>
+            <span style={{ fontSize: 14, color: "#8A7C6C" }}>🔍</span>
+            <input value={searchQ} onChange={e => setSearchQ(e.target.value)} type="text" placeholder="Search farmers, crops, Mandi…" style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, width: "100%", color: "#2B211B" }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Dynamic Conditional Routing Page Viewports */}
+      {activeSection === "overview" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+            {[
+              { label: "Active Farmers Network", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true },
+              { label: "Outlet Revenue · MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true },
+              { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true },
+              { label: "Seed Stock Health", value: "82%", delta: "⚠ 2 items low", up: false }
+            ].map((k, i) => (
+              <div key={i} style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: "18px 20px" }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
+                <div style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 600, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, marginTop: 2, color: k.up ? "#2F6B45" : "#8A5A12" }}>{k.delta}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: 500 }}>
+            ⚠️ <span><strong>2 seed varieties</strong> below reorder threshold · <strong>1 Mandi price alert</strong> needs operational review</span>
+          </div>
+        </div>
+      )}
+
+      {activeSection === "market" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1.55fr 1fr", gap: 18 }}>
+          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 12 }}>Live Mandi Price Matrix Trends (₹/Qtl)</h3>
+            {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
+              <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px dashed #E8DFD2", fontSize: 13.5 }}>
+                <span style={{ textTransform: "capitalize" }}><strong>{crop}</strong> Spot Price:</span>
+                <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{priceArr[priceArr.length - 1].toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Real-Time Pipeline Tracking</h3>
+            {filteredTxn.map((r, i) => (
+              <div key={i} style={{ padding: "10px 0", borderBottom: "1px solid #E8DFD2", display: "flex", justifyContent: "space-between", fontSize: 12.5, alignItems: "center" }}>
+                <div><strong>{r.name}</strong> ({r.crop})</div>
+                <span style={{ background: SB_C[r.status].bg, color: SB_C[r.status].color, padding: "3px 9px", borderRadius: 20, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>{SB_C[r.status].label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeSection === "seed" && (
+        <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+          <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Outlet Supply Inventory Ratios</h3>
+          {SEED_INV.map(m => (
+            <div key={m.name} style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                <span>{m.name}</span><strong>{m.stock} Qtl MTD</strong>
+              </div>
+              <div style={{ height: 6, background: "#FAF6EF", borderRadius: 4, overflow: "hidden" }}><div style={{ width: `${(m.stock / m.max) * 100}%`, height: "100%", background: INV_C[m.status] }} /></div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeSection === "farmers" && (
+        <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
+          <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Village Cluster Champion Network Records</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {filteredFarmers.map(f => (
+              <div key={f.id} onClick={() => onSelect(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#FAF6EF", borderRadius: 10, cursor: "pointer", border: "1px solid #E8DFD2", transition: "transform 0.15s" }}>
+                <div><div style={{ fontWeight: 700, fontSize: 14, color: "#2B211B" }}>{f.name}</div><div style={{ fontSize: 12, color: "#8A7C6C" }}>{f.village}, {f.district} · {f.land}ha · {f.soilType}</div></div>
+                <span style={{ background: f.planGenerated ? "#DCEEE1" : "#F7E8C9", color: f.planGenerated ? "#2F6B45" : "#8A5A12", fontSize: 10.5, fontWeight: 700, padding: "4px 10px", borderRadius: 20 }}>{f.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeSection === "brain" && (
+        <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 24 }}>
+          <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>AI Digital Blueprint Constraints Parameters</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, textAlign: "center" }}>
+            <div><div style={{ fontSize: 26, fontWeight: 800, color: C.maroon }}>{assessed}</div><div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Blueprints Issued</div></div>
+            <div><div style={{ fontSize: 26, fontWeight: 800, color: C.green }}>298</div><div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Soil Profiles Mapped</div></div>
+            <div><div style={{ fontSize: 26, fontWeight: 800, color: C.gold }}>14</div><div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Active Risk Advisories</div></div>
+          </div>
+        </div>
+      )}
+
+      {activeSection === "outlets" && (
+        <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 24 }}>
+          <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Squire Shared Logistics Infrastructure</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18, fontSize: 13 }}>
+            { [["Machinery Custom Hiring Bay", "2 of 2 deployed"], ["Cold Storage Occupancy matrix", "64% utilized occupancy"], ["Daily Outlet Active Footfall register", "37 champions registered today"]].map(([l, v]) => (
+              <div key={l} style={{ padding: "10px 0", borderBottom: "1px dashed #E8DFD2" }}>
+                <div style={{ fontSize: 12, color: "#8A7C6C", marginBottom: 4 }}>{l}</div>
+                <strong style={{ fontFamily: "monospace", fontSize: 15 }}>{v}</strong>
+              </div>
+            )) }
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MAIN APP SYSTEM CORE WRAPPER LAYOUT ─────────────────────────
+export default function App() {
+  const [view, setView] = useState("dashboard"); 
+  const [dashboardTab, setDashboardTab] = useState("overview"); // Handles main menu state changes cleanly
+  const [farmers, setFarmers] = useState(INITIAL_FARMERS);
+  const [selected, setSelected] = useState(null);
+  const [rentals, setRentals] = useState(INITIAL_RENTALS);
+  
+  // Sidebar persistent toggle state configuration matrix
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const handleSaveFarmer = f => { setFarmers(prev => [...prev, f]); setView("dashboard"); setDashboardTab("farmers"); };
+  const handleUpdateFarmer = u => { setFarmers(prev => prev.map(f => f.id === u.id ? u : f)); setSelected(u); };
+  const handleSelectFarmer = f => { setSelected(f); setView("detail"); };
+  const handleAddRental = r => setRentals(prev => [...prev, r]);
+  const liveSelected = selected ? farmers.find(f => f.id === selected.id) || selected : null;
+
+  const NAV_ITEMS = [
+    { id: "overview", icon: "▦", label: "Overview" },
+    { id: "market", icon: "↗", label: "Market Sales" },
+    { id: "seed", icon: "🌱", label: "Seed & Inputs" },
+    { id: "farmers", icon: "👥", label: "Farmer Network" },
+    { id: "brain", icon: "🧠", label: "Digital Brain" },
+    { id: "outlets", icon: "🏪", label: "Squire Outlets" }
+  ];
+
+  return (
+    <div style={{ fontFamily: "'Inter',system-ui,sans-serif", background: C.cream, minHeight: "100vh", display: "flex" }}>
+      
+      {/* Global Application Navigation Sidebar Panel (Locked persistently across view transitions) */}
+      <aside style={{ 
+        width: sidebarOpen ? 248 : 0, 
+        opacity: sidebarOpen ? 1 : 0,
+        background: "linear-gradient(180deg,#241509 0%,#1A0E05 100%)", 
+        color: "#E9DFD2", 
+        position: "fixed", top: 0, left: 0, bottom: 0, 
+        display: "flex", flexDirection: "column", 
+        padding: sidebarOpen ? "28px 18px" : "28px 0px", 
+        zIndex: 90, transition: "all 0.22s ease-in-out", 
+        overflowX: "hidden", overflowY: "auto" 
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,.08)", marginBottom: 22, minWidth: 212 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#C8963E 0%,#6B1E3B 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 18 }}>S</div>
           <div><div style={{ fontWeight: 600, fontSize: 17, color: "#fff", fontFamily: "serif" }}>Squire</div><div style={{ fontSize: 10, color: "#E8C77E", letterSpacing: "0.06em", textTransform: "uppercase" }}>Digital Brain</div></div>
         </div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {NAV.map(n => (
-            <button key={n.id} onClick={() => setActiveSection(n.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: activeSection === n.id ? "rgba(200,150,62,.16)" : "transparent", color: activeSection === n.id ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
+        <nav style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 212 }}>
+          {NAV_ITEMS.map(n => (
+            <button key={n.id} onClick={() => { setView("dashboard"); setDashboardTab(n.id); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: (view === "dashboard" && dashboardTab === n.id) ? "rgba(200,150,62,.16)" : "transparent", color: (view === "dashboard" && dashboardTab === n.id) ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
               <span style={{ fontSize: 14 }}>{n.icon}</span>{n.label}
-              {activeSection === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
+              {view === "dashboard" && dashboardTab === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
             </button>
           ))}
         </nav>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0" }}>
-          <button onClick={onNew} style={{ background: "#6B1E3B", color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
-          <button onClick={onViewReports} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
-          <button onClick={onViewMachinery} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0", minWidth: 212 }}>
+          <button onClick={() => setView("onboard")} style={{ background: C.maroon, color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
+          <button onClick={() => setView("reports")} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
+          <button onClick={() => setView("machinery")} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
         </div>
-        <div style={{ marginTop: "auto", paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ marginTop: "auto", paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10, minWidth: 212 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#6B1E3B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#fff" }}>HV</div>
           <div><div style={{ fontSize: 12.5, fontWeight: 600, color: "#F0E6D6" }}>Harshit Vimal</div><div style={{ fontSize: 10.5, color: "#9C8C7A" }}>Field Operations</div></div>
         </div>
       </aside>
 
-      {/* Main Workspace Frame */}
-      <main style={{ marginLeft: 248, flex: 1, padding: "30px 38px 60px", maxWidth: 1080 }}>
-        {/* Universal Sub-Header Search Row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 22, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A7C6C", marginBottom: 4 }}>Bundelkhand Pilot · Jhansi Cluster</div>
-            <h1 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 28, color: "#2B211B" }}>Good morning, <em style={{ fontStyle: "italic", color: "#6B1E3B", fontWeight: 500 }}>Harshit</em></h1>
-            <div style={{ fontSize: 13, color: "#8A7C6C", marginTop: 4 }}>Live Dashboard Workspace · Dedicated Page Content Panel</div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #E8DFD2", borderRadius: 10, padding: "8px 12px", minWidth: 220 }}>
-              <span style={{ fontSize: 14, color: "#8A7C6C" }}>🔍</span>
-              <input value={searchQ} onChange={e => setSearchQ(e.target.value)} type="text" placeholder="Search farmers, crops, Mandi…" style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, width: "100%", color: "#2B211B" }} />
-            </div>
-          </div>
-        </div>
+      {/* Main Framework Layout Container Panel Workspace */}
+      <div style={{ flex: 1, marginLeft: sidebarOpen ? 248 : 0, transition: "margin-left 0.22s ease-in-out", display: "flex", flexDirection: "column", minWidth: 0 }}>
+        
+        {/* Persistent Workspace Top Header Bar — Houses the Open/Close sidebar layout action cleanly */}
+        <header style={{ height: 56, background: "#241509", padding: "0 24px", display: "flex", alignItems: "center", gap: 16, color: C.white, zIndex: 40, borderBottom: `1px solid ${C.border}` }}>
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, width: 34, height: 34, color: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}
+            title={sidebarOpen ? "Hide Navigation Drawer Menu" : "Show Navigation Drawer Menu"}
+          >
+            ☰
+          </button>
+          <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}>Squire System Pilot Control Dashboard</div>
+        </header>
 
-        {/* Dynamic Conditional Routing Outlet */}
-        {activeSection === "overview" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-              {[ { label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true }, { label: "Outlet Revenue · MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true }, { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true }, { label: "Seed Stock Health", value: "82%", delta: "⚠ 2 items low", up: false } ].map((k, i) => (
-                <div key={i} style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
-                  <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 600, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
-                  <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 2, color: k.up ? "#2F6B45" : "#8A5A12" }}>{k.delta}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: 500 }}>
-              ⚠️ <span><strong>2 seed varieties</strong> below reorder threshold · <strong>1 Mandi price alert</strong> needs review</span>
-            </div>
-          </div>
-        )}
-
-        {activeSection === "market" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.55fr 1fr", gap: 18 }}>
-            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
-              <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 12 }}>Live Mandi Pricing Matrix Tracker (₹/Qtl)</h3>
-              {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
-                <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px dashed #E8DFD2", fontSize: 13 }}>
-                  <span><strong>{crop.toUpperCase()}</strong> baseline spot price:</span>
-                  <span style={{ fontFamily: "monospace", fontWeight: 600, color: C.green }}>₹{priceArr[priceArr.length - 1].toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
-              <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Real-Time Distribution Pipeline</h3>
-              {filteredTxn.map((r, i) => (
-                <div key={i} style={{ padding: "10px 0", borderBottom: "1px solid #E8DFD2", display: "flex", justifyBetween: "space-between", fontSize: 12.5 }}>
-                  <div><strong>{r.name}</strong> ({r.crop})</div>
-                  <span style={{ background: SB_C[r.status].bg, color: SB_C[r.status].color, padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 700 }}>{SB_C[r.status].label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeSection === "seed" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 18 }}>
-            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
-              <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Current Stock Volume Indicators</h3>
-              {SEED_INV.map(m => (
-                <div key={m.name} style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyBetween: "space-between", fontSize: 12, marginBottom: 3 }}>
-                    <span>{m.name}</span><strong>{m.stock} Qtl</strong>
-                  </div>
-                  <div style={{ height: 6, background: "#FAF6EF", borderRadius: 4 }}><div style={{ width: `${(m.stock / m.max) * 100}%`, height: "100%", background: INV_C[m.status] }} /></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeSection === "farmers" && (
-          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
-            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Active Network Registry Champions</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {filteredFarmers.map(f => (
-                <div key={f.id} onClick={() => onSelect(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#FAF6EF", borderRadius: 10, cursor: "pointer", border: "1px solid #E8DFD2" }}>
-                  <div><div style={{ fontWeight: 700, fontSize: 14, color: "#2B211B" }}>{f.name}</div><div style={{ fontSize: 12, color: "#8A7C6C" }}>{f.village}, {f.district} · {f.land}ha · {f.soilType}</div></div>
-                  <span style={{ background: f.planGenerated ? "#DCEEE1" : "#F7E8C9", color: f.planGenerated ? "#2F6B45" : "#8A5A12", fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 20 }}>{f.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeSection === "brain" && (
-          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 24 }}>
-            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 12 }}>Agronomic Blueprint Analysis</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, textAlign: "center" }}>
-              <div><div style={{ fontSize: 24, fontWeight: 800, color: C.maroon }}>{assessed}</div><div style={{ fontSize: 11, color: C.muted }}>Blueprints Generated</div></div>
-              <div><div style={{ fontSize: 24, fontWeight: 800, color: C.green }}>298</div><div style={{ fontSize: 11, color: C.muted }}>Soil Profiles Audited</div></div>
-              <div><div style={{ fontSize: 24, fontWeight: 800, color: C.gold }}>14</div><div style={{ fontSize: 11, color: C.muted }}>Pest Advisories Dispatched</div></div>
-            </div>
-          </div>
-        )}
-
-        {activeSection === "outlets" && (
-          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 24 }}>
-            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Squire Shared Logistics Infrastructure</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18, fontSize: 13 }}>
-              { [["Machinery rental availability", "2 of 2 deployed"], ["Cold Storage Occupancy capacity", "64% utilized"], ["Daily Active Footfall register", "37 champions"]].map(([l, v]) => (
-                <div key={l} style={{ padding: "10px 0", borderBottom: "1px dashed #E8DFD2" }}>
-                  <div style={{ fontSize: 12, color: "#8A7C6C", marginBottom: 4 }}>{l}</div>
-                  <strong style={{ fontFamily: "monospace", fontSize: 16 }}>{v}</strong>
-                </div>
-              )) }
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-// ─── MAIN APP ─────────────────────────────────────────────────────
-export default function App() {
-  const [view, setView]=useState("dashboard");
-  const [farmers, setFarmers]=useState(INITIAL_FARMERS);
-  const [selected, setSelected]=useState(null);
-  const [rentals, setRentals]=useState(INITIAL_RENTALS);
-
-  const handleSaveFarmer=f=>{ setFarmers(prev=>[...prev,f]); setView("dashboard"); };
-  const handleUpdateFarmer=u=>{ setFarmers(prev=>prev.map(f=>f.id===u.id?u:f)); setSelected(u); };
-  const handleSelectFarmer=f=>{ setSelected(f); setView("detail"); };
-  const handleAddRental=r=>setRentals(prev=>[...prev,r]);
-  const liveSelected=selected?farmers.find(f=>f.id===selected.id)||selected:null;
-  const breadcrumb={onboard:"Onboard Farmer",detail:liveSelected?.name||"",reports:"Reports",machinery:"Machinery Hub"};
-
-  return (
-    <div style={{fontFamily:"'Inter',system-ui,sans-serif",background:C.cream,minHeight:"100vh"}}>
-
-      {/* Top header bar — only shown on non-dashboard views */}
-      {view!=="dashboard"&&(
-        <div style={{background:C.maroonDark,padding:"0 20px"}}>
-          <div style={{maxWidth:820,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:56}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={()=>setView("dashboard")}>
-              <div style={{width:32,height:32,borderRadius:8,background:C.gold,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:C.white,fontSize:16}}>S</div>
-              <div><div style={{color:C.white,fontWeight:800,fontSize:16,lineHeight:1}}>Squire</div><div style={{color:C.goldLight,fontSize:10,letterSpacing:1}}>DIGITAL BRAIN</div></div>
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              {["reports","machinery"].map(v=>(
-                <button key={v} onClick={()=>setView(v)} style={{background:view===v?"rgba(255,255,255,0.15)":"none",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,color:C.white,fontSize:12,cursor:"pointer",padding:"4px 10px",fontWeight:500}}>
-                  {v==="reports"?"📊 Reports":"🚜 Machinery"}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Breadcrumb */}
-      {view!=="dashboard"&&(
-        <div style={{background:C.soilLight,borderBottom:`1px solid ${C.border}`,padding:"8px 20px"}}>
-          <div style={{maxWidth:820,margin:"0 auto",fontSize:13,color:C.muted}}>
-            <span style={{cursor:"pointer",color:C.maroon}} onClick={()=>setView("dashboard")}>← Dashboard</span>
-            {" › "}<span style={{color:C.charcoal}}>{breadcrumb[view]}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Dashboard — full layout with sidebar */}
-      {view==="dashboard"&&(
-        <Dashboard farmers={farmers} onSelect={handleSelectFarmer} onNew={()=>setView("onboard")} onViewReports={()=>setView("reports")} onViewMachinery={()=>setView("machinery")}/>
-      )}
-
-      {/* Other views — constrained width */}
-      {view!=="dashboard"&&(
-        <div style={{maxWidth:820,margin:"0 auto",padding:"24px 16px"}}>
-          {view==="onboard"&&(
-            <><div style={{fontWeight:800,fontSize:20,color:C.charcoal,marginBottom:20}}>Onboard New Farmer</div><OnboardForm onSave={handleSaveFarmer} onCancel={()=>setView("dashboard")}/></>
+        {/* Render Engine Content Outlet */}
+        <main style={{ padding: "30px 38px 60px", maxWidth: 1080, width: "100%", boxSizing: "border-box" }}>
+          {view === "dashboard" && (
+            <Dashboard farmers={farmers} activeSection={dashboardTab} onSelect={handleSelectFarmer} onNew={() => setView("onboard")} onViewReports={() => setView("reports")} onViewMachinery={() => setView("machinery")} />
           )}
-          {view==="detail"&&liveSelected&&(
-            <FarmerDetail farmer={liveSelected} onBack={()=>setView("dashboard")} onUpdateFarmer={handleUpdateFarmer} rentals={rentals} onAddRental={handleAddRental}/>
+          {view === "onboard" && (
+            <><div style={{ fontWeight: 800, fontSize: 20, color: C.charcoal, marginBottom: 20 }}>Onboard New Farmer Champion</div><OnboardForm onSave={handleSaveFarmer} onCancel={() => setView("dashboard")} /></>
           )}
-          {view==="reports"&&(
-            <Reports farmers={farmers} rentals={rentals} onBack={()=>setView("dashboard")}/>
+          {view === "detail" && liveSelected && (
+            <FarmerDetail farmer={liveSelected} onBack={() => setView("dashboard")} onUpdateFarmer={handleUpdateFarmer} rentals={rentals} onAddRental={handleAddRental} />
           )}
-          {view==="machinery"&&(
-            <MachineryHub rentals={rentals} onBack={()=>setView("dashboard")} onAddRental={handleAddRental} farmers={farmers}/>
+          {view === "reports" && (
+            <Reports farmers={farmers} rentals={rentals} onBack={() => setView("dashboard")} />
           )}
-        </div>
-      )}
+          {view === "machinery" && (
+            <MachineryHub rentals={rentals} onBack={() => setView("dashboard")} onAddRental={handleAddRental} farmers={farmers} />
+          )}
+        </main>
+      </div>
     </div>
   );
 }
