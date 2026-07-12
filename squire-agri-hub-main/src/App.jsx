@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 
 // ─── BRAND TOKENS ────────────────────────────────────────────────
@@ -408,13 +407,77 @@ function calcDRS(f) {
   return { drs, grade:drs>=70?"Critical":drs>=50?"High":drs>=30?"Moderate":"Low", color:drs>=70?C.red:drs>=50?C.orange:drs>=30?C.gold:C.green };
 }
 
+// ─── UNIFIED CROP NAME RESOLVER ──────────────────────────────────────
+// AI Blueprint payloads may return regional/vernacular names, parenthetical
+// translations, or minor phrasing drift (e.g. "Green Gram (Moong)" instead of
+// our canonical "Green Gram" key). Both the Produce Tab and the Econometric
+// Terminal price/yield lookups route through this single resolver so a name
+// that's actually known never silently collapses to the generic fallback.
+const CROP_ALIAS_MAP = {
+  "moong": "Green Gram", "mung bean": "Green Gram", "green gram": "Green Gram",
+  "urad": "Black Gram", "urad dal": "Black Gram", "black gram": "Black Gram",
+  "chana": "Chickpea", "gram": "Chickpea", "kabuli chana": "Chickpea", "bengal gram": "Chickpea",
+  "arhar": "Arhar (Pigeon Pea)", "tur": "Arhar (Pigeon Pea)", "toor": "Arhar (Pigeon Pea)",
+  "toor dal": "Arhar (Pigeon Pea)", "pigeon pea": "Arhar (Pigeon Pea)", "red gram": "Arhar (Pigeon Pea)",
+  "masoor": "Lentil", "masoor dal": "Lentil",
+  "til": "Sesame", "sesame seed": "Sesame", "gingelly": "Sesame",
+  "jowar": "Sorghum", "sorghum": "Sorghum",
+  "bajra": "Pearl Millet", "pearl millet": "Pearl Millet",
+  "makka": "Maize", "makkai": "Maize", "corn": "Maize", "sweet corn": "Sweet Corn",
+  "sarson": "Mustard", "rai": "Mustard", "mustard": "Mustard",
+  "aloo": "Potato", "batata": "Potato",
+  "pyaz": "Onion", "kanda": "Onion",
+  "lehsun": "Garlic", "garlic": "Garlic",
+  "adrak": "Ginger", "haldi": "Turmeric",
+  "mirchi": "Chilli", "mirch": "Chilli", "chili": "Chilli", "chile": "Chilli", "green chilli": "Chilli",
+  "tamatar": "Tomato", "gehun": "Wheat", "gehu": "Wheat",
+  "chawal": "Paddy", "rice": "Paddy", "dhaan": "Paddy",
+  "soya": "Soybean", "soyabean": "Soybean",
+  "moongfali": "Groundnut", "peanut": "Groundnut",
+  "alsi": "Linseed", "flaxseed": "Linseed", "arandi": "Castor", "castor seed": "Castor",
+  "pudina": "Mentha", "mint": "Mentha", "menthe": "Mentha", "lemon grass": "Lemongrass",
+  "tulsi": "Tulsi", "holy basil": "Tulsi",
+  "amla": "Aonla", "indian gooseberry": "Aonla",
+  "genda": "Marigold", "genda phool": "Marigold", "gulab": "Rose",
+};
+
+function resolveCropKey(rawName) {
+  if (!rawName) return null;
+  const trimmed = String(rawName).trim();
+  if (MANDI_PER_KG[trimmed] !== undefined) return trimmed; // 1. exact match, fast path
+
+  const stripped = trimmed.replace(/\s*\([^)]*\)\s*/g, "").trim(); // strip "(Moong)" etc.
+  if (MANDI_PER_KG[stripped] !== undefined) return stripped;
+
+  const lower = trimmed.toLowerCase(), strippedLower = stripped.toLowerCase();
+  const keys = Object.keys(MANDI_PER_KG);
+
+  const ciMatch = keys.find(k => k.toLowerCase() === lower || k.toLowerCase() === strippedLower); // 2. case-insensitive
+  if (ciMatch) return ciMatch;
+
+  if (CROP_ALIAS_MAP[lower]) return CROP_ALIAS_MAP[lower]; // 3. vernacular/alias map
+  if (CROP_ALIAS_MAP[strippedLower]) return CROP_ALIAS_MAP[strippedLower];
+  const aliasHit = Object.keys(CROP_ALIAS_MAP).find(a => lower.includes(a));
+  if (aliasHit) return CROP_ALIAS_MAP[aliasHit];
+
+  const tokenMatch = keys.find(k => { // 4. substring/token overlap, last resort
+    const kl = k.toLowerCase().replace(/\s*\([^)]*\)\s*/g, "").trim();
+    return lower.includes(kl) || kl.includes(strippedLower);
+  });
+  if (tokenMatch) return tokenMatch;
+
+  return null; // genuinely unresolved — caller applies its own generic fallback
+}
+
 // Dynamically converts per-kg wholesale pricing to per-quintal (x100) across all 148 crops
 function getMandiPricePerQtl(crop) {
-  return (MANDI_PER_KG[crop] || 30.00) * 100;
+  const resolved = resolveCropKey(crop);
+  return (resolved ? MANDI_PER_KG[resolved] : 30.00) * 100;
 }
 
 // Calibrated baseline yields (quintals/hectare) for Bundelkhand/Fatehpur clusters
-function getBaseYield(crop) {
+function getBaseYield(rawCrop) {
+  const crop = resolveCropKey(rawCrop) || rawCrop; // align to the same resolved identity as price lookup
   const yields = {
     "Wheat": 32, "Paddy": 28, "Maize": 35, "Barley": 26, "Oats": 24, "Oat": 24, "Bajra": 22, "Pearl Millet": 22, "Sorghum": 24,
     "Chickpea": 12, "Lentil": 9, "Field Pea": 11, "Green Gram": 8, "Black Gram": 7, "Cowpea": 8, "Lathyrus": 9,
@@ -544,8 +607,8 @@ function EconomicsTab({ farmer, plan, machineryRentalCost }) {
   };
 
   // Convert raw pricing per kg from our synchronized master array
-  const priceKgS1 = MANDI_PER_KG[cropS1] || 30.00;
-  const priceKgS2 = MANDI_PER_KG[cropS2] || 30.00;
+  const priceKgS1 = MANDI_PER_KG[resolveCropKey(cropS1)] || 30.00;
+  const priceKgS2 = MANDI_PER_KG[resolveCropKey(cropS2)] || 30.00;
 
   // Baseline yield conversions (Convert qtl/acre strings to total kilograms for land size)
   const baseYieldAcreS1 = parseNumber(s1?.expectedYield, 8);
@@ -854,7 +917,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
   const totalInputCost=inputItems.reduce((a,i)=>a+i.totalCost,0);
 
   const produceItems=farmer.produce.map(p=>{
-    const pricePerKg=MANDI_PER_KG[p.crop]||30, grossRevenue=Math.round((parseFloat(p.qty)||0)*pricePerKg);
+    const pricePerKg=MANDI_PER_KG[resolveCropKey(p.crop)]||30, grossRevenue=Math.round((parseFloat(p.qty)||0)*pricePerKg);
     const commissionPct=p.buyer==="B2C Premium"?0.05:p.buyer==="B2B Buyer"?0.07:p.buyer==="FPO Aggregation"?0.06:0.10;
     const commission=Math.round(grossRevenue*commissionPct);
     return {...p,pricePerKg,grossRevenue,commission,commissionPct,netRevenue:grossRevenue-commission};
@@ -1033,7 +1096,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
                 <Inp label="Buyer" value={newProduce.buyer} onChange={v=>setNewProduce(p=>({...p,buyer:v}))} options={BUYER_TYPES}/>
                 <Inp label="Harvest Date" value={newProduce.harvestDate} onChange={v=>setNewProduce(p=>({...p,harvestDate:v}))} type="date"/>
               </div>
-              {newProduce.crop&&newProduce.qty&&<div style={{background:C.greenPale,borderRadius:8,padding:"8px 12px",marginTop:4,marginBottom:10,fontSize:13}}>Est. Revenue: <strong style={{color:C.green}}>₹{Math.round((parseFloat(newProduce.qty)||0)*(MANDI_PER_KG[newProduce.crop]||30)).toLocaleString()}</strong><span style={{color:C.muted,fontSize:11,marginLeft:8}}>@ ₹{MANDI_PER_KG[newProduce.crop]||30}/kg</span></div>}
+              {newProduce.crop&&newProduce.qty&&<div style={{background:C.greenPale,borderRadius:8,padding:"8px 12px",marginTop:4,marginBottom:10,fontSize:13}}>Est. Revenue: <strong style={{color:C.green}}>₹{Math.round((parseFloat(newProduce.qty)||0)*(MANDI_PER_KG[resolveCropKey(newProduce.crop)]||30)).toLocaleString()}</strong><span style={{color:C.muted,fontSize:11,marginLeft:8}}>@ ₹{MANDI_PER_KG[resolveCropKey(newProduce.crop)]||30}/kg</span></div>}
               <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
                 <Btn small variant="ghost" onClick={()=>setAddingProduce(false)}>Cancel</Btn>
                 <Btn small variant="green" onClick={handleAddProduce}>Save + QR</Btn>
@@ -1111,6 +1174,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
             <EconometricProjectionTerminal 
               farmer={farmer} 
               plan={plan} 
+              actualSeason={{ totalInputCost, totalGrossRevenue, totalNetRevenue, machineryRentalCost, netPL }}
             />
           )}
         </div>
@@ -1627,18 +1691,32 @@ function CushionGauge({ ratio, size = 76 }) {
 }
 
 // ─── CALCULATION PROJECTION MATRIX TERMINAL ─────────────────────────
-function EconometricProjectionTerminal({ farmer, plan }) {
+function EconometricProjectionTerminal({ farmer, plan, actualSeason }) {
   const [scenario, setScenario] = useState("base");
 
   const model = useMemo(() => {
     const landAcres = parseFloat((farmer.land * 2.47).toFixed(2)) || 1;
     const capitalAccess = PROFILE_CAPITAL_ACCESS[farmer.economicProfile] || 0.8;
 
+    // Real Year-1 baseline: only trusted once actual produce revenue has been
+    // logged this season. Until then Year 1 stays a modeled estimate like Yr2-5.
+    const hasRealSeasonData = !!(actualSeason && actualSeason.totalGrossRevenue > 0);
+
+    // Resolve the actual crop(s) driving each year's economics — falls back to
+    // sensible regional defaults when the Digital Brain hasn't generated a plan yet.
+    const cropsForYear = {
+      1: [plan?.year1?.season1?.crop || (farmer.cropHistory?.split(",")[0]?.trim()) || "Wheat"],
+      2: [plan?.year1?.season2?.crop || "Green Gram"],
+      3: (plan?.year3Target?.crops?.length ? plan.year3Target.crops : ["Chickpea", "Mustard", "Sesame"]),
+      4: (plan?.year5Target?.crops?.length ? plan.year5Target.crops : (plan?.year3Target?.crops?.length ? plan.year3Target.crops : ["Potato", "Onion", "Garlic"])),
+      5: (plan?.year5Target?.crops?.length ? plan.year5Target.crops : ["Mustard", "Chickpea", "Sesame"]),
+    };
+
     const rotationByYear = {
       1: plan?.year1?.season1?.crop || (farmer.cropHistory?.split(",")[0]?.trim()) || "Baseline Monocrop",
       2: plan?.year1?.season2?.crop ? `${plan.year1.season1?.crop} + ${plan.year1.season2.crop} rotation` : "Legume / Aromatic Rotation",
       3: plan?.year3Target?.crops?.join(" → ") || "Diversified Restorative Mix",
-      4: "Storage-Arbitrage Rotation (Squire Outlet)",
+      4: `Storage-Arbitrage: ${cropsForYear[4].join(" → ")} (Squire Outlet)`,
       5: plan?.year5Target?.crops?.join(" → ") || "Optimized Equilibrium Mix",
     };
 
@@ -1648,6 +1726,7 @@ function EconometricProjectionTerminal({ farmer, plan }) {
       conservative: { priceVol: 0.90, climateRisk: 0.92, label: "Conservative", color: C.orange },
     };
     const sc = SCENARIOS[scenario];
+    const waterMult = WATER_YIELD_MULT[farmer.waterAvail] || 0.75;
 
     let socTrack = Math.max(farmer.soc, 0.15); 
     const years = [];
@@ -1683,11 +1762,14 @@ function EconometricProjectionTerminal({ farmer, plan }) {
       }
       socTrack = parseFloat(Math.min(socTrack, 1.6).toFixed(2));
 
-      const baseYieldQtlPerAcre = 11.5; 
-      const yieldQtl = parseFloat((baseYieldQtlPerAcre * landAcres * yieldElasticity * sc.climateRisk).toFixed(1));
+      // Resolve real per-crop yield (qtl/Ha) and Mandi price (₹/qtl) across the
+      // 148-crop matrix, averaged when a year runs a diversified multi-crop mix.
+      const cropList = cropsForYear[yr];
+      const avgYieldPerHa = cropList.reduce((a, c) => a + getBaseYield(c), 0) / cropList.length;
+      const avgPricePerQtl = cropList.reduce((a, c) => a + getMandiPricePerQtl(c), 0) / cropList.length;
+      const yieldQtl = parseFloat((avgYieldPerHa * farmer.land * waterMult * yieldElasticity * sc.climateRisk).toFixed(1));
 
-      const basePricePerQtl = 4200; 
-      let grossRealization = Math.round(yieldQtl * basePricePerQtl * sc.priceVol);
+      let grossRealization = Math.round(yieldQtl * avgPricePerQtl * sc.priceVol);
       let arbitrageNote = null;
       if (storageArbitrage) {
         const premiumPct = yr === 4 ? 0.19 : 0.24;
@@ -1700,7 +1782,17 @@ function EconometricProjectionTerminal({ farmer, plan }) {
       const seedBioInputBase = Math.round(3200 * landAcres * chemInputMult);
       const hiredLaborCost = Math.round(2600 * landAcres * (1 - capitalAccess * 0.15));
       const machineryFuelCost = Math.round(1800 * landAcres);
-      const a2Cost = seedBioInputBase + hiredLaborCost + machineryFuelCost + conditioningSurcharge;
+      let a2Cost = seedBioInputBase + hiredLaborCost + machineryFuelCost + conditioningSurcharge;
+
+      // ── Live grounding: Year 1 anchors to what's actually been recorded ──
+      // (Produce Tab realizations + logged input/machinery spend) instead of
+      // the synthetic model estimate, whenever real season data exists.
+      let groundedInYr1 = false;
+      if (yr === 1 && hasRealSeasonData) {
+        grossRealization = actualSeason.totalGrossRevenue;
+        a2Cost = Math.round(actualSeason.totalInputCost + (actualSeason.machineryRentalCost || 0));
+        groundedInYr1 = true;
+      }
 
       const flCost = Math.round(FAMILY_LABOR_DAYS_PER_ACRE * landAcres * REGIONAL_WAGE_PER_DAY * capitalAccess);
       const imputedLandRent = Math.round(LAND_RENT_PER_ACRE_YR * landAcres);
@@ -1712,16 +1804,16 @@ function EconometricProjectionTerminal({ farmer, plan }) {
       const gatePassed = cushionRatio >= 1.5;
 
       years.push({
-        yr, crop: rotationByYear[yr], soc: socTrack, yieldElasticity, yieldQtl,
+        yr, crop: rotationByYear[yr], cropList, avgPricePerQtl: Math.round(avgPricePerQtl), soc: socTrack, yieldElasticity, yieldQtl,
         a2Cost, flCost, imputedLandRent, interestFixedCapital, c2,
         grossRealization, netProfit, cushionRatio, gatePassed, arbitrageNote,
-        chemInputMult,
+        chemInputMult, groundedInYr1,
       });
     }
-    return { years, sc, landAcres };
-  }, [farmer, plan, scenario]);
+    return { years, sc, landAcres, hasRealSeasonData };
+  }, [farmer, plan, scenario, actualSeason]);
 
-  const { years, sc, landAcres } = model;
+  const { years, sc, landAcres, hasRealSeasonData } = model;
   const finalGate = years[4];
   const cumC2 = years.reduce((a, y) => a + y.c2, 0);
   const cumNetProfit = years.reduce((a, y) => a + y.netProfit, 0);
@@ -1734,6 +1826,15 @@ function EconometricProjectionTerminal({ farmer, plan }) {
         <div>
           <div style={{ fontWeight: 800, fontSize: 17, color: C.charcoal }}>📐 5-Year Econometric Projection Terminal</div>
           <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Swaminathan C2 Cost Index Engine · {landAcres} acres · {farmer.waterAvail}</div>
+          <div style={{ marginTop: 6 }}>
+            <span style={{
+              fontSize: 10.5, fontWeight: 700, padding: "2px 9px", borderRadius: 20,
+              background: hasRealSeasonData ? C.greenPale : "#FEF3D0",
+              color: hasRealSeasonData ? C.green : C.soil,
+            }}>
+              {hasRealSeasonData ? "✓ Year 1 grounded in live Produce/Input records" : "○ Year 1 is a modeled estimate — log produce sales to ground it in real data"}
+            </span>
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {[["base", "Base Case"], ["optimistic", "Optimistic"], ["conservative", "Conservative"]].map(([k, l]) => (
@@ -1803,7 +1904,7 @@ function EconometricProjectionTerminal({ farmer, plan }) {
             <tbody>
               {years.map(y => (
                 <tr key={y.yr} style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <td style={{ padding: "8px", fontWeight: 700, color: C.charcoal }}>Yr {y.yr}</td>
+                  <td style={{ padding: "8px", fontWeight: 700, color: C.charcoal }}>Yr {y.yr}{y.groundedInYr1 ? " 🔗" : ""}</td>
                   <td style={{ padding: "8px", color: C.charcoal, maxWidth: 180, whiteSpace: "normal" }}>{y.crop}</td>
                   <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace", color: y.soc >= 0.55 ? C.green : C.orange, fontWeight: 600 }}>{y.soc}%</td>
                   <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace" }}>₹{y.a2Cost.toLocaleString()}</td>
@@ -1829,11 +1930,11 @@ function EconometricProjectionTerminal({ farmer, plan }) {
       <Card style={{ marginBottom: 14, background: "#F0F4FF" }}>
         <div style={{ fontWeight: 700, color: C.blue, fontSize: 12.5, marginBottom: 10 }}>🔬 Mechanism Notes — Structural Variable Adjustments</div>
         <div style={{ display: "grid", gap: 8, fontSize: 11.5, color: C.charcoal, lineHeight: 1.6 }}>
-          <div><strong>Yr 1 — Degraded Baseline:</strong> SOC starts low. Yield elasticity is capped at ×{years[0].yieldElasticity} with conditioning surcharges active to offset soil degradation elements.</div>
-          <div><strong>Yr 2 — Rotation Effect:</strong> Diversified systems lower out-of-pocket spending on synthetic chemicals by 15%. Boundaries are shielded via unpalatable crops like Mentha/lemongrass to offset stray cattle risks.</div>
-          <div><strong>Yr 3 — Soil Inflection Point:</strong> SOC crosses the 0.55% threshold line. Elasticity multiplier scales upward to ×{years[2].yieldElasticity} at reduced input expenditures.</div>
-          <div><strong>Yr 4 — Time Arbitrage Block:</strong> squire facilities defer harvest liquidations. Sales utilize a 3-5 month post-harvest hold cycle to log market premiums (+{Math.round((years[3].arbitrageNote?.premiumPct || 0) * 100)}%).</div>
-          <div><strong>Yr 5 — Optimized Equilibrium:</strong> Cushion Ratio reaches {years[4].cushionRatio.toFixed(2)}×. Natural biological renewal self-subsidizes production requirements.</div>
+          <div><strong>Yr 1 — Degraded Baseline ({years[0].cropList.join(", ")}):</strong> SOC starts low. Yield elasticity capped at ×{years[0].yieldElasticity} against a resolved base yield/Mandi price of ₹{years[0].avgPricePerQtl.toLocaleString()}/qtl, with conditioning surcharges active to offset soil degradation elements.</div>
+          <div><strong>Yr 2 — Rotation Effect ({years[1].cropList.join(", ")}):</strong> Diversified systems lower out-of-pocket spending on synthetic chemicals by 15%. Boundaries are shielded via unpalatable crops like Mentha/lemongrass to offset stray cattle risks.</div>
+          <div><strong>Yr 3 — Soil Inflection Point ({years[2].cropList.join(", ")}):</strong> SOC crosses the 0.55% threshold line. Elasticity multiplier scales upward to ×{years[2].yieldElasticity} at a blended Mandi price of ₹{years[2].avgPricePerQtl.toLocaleString()}/qtl across the diversified mix.</div>
+          <div><strong>Yr 4 — Time Arbitrage Block ({years[3].cropList.join(", ")}):</strong> Squire Outlets defer harvest liquidation. Sales utilize a 3-5 month post-harvest hold cycle to capture off-season premiums (+{Math.round((years[3].arbitrageNote?.premiumPct || 0) * 100)}%) net of ₹{years[3].arbitrageNote?.storageRentalFee?.toLocaleString()} storage rental.</div>
+          <div><strong>Yr 5 — Optimized Equilibrium ({years[4].cropList.join(", ")}):</strong> Cushion Ratio reaches {years[4].cushionRatio.toFixed(2)}× at ₹{years[4].avgPricePerQtl.toLocaleString()}/qtl blended realization. Natural biological renewal self-subsidizes production requirements.</div>
         </div>
       </Card>
     </div>
