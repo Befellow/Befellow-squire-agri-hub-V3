@@ -1495,6 +1495,307 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
   );
 }
 
+// SQUIRE · 5-YEAR RISK-ADJUSTED ECONOMETRIC FARM PROJECTION TERMINAL
+// Swaminathan C2 + 50% Cushion Engine · Digital Brain Integrated
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── REGIONAL WAGE & CAPITAL CONSTANTS (Bundelkhand / Fatehpur belt) ──
+const REGIONAL_WAGE_PER_DAY = 320;          // ₹/day, UP semi-arid agri wage benchmark
+const FAMILY_LABOR_DAYS_PER_ACRE = 22;      // person-days/acre/season, smallholder avg
+const LAND_RENT_PER_ACRE_YR = 6500;         // ₹/acre/yr, imputed opportunity cost
+const FIXED_CAPITAL_BASE = 28000;           // ₹/acre, irrigation infra + implements asset base
+const INTEREST_RATE_FIXED_CAPITAL = 0.09;   // 9% p.a., RBI KCC-linked bank benchmark
+
+const PROFILE_CAPITAL_ACCESS = {
+  "Marginal (<1ha)": 0.7, "Small (1–2ha)": 0.85,
+  "Semi-medium (2–4ha)": 1.0, "Medium (4–10ha)": 1.15,
+};
+
+// ─── SVG CHART PRIMITIVES ─────────────────────────────────────────────
+function DualMetricChart({ years, width = 640, height = 220 }) {
+  const pad = { l: 54, r: 16, t: 20, b: 30 };
+  const w = width - pad.l - pad.r, h = height - pad.t - pad.b;
+  const allVals = years.flatMap(y => [y.c2, y.netProfit]);
+  const maxV = Math.max(...allVals, 1) * 1.12;
+  const minV = Math.min(0, ...allVals);
+  const xFor = i => pad.l + (i / (years.length - 1)) * w;
+  const yFor = v => pad.t + h - ((v - minV) / (maxV - minV)) * h;
+
+  const c2Path = years.map((y, i) => `${i === 0 ? "M" : "L"}${xFor(i)},${yFor(y.c2)}`).join(" ");
+  const npPath = years.map((y, i) => `${i === 0 ? "M" : "L"}${xFor(i)},${yFor(y.netProfit)}`).join(" ");
+  const npArea = `${npPath} L${xFor(years.length - 1)},${yFor(0)} L${xFor(0)},${yFor(0)} Z`;
+
+  const gridLines = 4;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto", display: "block" }}>
+      {/* Grid Y-Axis ticks */}
+      {Array.from({ length: gridLines + 1 }).map((_, i) => {
+        const v = minV + ((maxV - minV) / gridLines) * i;
+        const y = yFor(v);
+        return (
+          <g key={i}>
+            <line x1={pad.l} y1={y} x2={width - pad.r} y2={y} stroke={C.border} strokeWidth={1} />
+            <text x={pad.l - 8} y={y + 3} fontSize="9" fill={C.muted} textAnchor="end" fontFamily="monospace">
+              {v >= 100000 ? `${(v / 100000).toFixed(1)}L` : `${Math.round(v / 1000)}K`}
+            </text>
+          </g>
+        );
+      })}
+      <line x1={pad.l} y1={yFor(0)} x2={width - pad.r} y2={yFor(0)} stroke={C.charcoal} strokeWidth={1} strokeOpacity={0.25} />
+
+      {/* Area Shading & Vector Lines */}
+      <path d={npArea} fill={C.green} fillOpacity={0.12} stroke="none" />
+      <path d={c2Path} fill="none" stroke={C.red} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={npPath} fill="none" stroke={C.green} strokeWidth={2.75} strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* Coordinate nodes */}
+      {years.map((y, i) => (
+        <g key={i}>
+          <circle cx={xFor(i)} cy={yFor(y.c2)} r={3.5} fill={C.white} stroke={C.red} strokeWidth={2} />
+          <circle cx={xFor(i)} cy={yFor(y.netProfit)} r={3.5} fill={C.white} stroke={C.green} strokeWidth={2} />
+          <text x={xFor(i)} y={height - 8} fontSize="10" fill={C.charcoal} textAnchor="middle" fontWeight="600">Yr {y.yr}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function CushionGauge({ ratio, size = 76 }) {
+  const pct = Math.min(ratio / 2.0, 1); 
+  const r = size / 2 - 8, c = 2 * Math.PI * r;
+  const dash = c * pct;
+  const passed = ratio >= 1.5;
+  const color = passed ? C.green : ratio >= 1.0 ? C.gold : C.red;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={C.border} strokeWidth={7} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={7}
+        strokeDasharray={`${dash} ${c}`} strokeLinecap="round"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+      <text x="50%" y="47%" textAnchor="middle" fontSize="15" fontWeight="800" fill={color} fontFamily="monospace">
+        {ratio.toFixed(2)}x
+      </text>
+      <text x="50%" y="64%" textAnchor="middle" fontSize="7" fill={C.muted} fontWeight="600">
+        {passed ? "GATE PASSED" : "BELOW 1.5x"}
+      </text>
+    </svg>
+  );
+}
+
+// ─── CALCULATION PROJECTION MATRIX TERMINAL ─────────────────────────
+function EconometricProjectionTerminal({ farmer, plan }) {
+  const [scenario, setScenario] = useState("base");
+
+  const model = useMemo(() => {
+    const landAcres = parseFloat((farmer.land * 2.47).toFixed(2)) || 1;
+    const capitalAccess = PROFILE_CAPITAL_ACCESS[farmer.economicProfile] || 0.8;
+
+    const rotationByYear = {
+      1: plan?.year1?.season1?.crop || (farmer.cropHistory?.split(",")[0]?.trim()) || "Baseline Monocrop",
+      2: plan?.year1?.season2?.crop ? `${plan.year1.season1?.crop} + ${plan.year1.season2.crop} rotation` : "Legume / Aromatic Rotation",
+      3: plan?.year3Target?.crops?.join(" → ") || "Diversified Restorative Mix",
+      4: "Storage-Arbitrage Rotation (Squire Outlet)",
+      5: plan?.year5Target?.crops?.join(" → ") || "Optimized Equilibrium Mix",
+    };
+
+    const SCENARIOS = {
+      base: { priceVol: 1.0, climateRisk: 1.0, label: "Base Case", color: C.maroon },
+      optimistic: { priceVol: 1.12, climateRisk: 1.05, label: "Optimistic", color: C.green },
+      conservative: { priceVol: 0.90, climateRisk: 0.92, label: "Conservative", color: C.orange },
+    };
+    const sc = SCENARIOS[scenario];
+
+    let socTrack = Math.max(farmer.soc, 0.15); 
+    const years = [];
+
+    for (let yr = 1; yr <= 5; yr++) {
+      let yieldElasticity = 1.0;
+      let chemInputMult = 1.0;
+      let conditioningSurcharge = 0;
+      let storageArbitrage = 0;
+
+      if (yr === 1) {
+        yieldElasticity = socTrack < 0.40 ? 0.75 : 0.90;
+        conditioningSurcharge = socTrack < 0.40 ? Math.round(2400 * landAcres) : Math.round(900 * landAcres);
+        socTrack = socTrack + 0.05;
+      } else if (yr === 2) {
+        chemInputMult = 0.85;
+        yieldElasticity = 0.92;
+        socTrack = socTrack + 0.13;
+      } else if (yr === 3) {
+        socTrack = socTrack + 0.14;
+        yieldElasticity = socTrack >= 0.55 ? 1.12 : 1.0;
+        chemInputMult = 0.80;
+      } else if (yr === 4) {
+        socTrack = socTrack + 0.12;
+        yieldElasticity = 1.16;
+        chemInputMult = 0.78;
+        storageArbitrage = 1; 
+      } else if (yr === 5) {
+        socTrack = socTrack + 0.10;
+        yieldElasticity = 1.22;
+        chemInputMult = 0.74;
+        storageArbitrage = 1;
+      }
+      socTrack = parseFloat(Math.min(socTrack, 1.6).toFixed(2));
+
+      const baseYieldQtlPerAcre = 11.5; 
+      const yieldQtl = parseFloat((baseYieldQtlPerAcre * landAcres * yieldElasticity * sc.climateRisk).toFixed(1));
+
+      const basePricePerQtl = 4200; 
+      let grossRealization = Math.round(yieldQtl * basePricePerQtl * sc.priceVol);
+      let arbitrageNote = null;
+      if (storageArbitrage) {
+        const premiumPct = yr === 4 ? 0.19 : 0.24;
+        const storageRentalFee = Math.round(yieldQtl * 38 * 4); 
+        const premiumGain = Math.round(grossRealization * premiumPct);
+        grossRealization = grossRealization + premiumGain - storageRentalFee;
+        arbitrageNote = { premiumGain, storageRentalFee, premiumPct };
+      }
+
+      const seedBioInputBase = Math.round(3200 * landAcres * chemInputMult);
+      const hiredLaborCost = Math.round(2600 * landAcres * (1 - capitalAccess * 0.15));
+      const machineryFuelCost = Math.round(1800 * landAcres);
+      const a2Cost = seedBioInputBase + hiredLaborCost + machineryFuelCost + conditioningSurcharge;
+
+      const flCost = Math.round(FAMILY_LABOR_DAYS_PER_ACRE * landAcres * REGIONAL_WAGE_PER_DAY * capitalAccess);
+      const imputedLandRent = Math.round(LAND_RENT_PER_ACRE_YR * landAcres);
+      const interestFixedCapital = Math.round(FIXED_CAPITAL_BASE * landAcres * INTEREST_RATE_FIXED_CAPITAL);
+
+      const c2 = a2Cost + flCost + imputedLandRent + interestFixedCapital;
+      const netProfit = grossRealization - c2;
+      const cushionRatio = c2 > 0 ? parseFloat((netProfit / c2).toFixed(2)) : 0;
+      const gatePassed = cushionRatio >= 1.5;
+
+      years.push({
+        yr, crop: rotationByYear[yr], soc: socTrack, yieldElasticity, yieldQtl,
+        a2Cost, flCost, imputedLandRent, interestFixedCapital, c2,
+        grossRealization, netProfit, cushionRatio, gatePassed, arbitrageNote,
+        chemInputMult,
+      });
+    }
+    return { years, sc, landAcres };
+  }, [farmer, plan, scenario]);
+
+  const { years, sc, landAcres } = model;
+  const finalGate = years[4];
+  const cumC2 = years.reduce((a, y) => a + y.c2, 0);
+  const cumNetProfit = years.reduce((a, y) => a + y.netProfit, 0);
+  const cumGross = years.reduce((a, y) => a + y.grossRealization, 0);
+
+  return (
+    <div style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      {/* Tab Header row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10, marginBottom: 4 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 17, color: C.charcoal }}>📐 5-Year Econometric Projection Terminal</div>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Swaminathan C2 Cost Index Engine · {landAcres} acres · {farmer.waterAvail}</div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[["base", "Base Case"], ["optimistic", "Optimistic"], ["conservative", "Conservative"]].map(([k, l]) => (
+            <button key={k} onClick={() => setScenario(k)} style={{
+              padding: "6px 13px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+              border: `2px solid ${scenario === k ? sc.color : C.border}`,
+              background: scenario === k ? sc.color : C.white, color: scenario === k ? C.white : C.muted,
+            }}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Threshold indicator banner */}
+      <Card style={{ margin: "14px 0", background: C.maroonDark, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <CushionGauge ratio={finalGate.cushionRatio} />
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ color: C.goldLight, fontWeight: 700, fontSize: 13 }}>
+            Year 5 Swaminathan Gate: {finalGate.gatePassed ? "✅ PASSED" : "⚠️ BELOW TARGET"}
+          </div>
+          <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 11.5, marginTop: 4, lineHeight: 1.5 }}>
+            Net Profit ₹{finalGate.netProfit.toLocaleString()} vs C2 Cost ₹{finalGate.c2.toLocaleString()} required margin ≥1.5×.
+            {finalGate.gatePassed
+              ? " Natural soil fertility has self-subsidized production inputs — strategy is self-sustaining."
+              : " Propose extending multi-crop diversification intervals or introducing higher value off-season warehouse storage arbitrage blocks."}
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>Cumulative 5-Yr Net Profit</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#90EE90", fontFamily: "monospace" }}>₹{(cumNetProfit / 100000).toFixed(2)}L</div>
+        </div>
+      </Card>
+
+      {/* Inline vector chart layout */}
+      <Card style={{ marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 4 }}>C2 Cost vs Net Realized Profit Trajectory</div>
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>Red Line: Comprehensive Cost Baseline ($C_2$) · Green Line: Net Profit Curve ($Surplus\text{ }Zone$)</div>
+        <DualMetricChart years={years} />
+      </Card>
+
+      {/* Multi-Year Analytics grid row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 }}>
+        {[
+          ["Cum. Gross Returns", `₹${(cumGross / 100000).toFixed(2)}L`, C.blue],
+          ["Cum. C2 Expenses", `₹${(cumC2 / 100000).toFixed(2)}L`, C.red],
+          ["Cum. Saved Capital", `₹${(cumNetProfit / 100000).toFixed(2)}L`, C.green],
+          ["Yr5 Cushion Ratio", `${finalGate.cushionRatio.toFixed(2)}×`, finalGate.gatePassed ? C.green : C.orange],
+        ].map(([l, v, c]) => (
+          <Card key={l} style={{ padding: 12, textAlign: "center" }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: c, fontFamily: "monospace" }}>{v}</div>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 2, lineHeight: 1.3 }}>{l}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Full Sheet Data Grid Matrix */}
+      <Card style={{ marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 4 }}>📋 Structural Multi-Year Balance Sheet</div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, minWidth: 760 }}>
+            <thead>
+              <tr style={{ background: C.cream }}>
+                {["Year", "Rotation Strategy", "SOC %", "A2 (Out-of-Pocket)", "FL (Family Labor)", "Total C2", "Gross Realization", "Net Profit", "Cushion Ratio"].map(h => (
+                  <th key={h} style={{ padding: "7px 8px", textAlign: h === "Year" || h === "Rotation Strategy" ? "left" : "right", color: C.muted, fontWeight: 700, fontSize: 10.5, borderBottom: `1.5px solid ${C.border}`, whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {years.map(y => (
+                <tr key={y.yr} style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <td style={{ padding: "8px", fontWeight: 700, color: C.charcoal }}>Yr {y.yr}</td>
+                  <td style={{ padding: "8px", color: C.charcoal, maxWidth: 180, whiteSpace: "normal" }}>{y.crop}</td>
+                  <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace", color: y.soc >= 0.55 ? C.green : C.orange, fontWeight: 600 }}>{y.soc}%</td>
+                  <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace" }}>₹{y.a2Cost.toLocaleString()}</td>
+                  <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace" }}>₹{y.flCost.toLocaleString()}</td>
+                  <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace", fontWeight: 700, color: C.red }}>₹{y.c2.toLocaleString()}</td>
+                  <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace", color: C.blue }}>₹{y.grossRealization.toLocaleString()}</td>
+                  <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace", fontWeight: 700, color: y.netProfit >= 0 ? C.green : C.red }}>₹{y.netProfit.toLocaleString()}</td>
+                  <td style={{ padding: "8px", textAlign: "right" }}>
+                    <span style={{
+                      fontFamily: "monospace", fontWeight: 800, padding: "2px 8px", borderRadius: 20, fontSize: 11,
+                      background: y.gatePassed ? C.greenPale : "#FEF3D0",
+                      color: y.gatePassed ? C.green : C.soil,
+                    }}>{y.cushionRatio.toFixed(2)}×{y.gatePassed ? " ✓" : ""}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Mechanism logs */}
+      <Card style={{ marginBottom: 14, background: "#F0F4FF" }}>
+        <div style={{ fontWeight: 700, color: C.blue, fontSize: 12.5, marginBottom: 10 }}>🔬 Mechanism Notes — Structural Variable Adjustments</div>
+        <div style={{ display: "grid", gap: 8, fontSize: 11.5, color: C.charcoal, lineHeight: 1.6 }}>
+          <div><strong>Yr 1 — Degraded Baseline:</strong> SOC starts low. Yield elasticity is capped at ×{years[0].yieldElasticity} with conditioning surcharges active to offset soil degradation elements.</div>
+          <div><strong>Yr 2 — Rotation Effect:</strong> Diversified systems lower out-of-pocket spending on synthetic chemicals by 15%. Boundaries are shielded via unpalatable crops like Mentha/lemongrass to offset stray cattle risks.</div>
+          <div><strong>Yr 3 — Soil Inflection Point:</strong> SOC crosses the 0.55% threshold line. Elasticity multiplier scales upward to ×{years[2].yieldElasticity} at reduced input expenditures.</div>
+          <div><strong>Yr 4 — Time Arbitrage Block:</strong> squire facilities defer harvest liquidations. Sales utilize a 3-5 month post-harvest hold cycle to log market premiums (+{Math.round((years[3].arbitrageNote?.premiumPct || 0) * 100)}%).</div>
+          <div><strong>Yr 5 — Optimized Equilibrium:</strong> Cushion Ratio reaches {years[4].cushionRatio.toFixed(2)}×. Natural biological renewal self-subsidizes production requirements.</div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // ─── MAIN APP SYSTEM CORE WRAPPER LAYOUT ─────────────────────────
 export default function App() {
   const [view, setView] = useState("dashboard"); 
