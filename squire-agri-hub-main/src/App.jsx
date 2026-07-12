@@ -831,12 +831,16 @@ function MachineryTab({ farmer, rentals, onAddRental }) {
 
 // ─── FARMER DETAIL ───────────────────────────────────────────────
 function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) {
-  const [tab, setTab]=useState("soil");
-  const [plan, setPlan]=useState(farmer.plan||null);
-  const [loading, setLoading]=useState(false);
-  const [error, setError]=useState(null);
-  const [newProduce, setNewProduce]=useState({crop:"",qty:"",stage:"",buyer:"",harvestDate:""});
-  const [addingProduce, setAddingProduce]=useState(false);
+  const [tab, setTab] = useState("soil");
+  
+  // ADD THIS LINE — Declares sub-routing state for the Economics Terminal toggle
+  const [ecoSubTab, setEcoSubTab] = useState("terminal");
+  
+  const [plan, setPlan] = useState(farmer.plan || null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [newProduce, setNewProduce] = useState({ crop: "", qty: "", stage: "", buyer: "", harvestDate: "" });
+  const [addingProduce, setAddingProduce] = useState(false);
 
   const farmerRentals=rentals.filter(r=>r.farmerId===farmer.id);
 
@@ -1070,7 +1074,46 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
 
       {tab==="machinery"&&<MachineryTab farmer={farmer} rentals={farmerRentals} onAddRental={onAddRental}/>}
 
-      {tab==="economics"&&<EconomicsTab farmer={farmer} plan={plan} totalInputCost={totalInputCost} totalNetRevenue={totalNetRevenue} totalGrossRevenue={totalGrossRevenue} totalCommission={totalCommission} machineryRentalCost={machineryRentalCost} machineryPending={0} netPL={netPL} restorativePremium={restorativePremium} totalCosts={totalInputCost+machineryRentalCost}/>}
+      {tab === "economics" && (
+        <div>
+          {/* Sub-navigation Switcher inside the Economics Main Tab */}
+          <div style={{ display: "flex", gap: 2, borderBottom: `2px solid ${C.border}`, marginBottom: 18 }}>
+            {[
+              ["quick", "💵 Quick Snapshot"],
+              ["terminal", "📐 Econometric Terminal"]
+            ].map(([k, l]) => (
+              <button 
+                key={k} 
+                onClick={() => setEcoSubTab(k)} 
+                style={{ 
+                  padding: "8px 14px", background: "none", border: "none", cursor: "pointer", 
+                  fontWeight: ecoSubTab === k ? 700 : 400, 
+                  color: ecoSubTab === k ? C.maroon : C.muted, 
+                  borderBottom: ecoSubTab === k ? `2px solid ${C.maroon}` : "2px solid transparent", 
+                  marginBottom: -2, fontSize: 13 
+                }}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+
+          {/* Conditional Sub-View Router Outlet */}
+          {ecoSubTab === "quick" && (
+            <EconomicsTab 
+              farmer={farmer} 
+              plan={plan} 
+              machineryRentalCost={machineryRentalCost} 
+            />
+          )}
+          {ecoSubTab === "terminal" && (
+            <EconometricProjectionTerminal 
+              farmer={farmer} 
+              plan={plan} 
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
