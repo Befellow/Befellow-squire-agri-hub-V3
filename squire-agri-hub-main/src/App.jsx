@@ -121,12 +121,6 @@ const MANDI_PER_KG = {
 };
 
 // ─── AI CROP PLAN — calls /api/gemini (Vercel backend) ───────────
-// ─── DETERMINISTIC 5-YEAR SWAMINATHAN C2 PROJECTOR ───────────────
-// Runs purely off farmer + crop-history Mandi economics (calcProfit) —
-// no AI, no plan dependency. This is the same SOC/yield-elasticity
-// schedule used by the Econometric Terminal, kept fully self-contained
-// here so generateCropPlan can hand real numbers to the AI, not the
-// other way around.
 function projectFiveYearBaseline(farmer) {
   const landAcres = parseFloat((farmer.land * 2.47).toFixed(2)) || 1;
   const capitalAccess = { "Marginal (<1ha)":0.7, "Small (1–2ha)":0.85, "Semi-medium (2–4ha)":1.0, "Medium (4–10ha)":1.15 }[farmer.economicProfile] || 0.8;
@@ -329,7 +323,6 @@ Output your prescriptive analysis ONLY as a valid, single, compact JSON object m
     pestIndex: pest,
   };
 }
-
 
 // ─── UI PRIMITIVES ───────────────────────────────────────────────
 function Badge({ color, children }) {
@@ -994,7 +987,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
   const [ecoSubTab, setEcoSubTab] = useState("terminal");
   
   const [plan, setPlan] = useState(farmer.plan || null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);  
   const [error, setError] = useState(null);
   const [newProduce, setNewProduce] = useState({ crop: "", qty: "", stage: "", buyer: "", harvestDate: "" });
   const [addingProduce, setAddingProduce] = useState(false);
@@ -1079,74 +1072,167 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
         </div>
       )}
 
-      {tab==="plan"&&(
-        <div>
-          {!plan&&!loading&&(
-            <Card style={{textAlign:"center",padding:40}}>
-              <div style={{fontSize:48,marginBottom:12}}>🧠</div>
-              <div style={{fontWeight:700,fontSize:18,color:C.charcoal,marginBottom:8}}>Generate AI Digital Brain Case File</div>
-              <div style={{color:C.muted,fontSize:14,marginBottom:20}}>Our deterministic engine computes the DRS, pest index, and 5-year Swaminathan projection first — the AI then writes a clinical executive brief on top of those fixed numbers. It never invents the numbers itself.</div>
-              {error&&<div style={{color:C.red,marginBottom:14,fontSize:13,background:"#FDEDEC",padding:"8px 12px",borderRadius:6}}>{error}</div>}
+      {tab === "plan" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {!plan && !loading && (
+            <Card style={{ textAlign: "center", padding: 40 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🧠</div>
+              <div style={{ fontWeight: 700, fontSize: 18, color: C.charcoal, marginBottom: 8 }}>Generate AI Digital Brain Case File</div>
+              <div style={{ color: C.muted, fontSize: 14, marginBottom: 20 }}>Our deterministic engine computes the DRS, pest index, and 5-year Swaminathan projection first — the AI then writes a clinical executive brief on top of those fixed numbers. It never invents the numbers itself.</div>
+              {error && <div style={{ color: C.red, marginBottom: 14, fontSize: 13, background: "#FDEDEC", padding: "8px 12px", borderRadius: 6 }}>{error}</div>}
               <Btn variant="primary" onClick={handleGenerate}>🌱 Generate Case File</Btn>
             </Card>
           )}
-          {loading&&(
-            <Card style={{textAlign:"center",padding:48}}>
-              <div style={{fontSize:42,marginBottom:12}}>⚙️</div>
-              <div style={{fontWeight:700,fontSize:16,color:C.maroon}}>Digital Brain Processing…</div>
-              <div style={{color:C.muted,fontSize:13,marginTop:8}}>Running deterministic DRS / pest / C2 engine, then drafting the clinical brief</div>
+
+          {loading && (
+            <Card style={{ textAlign: "center", padding: 48 }}>
+              <div style={{ fontSize: 42, marginBottom: 12 }}>⚙️</div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: C.maroon }}>Digital Brain Processing…</div>
+              <div style={{ color: C.muted, fontSize: 13, marginTop: 8 }}>Running deterministic DRS / pest / C2 engine, then drafting the clinical brief</div>
             </Card>
           )}
-          {plan&&!loading&&(
-            <div style={{display:"flex",flexDirection:"column",gap:16}}>
 
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <span style={{fontSize:24}}>🧠</span>
+          {plan && !loading && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              
+              {/* BRAND HEADER CONTAINER */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 24 }}>🧠</span>
                 <div>
-                  <div style={{fontWeight:800,fontSize:18,color:C.charcoal}}>AI Digital Brain · Executive Case File Summary</div>
-                  <div style={{fontSize:12,color:C.muted}}>Every metric below is computed by our deterministic engine — the AI writes narrative only.</div>
+                  <div style={{ fontWeight: 800, fontSize: 18, color: C.charcoal }}>AI Digital Brain · Executive Case File Summary</div>
+                  <div style={{ fontSize: 12, color: C.muted }}>Every metric below is computed by our deterministic engine — the AI writes narrative interpretation only.</div>
                 </div>
               </div>
 
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-                <Card style={{textAlign:"center"}}>
-                  <RingGauge value={plan.soilHealthScore} max={100} color={plan.soilHealthScore>60?C.green:plan.soilHealthScore>35?C.orange:C.red}/>
-                  <div style={{fontSize:11,color:C.muted,marginTop:6}}>Soil Health Score</div>
-                  <Badge color={plan.soilHealthScore>60?"green":plan.soilHealthScore>35?"gold":"red"}>{plan.soilHealthGrade}</Badge>
+              {/* THREE LAYER CORE RISK RING GAUGES */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                <Card style={{ textAlign: "center" }}>
+                  <RingGauge value={plan.soilHealthScore} max={100} color={plan.soilHealthScore > 60 ? C.green : plan.soilHealthScore > 35 ? C.orange : C.red} />
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Soil Health Score</div>
+                  <Badge color={plan.soilHealthScore > 60 ? "green" : plan.soilHealthScore > 35 ? "gold" : "red"}>{plan.soilHealthGrade}</Badge>
                 </Card>
-                <Card style={{textAlign:"center"}}>
-                  <RingGauge value={plan.planScore} max={100} color={C.maroon}/>
-                  <div style={{fontSize:11,color:C.muted,marginTop:6}}>Plan Score</div>
+                <Card style={{ textAlign: "center" }}>
+                  <RingGauge value={plan.planScore} max={100} color={C.maroon} />
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Plan Score</div>
                   <Badge color="maroon">{plan.profitabilityIndex}</Badge>
                 </Card>
-                <Card style={{textAlign:"center"}}>
-                  <RingGauge value={plan.soilHealthScore} max={100} color={plan.degradationRisk==="Critical"?C.red:plan.degradationRisk==="High"?C.orange:plan.degradationRisk==="Moderate"?C.gold:C.green}/>
-                  <div style={{fontSize:11,color:C.muted,marginTop:6}}>Degradation Risk</div>
-                  <Badge color={plan.degradationRisk==="Critical"||plan.degradationRisk==="High"?"red":plan.degradationRisk==="Moderate"?"gold":"green"}>{plan.degradationRisk}</Badge>
+                <Card style={{ textAlign: "center" }}>
+                  <RingGauge value={plan.soilHealthScore} max={100} color={plan.degradationRisk === "Critical" ? C.red : plan.degradationRisk === "High" ? C.orange : plan.degradationRisk === "Moderate" ? C.gold : C.green} />
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Degradation Risk</div>
+                  <Badge color={plan.degradationRisk === "Critical" || plan.degradationRisk === "High" ? "red" : plan.degradationRisk === "Moderate" ? "gold" : "green"}>{plan.degradationRisk}</Badge>
                 </Card>
               </div>
 
-              <div style={{background:"linear-gradient(135deg, #241509 0%, #3A2415 100%)",borderRadius:14,padding:22,border:`1px solid ${C.green}55`}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                  <span style={{fontSize:18}}>📋</span>
-                  <span style={{fontWeight:700,fontSize:13,color:"#E8C77E",letterSpacing:"0.03em"}}>CLINICAL EXECUTIVE SUMMARY</span>
+              {/* EXPERT SUMMARY BOX BLOCK */}
+              <div style={{ background: "linear-gradient(135deg, #241509 0%, #3A2415 100%)", borderRadius: 14, padding: 22, border: `1px solid ${C.green}55` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: 18 }}>📋</span>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "#E8C77E", letterSpacing: "0.03em" }}>CLINICAL EXECUTIVE SUMMARY FOR AGRICULTURE EXPERT</span>
                 </div>
-                <div style={{fontSize:13.5,color:"#F0E6D6",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{plan.executiveSummary}</div>
+                <div style={{ fontSize: 13.5, color: "#F0E6D6", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{plan.executiveSummary}</div>
               </div>
 
+              {/* EXPERT CASE STUDY RECOMMENDATIONS */}
               <Card>
-                <div style={{fontWeight:700,color:C.maroon,fontSize:14,marginBottom:12}}>🎯 Expert Recommendations for Field Approval</div>
-                {(plan.expertRecommendations||[]).map((rec,i)=>(
-                  <div key={i} style={{display:"flex",gap:10,marginBottom:10,paddingBottom:10,borderBottom:i<(plan.expertRecommendations.length-1)?`1px dashed ${C.border}`:"none"}}>
-                    <span style={{color:C.green,fontWeight:800,fontSize:14,flexShrink:0}}>▸</span>
-                    <span style={{fontSize:13,color:C.charcoal,lineHeight:1.5}}>{rec}</span>
+                <div style={{ fontWeight: 700, color: C.maroon, fontSize: 14, marginBottom: 12 }}>🎯 Expert Recommendations for Field Approval</div>
+                {(plan.expertRecommendations || []).map((rec, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10, paddingBottom: 10, borderBottom: i < (plan.expertRecommendations.length - 1) ? `1px dashed ${C.border}` : "none" }}>
+                    <span style={{ color: C.green, fontWeight: 800, fontSize: 14, flexShrink: 0 }}>▸</span>
+                    <span style={{ fontSize: 13, color: C.charcoal, lineHeight: 1.5 }}>{rec}</span>
                   </div>
                 ))}
               </Card>
 
-              <Card><div style={{fontWeight:700,color:C.maroon,marginBottom:10,fontSize:14}}>⚠️ Deterministic Key Issues</div>{plan.keyIssues?.map((issue,i)=><div key={i} style={{display:"flex",gap:8,marginBottom:6,fontSize:13}}><span style={{color:C.orange}}>•</span><span>{issue}</span></div>)}</Card>
+              {/* TACTICAL PLAN CALENDAR BOX ROW */}
+              <div style={{ borderTop: `2px solid ${C.maroon}`, paddingTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 16, color: C.charcoal, marginBottom: 4 }}>📅 Granular Operational Crop Rotation Planner</div>
+                <p style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Unified multi-tier calendar containing exact agronomic and Gov-linked meteorological patterns.</p>
+                
+                {/* A. MULTI-YEAR TRACKER SECTION */}
+                <Card style={{ marginBottom: 16, background: C.cream }}>
+                  <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 10 }}>📅 1/3/5-Year Crop Sequence Strategy Matrix</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                      <span><strong>Year 1 Season 1 (Kharif):</strong> {plan.year1?.season1?.crop || "Mustard"} ({plan.year1?.season1?.variety})</span>
+                      <span style={{ color: C.green, fontWeight: 700 }}>{plan.year1?.season1?.netProfit}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                      <span><strong>Year 1 Season 2 (Rabi):</strong> {plan.year1?.season2?.crop || "Green Gram"} ({plan.year1?.season2?.variety})</span>
+                      <span style={{ color: C.green, fontWeight: 700 }}>{plan.year1?.season2?.netProfit}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+                      <span><strong>Year 3 Target Restorative Mix:</strong> {plan.year3Target?.crops?.join(" → ")}</span>
+                      <span style={{ color: C.blue, fontWeight: 700 }}>{plan.year3Target?.profitIncrease} Growth Target</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0" }}>
+                      <span><strong>Year 5 Target Equilibrium Assets:</strong> {plan.year5Target?.crops?.join(" → ")}</span>
+                      <span style={{ color: C.blue, fontWeight: 700 }}>{plan.year5Target?.profitIncrease} Growth Target</span>
+                    </div>
+                  </div>
+                </Card>
 
-              <Btn variant="gold" onClick={handleGenerate} small style={{alignSelf:"flex-start"}}>🔄 Regenerate Case File</Btn>
+                {/* B. MONTHLY TACTICAL BLUEPRINT CALENDAR */}
+                <Card style={{ marginBottom: 16 }}>
+                  <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 12 }}>📅 Monthly Action Ledger (Season Milestones)</div>
+                  {/* Pulls from our dynamic Markov chain arrays inside the page state */}
+                  {calcWeather(farmer).filter(w => w.isSowing || w.isHarvest || w.wetWeeks >= 2).map((monthData, idx) => {
+                    const sampleCrop = plan.year1?.season1?.crop || "Mustard";
+                    return (
+                      <div key={idx} style={{ padding: "12px 14px", background: C.cream, borderRadius: 8, marginBottom: 10, borderLeft: `4px solid ${monthData.isSowing ? C.green : C.gold}` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <span style={{ fontWeight: 700, fontSize: 13.5, color: C.charcoal }}>⚡ Month Window: {monthData.month} {monthData.isSowing ? "(Sowing Hub)" : monthData.isHarvest ? "(Harvest Bay)" : ""}</span>
+                          <Badge color={monthData.wetWeeks >= 3 ? "blue" : "gold"}>{monthData.action}</Badge>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 12, fontSize: 12, color: C.charcoal }}>
+                          <div>
+                            <strong style={{ color: C.maroon }}>🛠 Intercultural Practice:</strong>
+                            <div style={{ color: C.muted, marginTop: 2 }}>
+                              {monthData.isSowing ? "Deep cross-tillage tillage via Rotavator + line precision seedbed placement share." : "Weeding via bio-shredder compaction, hand-hoeing row paths, and macro aeration."}
+                            </div>
+                          </div>
+                          <div>
+                            <strong style={{ color: C.orange }}>🐛 Expected Biotic Hazard:</strong>
+                            <div style={{ color: C.muted, marginTop: 2 }}>
+                              {sampleCrop === "Mustard" ? "Aphids infestation vectors, white rust spores, and wild Alternaria blights." : "Root wilt pathogen arrays, pod borer larvae cycles, and standard weed canopy gluts."}
+                            </div>
+                          </div>
+                          <div>
+                            <strong style={{ color: C.green }}>🛒 Targeted Mitigation Input:</strong>
+                            <div style={{ color: C.muted, marginTop: 2 }}>
+                              {plan.pestAlert?.bioIntervention || "Neem extract botanical sprays (3ml/L) combined with structural pheromone traps."}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </Card>
+
+                {/* C. WEEKLY PROBABILISTIC WEATHER CODES MATRIX */}
+                <Card>
+                  <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 4 }}>🌦 Weekly Probabilistic Weather Index (Govt Chain Sync)</div>
+                  <p style={{ fontSize: 11.5, color: C.muted, marginBottom: 12 }}>Markov chain sequence logic mapping regional water table profiles against historical dry streaks.</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                    {calcWeather(farmer).slice(4, 8).map((w, weekIdx) => (
+                      <div key={weekIdx} style={{ background: C.cream, borderRadius: 8, padding: 10, border: `1px solid ${C.border}` }}>
+                        <div style={{ fontWeight: 700, fontSize: 12, color: C.maroon, marginBottom: 4 }}>{w.month} Period Window</div>
+                        <div style={{ display: "flex", gap: 4, marginBottom: 4, fontSize: 11 }}>
+                          <span style={{ background: "#EBF5FB", color: C.blue, padding: "1px 5px", borderRadius: 4, fontWeight: 600 }}>💧 {w.wetWeeks} Wet Wks</span>
+                          <span style={{ background: "#FEF3D0", color: C.soil, padding: "1px 5px", borderRadius: 4, fontWeight: 600 }}>☀️ {w.dryWeeks} Dry Wks</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.3 }}>
+                          <strong>Predictive Pattern:</strong> {w.dryWeeks >= 3 ? "Critical prolonged heat stress. Initiate micro-drip supplementation rows immediately." : "Balanced transition curve. Proceed with standard macro operational intervals."}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+
+              {/* CORE METRICS AND TRACE CARDS GRID */}
+              <Card><div style={{ fontWeight: 700, color: C.maroon, marginBottom: 10, fontSize: 14 }}>⚠️ Deterministic Key Soil Issues discovered by Core Engine</div>{plan.keyIssues?.map((issue, i) => <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 13 }}><span style={{ color: C.orange }}>•</span><span>{issue}</span></div>)}</Card>
+
+              <Btn variant="gold" onClick={handleGenerate} small style={{ alignSelf: "flex-start" }}>🔄 Regenerate Case File Summary</Btn>
             </div>
           )}
         </div>
