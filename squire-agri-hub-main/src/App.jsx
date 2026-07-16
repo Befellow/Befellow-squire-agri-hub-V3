@@ -150,6 +150,30 @@ function projectFiveYearBaseline(farmer) {
   });
 }
 
+// Computes A2 / A2+FL / C2 / C2+50% target / realized-price gap for one crop,
+// per the Swaminathan Commission cost layers — used by Part D of the
+// Restorative Farming Plan. Same cost constants as projectFiveYearBaseline,
+// kept self-contained here.
+function computeC2Economics(crop, farmer) {
+  const landAcres = farmer.land * 2.47;
+  const waterMult = WATER_YIELD_MULT[farmer.waterAvail] || 0.7;
+  const socMult = farmer.soc < 0.3 ? 0.65 : farmer.soc < 0.5 ? 0.82 : 1.0;
+  const yieldQtl = getBaseYield(crop) * waterMult * socMult * farmer.land;
+  const priceQtl = getMandiPricePerQtl(crop);
+  const grossRev = Math.round(yieldQtl * priceQtl);
+  const a2 = Math.round(grossRev * 0.42); // out-of-pocket: seed, fert, pesticide, hired labour, fuel, irrigation
+  const capitalAccess = { "Marginal (<1ha)":0.7, "Small (1–2ha)":0.85, "Semi-medium (2–4ha)":1.0, "Medium (4–10ha)":1.15 }[farmer.economicProfile] || 0.8;
+  const flCost = Math.round(22 * landAcres * 320 * capitalAccess); // imputed unpaid family labour
+  const a2fl = a2 + flCost;
+  const landRent = Math.round(6500 * landAcres); // imputed rent on owned land
+  const interest = Math.round(28000 * landAcres * 0.09); // imputed interest on owned capital/fixed assets
+  const c2 = a2fl + landRent + interest;
+  const c2Target = Math.round(c2 * 1.5); // Swaminathan C2+50%
+  const gap = grossRev - c2Target;
+  const gapPct = c2Target > 0 ? parseFloat(((gap / c2Target) * 100).toFixed(1)) : 0;
+  return { crop, yieldQtl: parseFloat(yieldQtl.toFixed(1)), priceQtl, grossRev, a2, flCost, a2fl, landRent, interest, c2, c2Target, gap, gapPct, clearsGate: gap >= 0 };
+}
+
 // Ranks a crop pool by projected Swaminathan cushion (net / C2-style input cost),
 // using the exact same Mandi-synced getBaseYield/getMandiPricePerQtl resolvers
 // used everywhere else — no invented numbers, no AI involvement.
@@ -166,31 +190,170 @@ function rankCropCandidates(pool, farmer, exclude=[]) {
   }).sort((a,b)=>b.cushion-a.cushion);
 }
 
-// Builds every crop-schedule, input-list, fertilizer, pest, weather and Mandi
-// field deterministically. This is what feeds the Inputs Tab and Econometric
-// Terminal — the AI never touches any of it.
+const LEGUME_POOL = ["Green Gram", "Black Gram", "Chickpea", "Arhar (Pigeon Pea)", "Lentil", "Field Pea", "Cowpea"];
+
+// Builds the complete 10-Part Restorative & Profitable Farming Plan
+// (Bundelkhand/Central UP format) entirely from deterministic math — the AI
+// never touches crop selection, cost figures, phase logic, or the weather/pest
+// matrices. This feeds both the legacy Inputs Tab / Econometric Terminal
+// fields AND the new partA..partJ structure rendered in tab==="plan".
 function buildDeterministicBlueprint(farmer) {
   const drs = calcDRS(farmer);
   const pest = calcPest(farmer);
+  const weather = calcWeather(farmer);
   const lastCrop = (farmer.cropHistory || "Wheat").split(",").map(c=>c.trim()).pop();
+  const cropHistoryArr = (farmer.cropHistory || "Wheat").split(",").map(c=>c.trim());
+  const uniqueCropCount = new Set(cropHistoryArr).size;
   const constrainedWater = ["Rainfed only","Borewell (seasonal)"].includes(farmer.waterAvail);
+  const landAcres = parseFloat((farmer.land * 2.47).toFixed(2));
 
   const staplePool = CROP_OPTIONS["Market Stability & Core Grains"];
   const restorativePool = CROP_OPTIONS["Restorative & Low-Water (Soil Builders)"];
   const aromaticPool = CROP_OPTIONS["Aromatic, Medicinal & Forestry Assets"];
   const highValuePool = CROP_OPTIONS["High Profit / Cash Engines"];
 
-  const season1 = rankCropCandidates(staplePool, farmer, [lastCrop])[0];
-  const restorativeRanked = rankCropCandidates(restorativePool, farmer, [lastCrop, season1?.crop]);
-  const aromaticRanked = rankCropCandidates(aromaticPool, farmer, [lastCrop, season1?.crop]);
-  const season2 = (constrainedWater && aromaticRanked[0] && aromaticRanked[0].cushion > (restorativeRanked[0]?.cushion||0))
-    ? aromaticRanked[0] : restorativeRanked[0];
+  // ── PART C selection: Floor Crop (MSP-linked staple) → Legume (N-fixing) → Growth Crop (value-linked) ──
+  const floorRanked = rankCropCandidates(staplePool, farmer, [lastCrop]);
+  const floorCrop = floorRanked[0] || { crop: lastCrop, net: 0 };
+  const legumeRanked = rankCropCandidates(LEGUME_POOL, farmer, [lastCrop, floorCrop.crop]);
+  const legumeCrop = legumeRanked[0] || { crop: "Green Gram", net: 0 };
+  const growthRanked = rankCropCandidates(highValuePool, farmer, [lastCrop, floorCrop.crop, legumeCrop.crop]);
+  const aromaticRanked = rankCropCandidates(aromaticPool, farmer, [lastCrop, floorCrop.crop, legumeCrop.crop]);
+  const growthCrop = (constrainedWater && aromaticRanked[0] && aromaticRanked[0].cushion > (growthRanked[0]?.cushion||0))
+    ? aromaticRanked[0] : (growthRanked[0] || legumeRanked[1] || legumeCrop);
 
-  const usedSoFar = [lastCrop, season1?.crop, season2?.crop].filter(Boolean);
+  const restorativeRanked = rankCropCandidates(restorativePool, farmer, [lastCrop, floorCrop.crop]);
+  const usedSoFar = [lastCrop, floorCrop.crop, legumeCrop.crop, growthCrop.crop].filter(Boolean);
   const year3Pool = [...restorativeRanked, ...rankCropCandidates(highValuePool, farmer, usedSoFar)].sort((a,b)=>b.cushion-a.cushion).slice(0,3).map(x=>x.crop);
   const year5Pool = [...rankCropCandidates(highValuePool, farmer, usedSoFar), ...aromaticRanked].sort((a,b)=>b.cushion-a.cushion).slice(0,3).map(x=>x.crop);
 
+  // ── PART A — Farm Diagnostic Profile & Baseline ──
+  const partA = {
+    location: `${farmer.village}, ${farmer.district}`,
+    landHa: farmer.land, landAcres,
+    soilType: farmer.soilType, soc: farmer.soc,
+    npk: { n: farmer.nitrogen, p: farmer.phosphorus, k: farmer.potassium },
+    waterSource: farmer.waterAvail,
+    cropHistory: cropHistoryArr,
+    monocropFlag: uniqueCropCount <= 1,
+    monocropNote: uniqueCropCount <= 1
+      ? `${cropHistoryArr.length} consecutive seasons of ${cropHistoryArr[0]} — a textbook monocropping pattern`
+      : `${uniqueCropCount} distinct crops across the last ${cropHistoryArr.length} recorded seasons`,
+    drs,
+  };
+
+  // ── PART B — 5-Year Soil Health Restoration Roadmap (phase from SOC) ──
+  const socPhase = farmer.soc < 0.35 ? 1 : farmer.soc < 0.55 ? 2 : 3;
+  const PHASE_DATA = {
+    1: { label:"Phase 1 — Stabilize", yearLabel:"Year 1", objective:"Stop further degradation without a yield cliff",
+      actions:["Reduce chemical nitrogen by 25–30%","Introduce FYM/compost at 5–8 tonnes/acre","Seed-treat with biofertilizers (Rhizobium / PSB / Azotobacter as crop-appropriate)","Move to soil-test-based dosing instead of blanket dosing"],
+      expectedYieldEffect:"Flat to ~5% below current chemical-intensive baseline" },
+    2: { label:"Phase 2 — Rebuild", yearLabel:"Years 2–3", objective:"Rebuild soil biology and organic matter",
+      actions:["Green manure with dhaincha or sunhemp before Kharif sowing","Integrate vermicompost","Include a legume in every rotation for biological N-fixation","Apply mycorrhizal inoculants","Retain crop residue instead of burning it"],
+      expectedYieldEffect:"−5% to +5% vs baseline — the transition dip, only partially offset by early biological gains" },
+    3: { label:"Phase 3 — Stabilize & Grow", yearLabel:"Years 4–5", objective:"Reduced input dependency with restored organic carbon",
+      actions:["Target organic carbon 0.3–0.5% above original baseline","Cut chemical fertilizer to need-based top-up only","Run Integrated Nutrient Management (INM) as the steady-state approach"],
+      expectedYieldEffect:"+5% to +15% above original degraded baseline, at lower input cost" },
+  };
+  const partB = {
+    currentPhase: socPhase, ...PHASE_DATA[socPhase],
+    currentSOC: farmer.soc,
+    targetSOC: parseFloat((farmer.soc + (socPhase===1?0.05:socPhase===2?0.15:0.35)).toFixed(2)),
+    agroforestrySpecies: ["Ber","Aonla","Khejri","Babool","Subabul"],
+    nitrogenFixingPulses: ["Moong","Urad","Gram"],
+    economicsWarning: "Phase 1–2 typically costs more (compost, biofertilizer, green-manure seed) while yield is flat or slightly down — this dip is shown explicitly in Part D/H, not averaged away.",
+  };
+
+  // ── PART C — Cropping System Redesign ──
+  const partC = {
+    floorCrop: { crop: floorCrop.crop, role:"Floor Crop (MSP-linked)", note:"Guaranteed procurement price / income floor; area right-sized down from current status quo, not eliminated." },
+    legumeCrop: { crop: legumeCrop.crop, role:"Legume (Nitrogen-Fixing)", note:"Precedes the highest-nutrient-demand crop; direct biological input to Part B soil restoration." },
+    growthCrop: { crop: growthCrop.crop, role:"Growth Crop (Market/Value-Linked)", note:"Diversified market outlet distinct from the floor crop's window." },
+    diversificationRule: "No single crop should occupy more than ~50–60% of cultivable area in the redesign's first year, reduced further as diversification proves out.",
+    boundaryPlanting: "Boundary/bund planting with fruit or fodder trees (Part B agroforestry species) adds a third, low-labour income stream without displacing main-plot area.",
+  };
+
+  // ── PART D — Economics & Profitability Model (A2 / A2+FL / C2, C2+50% gap) ──
+  const partD = {
+    floor: computeC2Economics(floorCrop.crop, farmer),
+    legume: computeC2Economics(legumeCrop.crop, farmer),
+    growth: computeC2Economics(growthCrop.crop, farmer),
+    note: "Gap is computed against the realized Mandi price for this crop and land size — not the announced MSP — unless procurement is verified for this crop in this district.",
+  };
+
+  // ── PART E — Pest & Disease Risk Clusters (cross-indexed to growth stage) ──
+  const partE = {
+    overallRisk: pest,
+    stages: [
+      { stage:"Seedling / Early Vegetative", trigger:"Warm, high-humidity conditions after rain", clusterRisk:"Damping-off, seedling blight", action:"Seed treatment before sowing; avoid waterlogging; monitor within 5–7 days of any rain event." },
+      { stage:"Vegetative Growth", trigger:"Extended dry, hot spell", clusterRisk:`Sucking pests — ${pest.pests.slice(0,2).join(", ")||"Aphids, Jassids, Whitefly"}`, action:"Yellow sticky traps as early-warning system; neem-based spray at threshold before escalating to chemical control." },
+      { stage:"Flowering / Pod Formation", trigger:"Humid, cloudy, still-air days", clusterRisk:`Pod/fruit borer complex & fungal blights — ${pest.pests.slice(-2).join(", ")||"Pod Borer, Blight"}`, action:"Install pheromone traps two weeks before expected flowering; apply fungicide only when threshold is crossed." },
+      { stage:"Grain Fill / Maturity", trigger:"Unseasonal rain near harvest", clusterRisk:"Grain mould, onset of storage pests", action:"Build harvest-timing flexibility into the Part C calendar; arrange drying and storage readiness ahead of time." },
+    ],
+  };
+
+  // ── PART F — Weather Risk Matrix (dry/wet branching, from calcWeather Markov data) ──
+  const sowMonths = weather.filter(w=>w.isSowing);
+  const harvestMonths = weather.filter(w=>w.isHarvest);
+  const avgWet = arr => arr.length ? parseFloat((arr.reduce((a,m)=>a+m.wetWeeks,0)/arr.length).toFixed(1)) : 0;
+  const partF = {
+    monthly: weather,
+    stages: [
+      { stage:"Sowing Window", currentLean: avgWet(sowMonths)>=2?"Wet-leaning":"Dry-leaning", ifDry:"Delay sowing within the agronomic window; pre-irrigate if borewell/pond available.", ifWet:"Keep drainage channels open; avoid sowing into waterlogged soil — delay 3–5 days instead." },
+      { stage:"Vegetative Growth", currentLean:"Monitor weekly", ifDry:"Trigger irrigation at a defined soil-moisture threshold; mulch to conserve moisture.", ifWet:"Hold nitrogen top-dressing to avoid leaching loss; check for waterlogging stress and early fungal onset." },
+      { stage:"Flowering", currentLean:"Most moisture-sensitive stage", ifDry:"Prioritize irrigation here over vegetative-stage watering.", ifWet:"Hold fungicide/pesticide spray if rain is expected within 24h — it washes off; reschedule for the next dry window." },
+      { stage:"Grain Fill / Maturity", currentLean: avgWet(harvestMonths)>=2?"Wet-leaning — consider advancing harvest":"Dry-leaning", ifDry:"Apply light irrigation only if grain fill is visibly compromised; avoid over-watering this close to harvest.", ifWet:"Advance harvest if it can be done safely to reduce grain mould/lodging risk; arrange emergency drying capacity." },
+    ],
+    dataNote: "Derived from the Markov wet/dry week model (calcWeather), calibrated to this farm's water-access profile.",
+  };
+
+  // ── PART G — Market & Institutional Strategy (exiting the MSP trap) ──
+  const partG = {
+    steps: [
+      { step:1, title:"Aggregate before diversifying", detail:"Join or form an FPO for collective input purchase and output sale — typically improves realized price by cutting out one or two middlemen layers." },
+      { step:2, title:"Lock a floor before dropping MSP area", detail:`Only reduce ${floorCrop.crop} area once a contract-farming or FPO-aggregation arrangement for ${growthCrop.crop} is actually signed, not assumed.` },
+      { step:3, title:"Add storage or primary processing", detail:"On-farm or FPO-level scientific storage — even basic — breaks the distress-sale-at-harvest pattern that depresses realized price below C2+50%." },
+      { step:4, title:"Diversify sales channels", detail:"Mandi sale, FPO-aggregated sale, direct-to-retail/consumer where feasible, and contract farming for processing-grade produce. No single channel should carry all the risk." },
+    ],
+  };
+
+  // ── PART H — Financial Projections, Insurance & Credit ──
+  const fiveYear = projectFiveYearBaseline(farmer);
+  const transitionCreditNeed = Math.round(4500 * landAcres);
+  const partH = {
+    fiveYearCashFlow: fiveYear,
+    insurance: { scheme:"PMFBY (Pradhan Mantri Fasal Bima Yojana)", note:`Enrollment must be mapped to all Part C rotation crops (${floorCrop.crop}, ${legumeCrop.crop}, ${growthCrop.crop}) — coverage limited to the old monocrop leaves the new income streams unprotected against Part F weather risk.` },
+    credit: { transitionCreditNeed, note:"Part B soil-restoration inputs (compost, biofertilizer, green-manure seed) need short-term credit before they pay back. Size Kisan Credit Card / FPO-linked credit against this transition cost, not just standard seasonal input cost." },
+  };
+
+  // ── PART I — Monitoring, Review & Adaptive Management Cycle ──
+  const partI = {
+    cycles: [
+      { item:"Soil retest", cadence:"Every 2–3 years", feedsInto:"Part B phase progression", checks:"Organic carbon % and N-P-K trend" },
+      { item:"Seasonal cost-benefit review", cadence:"End of each season", feedsInto:"Part D model recalibration", checks:"Actual A2/C2 cost vs projection; realized price vs C2+50%" },
+      { item:"Pest & disease incidence log", cadence:"Continuous, reviewed monthly", feedsInto:"Part E cluster map refinement", checks:"Which risk-cluster predictions held vs missed" },
+      { item:"Weather-trigger log", cadence:"Weekly during season", feedsInto:"Part F matrix refinement", checks:"Dry/wet week calls vs actual irrigation/spray decisions" },
+      { item:"Market channel review", cadence:"After harvest each season", feedsInto:"Part G channel-mix adjustment", checks:"Realized price by channel (mandi, FPO, contract)" },
+    ],
+  };
+
+  // ── PART J — One-Page Executive Summary ──
+  const currentMonthIdx = new Date().getMonth();
+  const thisMonthWeather = weather[currentMonthIdx];
+  const partJ = {
+    farmProfile: `${partA.location} · ${partA.landHa} Ha (${partA.landAcres} acres) · ${partA.soilType} · ${partA.waterSource}`,
+    currentState: `${partA.monocropNote}; SOC ${partA.soc}% (${drs.grade} degradation risk, DRS ${drs.drs}/100)`,
+    restorationPhase: `${partB.label} (${partB.yearLabel}) — ${partB.objective}`,
+    seasonCropMix: `Floor: ${floorCrop.crop} · Growth: ${growthCrop.crop} · Legume: ${legumeCrop.crop}`,
+    c2Gap: [partD.floor, partD.legume, partD.growth].map(d=>`${d.crop}: ${d.gap>=0?"+":""}₹${d.gap.toLocaleString()} vs C2+50% target`).join(" | "),
+    topPestWindow: `${partE.stages[0].stage} — ${partE.stages[0].clusterRisk}`,
+    weatherCallThisMonth: `${thisMonthWeather.month}: ${thisMonthWeather.wetWeeks}W/${thisMonthWeather.dryWeeks}D — ${thisMonthWeather.action}`,
+    marketChannelPlan: "FPO aggregation primary, Squire Outlet cold storage for timing arbitrage, mandi as residual channel",
+    nextReviewCheckpoint: "Season-end cost-benefit review (Part I) at next harvest close",
+  };
+
   return {
+    // ── legacy fields — Inputs Tab & Econometric Terminal read these directly, keep shape stable ──
     keyIssues: [
       farmer.soc<0.4?`Low Soil Organic Carbon (${farmer.soc}%) constrains yield ceiling`:null,
       drs.drs>=50?`Degradation Risk Score ${drs.drs}/100 (${drs.grade}) flags structural soil stress`:null,
@@ -198,8 +361,8 @@ function buildDeterministicBlueprint(farmer) {
       constrainedWater?"Constrained water access limits crop choice; cattle-boundary risk active":null,
     ].filter(Boolean),
     year1: {
-      season1: season1?{crop:season1.crop, variety:"Regional certified seed line", sowMonth:"Oct-Nov", harvestMonth:"Feb-Mar", expectedYield:`~${getBaseYield(season1.crop)} qtl/Ha baseline`, netProfit:`₹${season1.net.toLocaleString()} projected`, soilBenefit:"Breaks historical monocrop pattern"}:null,
-      season2: season2?{crop:season2.crop, variety:"Regional certified seed line", sowMonth:"Mar-Apr", harvestMonth:"Jun-Jul", expectedYield:`~${getBaseYield(season2.crop)} qtl/Ha baseline`, netProfit:`₹${season2.net.toLocaleString()} projected`, soilBenefit:"Nitrogen-fixing / SOC restorative rotation break"}:null,
+      season1: floorCrop?{crop:floorCrop.crop, variety:"Regional certified seed line", sowMonth:"Oct-Nov", harvestMonth:"Feb-Mar", expectedYield:`~${getBaseYield(floorCrop.crop)} qtl/Ha baseline`, netProfit:`₹${floorCrop.net.toLocaleString()} projected`, soilBenefit:"Breaks historical monocrop pattern"}:null,
+      season2: legumeCrop?{crop:legumeCrop.crop, variety:"Regional certified seed line", sowMonth:"Mar-Apr", harvestMonth:"Jun-Jul", expectedYield:`~${getBaseYield(legumeCrop.crop)} qtl/Ha baseline`, netProfit:`₹${legumeCrop.net.toLocaleString()} projected`, soilBenefit:"Nitrogen-fixing / SOC restorative rotation break"}:null,
     },
     year3Target: { socImprovement:"+0.40–0.50%", profitIncrease:"+45–60%", crops:year3Pool },
     year5Target: { socImprovement:"+0.85–1.00%", profitIncrease:"+95–120%", crops:year5Pool },
@@ -211,14 +374,16 @@ function buildDeterministicBlueprint(farmer) {
     },
     pestAlert: { riskLevel: pest.grade, likely: pest.pests, bioIntervention: "Neem oil 3ml/L at 30 DAS; monitor weekly through flowering" },
     weatherLogic: { sowingWindow:"Oct 15 – Nov 10 (regional Markov window)", irrigationSchedule: constrainedWater?"2x supplemental: flowering + pod-fill stage only":"Standard 3x: crown, flowering, pod-fill stages", harvestWindow:"Feb 15 – Mar 10" },
-    mandiTiming: { bestMonth:"March–April (pre-monsoon peak demand)", expectedPrice:`₹${getMandiPricePerQtl(season1?.crop||lastCrop).toLocaleString()}/qtl regional benchmark`, recommendation:"Hold via Squire Outlet cold storage for 10-15% premium vs immediate sale" },
+    mandiTiming: { bestMonth:"March–April (pre-monsoon peak demand)", expectedPrice:`₹${getMandiPricePerQtl(floorCrop.crop||lastCrop).toLocaleString()}/qtl regional benchmark`, recommendation:"Hold via Squire Outlet cold storage for 10-15% premium vs immediate sale" },
     inputShoppingList: [
-      { item:`${season1?.crop||lastCrop} Seed`, qty:"2 kg/acre", cost:"220", source:"Squire Outlet" },
-      { item:`${season2?.crop||"Restorative Pulse"} Seed`, qty:"1.5 kg/acre", cost:"180", source:"Squire Outlet" },
+      { item:`${floorCrop.crop||lastCrop} Seed`, qty:"2 kg/acre", cost:"220", source:"Squire Outlet" },
+      { item:`${legumeCrop.crop||"Restorative Pulse"} Seed`, qty:"1.5 kg/acre", cost:"180", source:"Squire Outlet" },
       { item:"Vermicompost", qty:"2 t/acre", cost:"1800", source:"Squire Outlet" },
       { item:"DAP Fertilizer (basal)", qty:"50 kg/acre", cost:"1350", source:"Squire Outlet" },
       { item:"Bio-inoculant (Rhizobium/PSB)", qty:"1 pack/acre", cost:"220", source:"Squire Outlet" },
     ],
+    // ── new: full 10-Part Restorative & Profitable Farming Plan ──
+    partA, partB, partC, partD, partE, partF, partG, partH, partI, partJ,
   };
 }
 
@@ -321,6 +486,10 @@ Output your prescriptive analysis ONLY as a valid, single, compact JSON object m
     inputShoppingList: blueprint.inputShoppingList,
     fiveYearBaseline: fiveYear,
     pestIndex: pest,
+    // ── full 10-Part Restorative & Profitable Farming Plan (all deterministic) ──
+    partA: blueprint.partA, partB: blueprint.partB, partC: blueprint.partC, partD: blueprint.partD,
+    partE: blueprint.partE, partF: blueprint.partF, partG: blueprint.partG, partH: blueprint.partH,
+    partI: blueprint.partI, partJ: blueprint.partJ,
   };
 }
 
@@ -329,6 +498,19 @@ function Badge({ color, children }) {
   const map = { green:{bg:C.greenPale,text:C.green}, maroon:{bg:"#F8E8EE",text:C.maroon}, gold:{bg:"#FEF3D0",text:C.soil}, gray:{bg:"#F3F4F6",text:C.muted}, blue:{bg:"#EBF5FB",text:C.blue}, orange:{bg:"#FEF0E6",text:C.orange}, red:{bg:"#FDEDEC",text:C.red} };
   const s = map[color] || map.gray;
   return <span style={{ background:s.bg, color:s.text, borderRadius:999, padding:"2px 10px", fontSize:12, fontWeight:600 }}>{children}</span>;
+}
+
+// Consistent "PART X — Title" header used across the 10-Part Restorative Plan cards
+function PartHeader({ letter, title, subtitle }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
+      <div style={{ width:34, height:34, borderRadius:9, background:C.maroon, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:15, flexShrink:0, fontFamily:"monospace" }}>{letter}</div>
+      <div>
+        <div style={{ fontWeight:800, fontSize:15, color:C.charcoal }}>{title}</div>
+        {subtitle && <div style={{ fontSize:11.5, color:C.muted, marginTop:1 }}>{subtitle}</div>}
+      </div>
+    </div>
+  );
 }
 
 function Card({ children, style={}, onClick }) {
@@ -1143,94 +1325,201 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
                 ))}
               </Card>
 
-              {/* TACTICAL PLAN CALENDAR BOX ROW */}
-              <div style={{ borderTop: `2px solid ${C.maroon}`, paddingTop: 14 }}>
-                <div style={{ fontWeight: 800, fontSize: 16, color: C.charcoal, marginBottom: 4 }}>📅 Granular Operational Crop Rotation Planner</div>
-                <p style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Unified multi-tier calendar containing exact agronomic and Gov-linked meteorological patterns.</p>
-                
-                {/* A. MULTI-YEAR TRACKER SECTION */}
-                <Card style={{ marginBottom: 16, background: C.cream }}>
-                  <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 10 }}>📅 1/3/5-Year Crop Sequence Strategy Matrix</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
-                      <span><strong>Year 1 Season 1 (Kharif):</strong> {plan.year1?.season1?.crop || "Mustard"} ({plan.year1?.season1?.variety})</span>
-                      <span style={{ color: C.green, fontWeight: 700 }}>{plan.year1?.season1?.netProfit}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
-                      <span><strong>Year 1 Season 2 (Rabi):</strong> {plan.year1?.season2?.crop || "Green Gram"} ({plan.year1?.season2?.variety})</span>
-                      <span style={{ color: C.green, fontWeight: 700 }}>{plan.year1?.season2?.netProfit}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
-                      <span><strong>Year 3 Target Restorative Mix:</strong> {plan.year3Target?.crops?.join(" → ")}</span>
-                      <span style={{ color: C.blue, fontWeight: 700 }}>{plan.year3Target?.profitIncrease} Growth Target</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0" }}>
-                      <span><strong>Year 5 Target Equilibrium Assets:</strong> {plan.year5Target?.crops?.join(" → ")}</span>
-                      <span style={{ color: C.blue, fontWeight: 700 }}>{plan.year5Target?.profitIncrease} Growth Target</span>
-                    </div>
-                  </div>
-                </Card>
+              {/* PART A — Farm Diagnostic Profile & Baseline Assessment */}
+              <Card>
+                <PartHeader letter="A" title="Farm Diagnostic Profile & Baseline Assessment" subtitle="Every downstream recommendation is only as accurate as this baseline"/>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:14}}>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Location</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.location}</div></div>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Land Holding</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.landHa} Ha ({plan.partA.landAcres} acres)</div></div>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Soil Type</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.soilType}</div></div>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Water Source</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.waterSource}</div></div>
+                </div>
+                <StatBar label="Soil Organic Carbon (SOC)" value={plan.partA.soc} max={1.2} color={plan.partA.soc<0.35?C.red:plan.partA.soc<0.55?C.orange:C.green} suffix="%"/>
+                <StatBar label="Nitrogen (N)" value={plan.partA.npk.n} max={400} color={C.blue} suffix=" kg/ha"/>
+                <StatBar label="Phosphorus (P)" value={plan.partA.npk.p} max={80} color={C.gold} suffix=" kg/ha"/>
+                <StatBar label="Potassium (K)" value={plan.partA.npk.k} max={400} color={C.green} suffix=" kg/ha"/>
+                <div style={{marginTop:12,padding:"10px 12px",background:plan.partA.monocropFlag?"#FDEDEC":C.greenPale,borderRadius:8,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+                  <span style={{fontSize:12.5,color:C.charcoal}}><strong>Cropping History (last 3 seasons):</strong> {plan.partA.cropHistory.join(", ")}</span>
+                  <Badge color={plan.partA.monocropFlag?"red":"green"}>{plan.partA.monocropNote}</Badge>
+                </div>
+                <div style={{marginTop:10,fontSize:12,color:C.muted}}>Degradation Risk Score: <strong style={{color:plan.partA.drs.color}}>{plan.partA.drs.drs}/100 ({plan.partA.drs.grade})</strong></div>
+              </Card>
 
-                {/* B. MONTHLY TACTICAL BLUEPRINT CALENDAR */}
-                <Card style={{ marginBottom: 16 }}>
-                  <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 12 }}>📅 Monthly Action Ledger (Season Milestones)</div>
-                  {/* Pulls from our dynamic Markov chain arrays inside the page state */}
-                  {calcWeather(farmer).filter(w => w.isSowing || w.isHarvest || w.wetWeeks >= 2).map((monthData, idx) => {
-                    const sampleCrop = plan.year1?.season1?.crop || "Mustard";
-                    return (
-                      <div key={idx} style={{ padding: "12px 14px", background: C.cream, borderRadius: 8, marginBottom: 10, borderLeft: `4px solid ${monthData.isSowing ? C.green : C.gold}` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <span style={{ fontWeight: 700, fontSize: 13.5, color: C.charcoal }}>⚡ Month Window: {monthData.month} {monthData.isSowing ? "(Sowing Hub)" : monthData.isHarvest ? "(Harvest Bay)" : ""}</span>
-                          <Badge color={monthData.wetWeeks >= 3 ? "blue" : "gold"}>{monthData.action}</Badge>
+              {/* PART B — Soil Health Restoration Roadmap */}
+              <Card>
+                <PartHeader letter="B" title="Soil Health Restoration Roadmap" subtitle="5-Year Phased Plan — reversing degradation is a biological rebuild, not a single input swap"/>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,flexWrap:"wrap"}}>
+                  <Badge color="maroon">{plan.partB.label}</Badge>
+                  <span style={{fontSize:12,color:C.muted}}>{plan.partB.yearLabel} · Current SOC {plan.partB.currentSOC}% → Target {plan.partB.targetSOC}%</span>
+                </div>
+                <div style={{fontSize:12.5,color:C.charcoal,marginBottom:10}}><strong>Objective:</strong> {plan.partB.objective}</div>
+                <div style={{fontSize:11.5,fontWeight:700,color:C.maroon,marginBottom:6}}>Key Actions This Phase</div>
+                {plan.partB.actions.map((a,i)=>(<div key={i} style={{display:"flex",gap:8,marginBottom:5,fontSize:12.5}}><span style={{color:C.green}}>✓</span><span>{a}</span></div>))}
+                <div style={{marginTop:10,padding:"8px 12px",background:C.soilLight,borderRadius:8,fontSize:12}}><strong>Expected Yield Effect:</strong> {plan.partB.expectedYieldEffect}</div>
+                <div style={{marginTop:10,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:3}}>Agroforestry Species (boundary planting)</div><div style={{fontSize:12.5}}>{plan.partB.agroforestrySpecies.join(", ")}</div></div>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:3}}>Nitrogen-Fixing Pulses</div><div style={{fontSize:12.5}}>{plan.partB.nitrogenFixingPulses.join(", ")}</div></div>
+                </div>
+                <div style={{marginTop:12,padding:"10px 12px",background:"#FEF0E6",borderRadius:8,fontSize:11.5,color:C.orange,fontStyle:"italic"}}>⚠️ {plan.partB.economicsWarning}</div>
+              </Card>
+
+              {/* PART C — Cropping System Redesign */}
+              <Card>
+                <PartHeader letter="C" title="Cropping System Redesign" subtitle="Exiting monocropping — floor crop for cash-flow security, growth crop for income, legume for soil"/>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
+                  {[["Floor Crop",plan.partC.floorCrop,C.blue],["Legume",plan.partC.legumeCrop,C.green],["Growth Crop",plan.partC.growthCrop,C.maroon]].map(([label,c,color])=>(
+                    <div key={label} style={{border:`1.5px solid ${color}33`,borderRadius:10,padding:12,background:`${color}0A`}}>
+                      <div style={{fontSize:10.5,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>{label}</div>
+                      <div style={{fontWeight:800,fontSize:15,color:C.charcoal,marginBottom:6}}>{c.crop}</div>
+                      <div style={{fontSize:11,color:C.muted,lineHeight:1.4}}>{c.note}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{fontSize:12,color:C.charcoal,marginBottom:6}}><strong>Diversification Discipline:</strong> {plan.partC.diversificationRule}</div>
+                <div style={{fontSize:12,color:C.charcoal}}><strong>Boundary Planting:</strong> {plan.partC.boundaryPlanting}</div>
+              </Card>
+
+              {/* PART D — Economics & Profitability Model */}
+              <Card>
+                <PartHeader letter="D" title="Economics & Profitability Model" subtitle="A2 / A2+FL / C2 cost layers, benchmarked against Swaminathan C2+50% — not A2+50%"/>
+                <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                  {[["Floor",plan.partD.floor],["Legume",plan.partD.legume],["Growth",plan.partD.growth]].map(([label,d])=>(
+                    <div key={label} style={{border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:6}}>
+                        <span style={{fontWeight:700,fontSize:13.5}}>{label}: {d.crop}</span>
+                        <Badge color={d.clearsGate?"green":"red"}>{d.clearsGate?"Clears C2+50%":"Below C2+50%"}</Badge>
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,fontSize:11.5}}>
+                        <div><span style={{color:C.muted}}>A2/acre: </span><strong>₹{Math.round(d.a2/plan.partA.landAcres).toLocaleString()}</strong></div>
+                        <div><span style={{color:C.muted}}>A2+FL/acre: </span><strong>₹{Math.round(d.a2fl/plan.partA.landAcres).toLocaleString()}</strong></div>
+                        <div><span style={{color:C.muted}}>C2/acre: </span><strong>₹{Math.round(d.c2/plan.partA.landAcres).toLocaleString()}</strong></div>
+                        <div><span style={{color:C.muted}}>C2+50% target: </span><strong style={{color:C.maroon}}>₹{d.c2Target.toLocaleString()}</strong></div>
+                        <div><span style={{color:C.muted}}>Realized (Mandi): </span><strong style={{color:C.blue}}>₹{d.grossRev.toLocaleString()}</strong></div>
+                        <div><span style={{color:C.muted}}>Gap: </span><strong style={{color:d.gap>=0?C.green:C.red}}>{d.gap>=0?"+":""}₹{d.gap.toLocaleString()} ({d.gapPct}%)</strong></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:10,fontSize:11,color:C.muted,fontStyle:"italic"}}>{plan.partD.note}</div>
+              </Card>
+
+              {/* PART E — Pest & Disease Risk Clusters */}
+              <Card>
+                <PartHeader letter="E" title="Pest & Disease Risk Clusters" subtitle="Outbreaks cluster around growth stage + weather — this turns scouting anticipatory, not reactive"/>
+                <div style={{marginBottom:12,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                  <Badge color={plan.partE.overallRisk.grade==="High"?"red":plan.partE.overallRisk.grade==="Moderate"?"gold":"green"}>{plan.partE.overallRisk.grade} Risk — {plan.partE.overallRisk.pct}%</Badge>
+                  <span style={{fontSize:11.5,color:C.muted}}>Driven by {plan.partE.overallRisk.lastCrop} monocrop history</span>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                  {plan.partE.stages.map((s,i)=>(
+                    <div key={i} style={{border:`1px solid ${C.border}`,borderRadius:10,padding:12}}>
+                      <div style={{fontWeight:700,fontSize:12.5,color:C.maroon,marginBottom:6}}>{s.stage}</div>
+                      <div style={{fontSize:11,color:C.muted,marginBottom:4}}><strong>Trigger:</strong> {s.trigger}</div>
+                      <div style={{fontSize:11,color:C.orange,marginBottom:4}}><strong>Cluster Risk:</strong> {s.clusterRisk}</div>
+                      <div style={{fontSize:11,color:C.green}}><strong>Anticipatory Action:</strong> {s.action}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* PART F — Weather Risk Matrix (Dry/Wet Contingencies) */}
+              <Card>
+                <PartHeader letter="F" title="Weather Risk Matrix" subtitle="Dry-Week / Wet-Week branching contingencies — protects the C2+50% target from a single bad week"/>
+                <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:14}}>
+                  {plan.partF.stages.map((s,i)=>(
+                    <div key={i} style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
+                      <div style={{padding:"8px 12px",background:C.cream,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
+                        <span style={{fontWeight:700,fontSize:12.5}}>{s.stage}</span>
+                        <Badge color="gold">{s.currentLean}</Badge>
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
+                        <div style={{padding:"10px 12px",borderRight:`1px solid ${C.border}`,background:"#FEF0E6"}}>
+                          <div style={{fontSize:10.5,fontWeight:700,color:C.orange,marginBottom:4}}>☀️ IF DRY WEEK</div>
+                          <div style={{fontSize:11.5,color:C.charcoal}}>{s.ifDry}</div>
                         </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 12, fontSize: 12, color: C.charcoal }}>
-                          <div>
-                            <strong style={{ color: C.maroon }}>🛠 Intercultural Practice:</strong>
-                            <div style={{ color: C.muted, marginTop: 2 }}>
-                              {monthData.isSowing ? "Deep cross-tillage tillage via Rotavator + line precision seedbed placement share." : "Weeding via bio-shredder compaction, hand-hoeing row paths, and macro aeration."}
-                            </div>
-                          </div>
-                          <div>
-                            <strong style={{ color: C.orange }}>🐛 Expected Biotic Hazard:</strong>
-                            <div style={{ color: C.muted, marginTop: 2 }}>
-                              {sampleCrop === "Mustard" ? "Aphids infestation vectors, white rust spores, and wild Alternaria blights." : "Root wilt pathogen arrays, pod borer larvae cycles, and standard weed canopy gluts."}
-                            </div>
-                          </div>
-                          <div>
-                            <strong style={{ color: C.green }}>🛒 Targeted Mitigation Input:</strong>
-                            <div style={{ color: C.muted, marginTop: 2 }}>
-                              {plan.pestAlert?.bioIntervention || "Neem extract botanical sprays (3ml/L) combined with structural pheromone traps."}
-                            </div>
-                          </div>
+                        <div style={{padding:"10px 12px",background:"#EBF5FB"}}>
+                          <div style={{fontSize:10.5,fontWeight:700,color:C.blue,marginBottom:4}}>💧 IF WET WEEK</div>
+                          <div style={{fontSize:11.5,color:C.charcoal}}>{s.ifWet}</div>
                         </div>
                       </div>
-                    );
-                  })}
-                </Card>
+                    </div>
+                  ))}
+                </div>
+                <div style={{fontSize:11,color:C.muted,fontStyle:"italic",marginBottom:10}}>{plan.partF.dataNote}</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:6}}>
+                  {plan.partF.monthly.map((m,i)=>(
+                    <div key={i} style={{textAlign:"center",padding:"6px 4px",background:m.isSowing?C.greenPale:m.isHarvest?"#FEF3D0":C.cream,borderRadius:6}}>
+                      <div style={{fontSize:10,fontWeight:700}}>{m.month}</div>
+                      <div style={{fontSize:9,color:C.muted}}>{m.wetWeeks}W/{m.dryWeeks}D</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
 
-                {/* C. WEEKLY PROBABILISTIC WEATHER CODES MATRIX */}
-                <Card>
-                  <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 4 }}>🌦 Weekly Probabilistic Weather Index (Govt Chain Sync)</div>
-                  <p style={{ fontSize: 11.5, color: C.muted, marginBottom: 12 }}>Markov chain sequence logic mapping regional water table profiles against historical dry streaks.</p>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-                    {calcWeather(farmer).slice(4, 8).map((w, weekIdx) => (
-                      <div key={weekIdx} style={{ background: C.cream, borderRadius: 8, padding: 10, border: `1px solid ${C.border}` }}>
-                        <div style={{ fontWeight: 700, fontSize: 12, color: C.maroon, marginBottom: 4 }}>{w.month} Period Window</div>
-                        <div style={{ display: "flex", gap: 4, marginBottom: 4, fontSize: 11 }}>
-                          <span style={{ background: "#EBF5FB", color: C.blue, padding: "1px 5px", borderRadius: 4, fontWeight: 600 }}>💧 {w.wetWeeks} Wet Wks</span>
-                          <span style={{ background: "#FEF3D0", color: C.soil, padding: "1px 5px", borderRadius: 4, fontWeight: 600 }}>☀️ {w.dryWeeks} Dry Wks</span>
-                        </div>
-                        <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.3 }}>
-                          <strong>Predictive Pattern:</strong> {w.dryWeeks >= 3 ? "Critical prolonged heat stress. Initiate micro-drip supplementation rows immediately." : "Balanced transition curve. Proceed with standard macro operational intervals."}
-                        </div>
-                      </div>
-                    ))}
+              {/* PART G — Market & Institutional Strategy */}
+              <Card>
+                <PartHeader letter="G" title="Market & Institutional Strategy" subtitle="Exiting the MSP Trap — sequenced, not a request to abandon MSP without a substitute"/>
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  {plan.partG.steps.map((s)=>(
+                    <div key={s.step} style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                      <div style={{width:26,height:26,borderRadius:"50%",background:C.maroon,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,flexShrink:0}}>{s.step}</div>
+                      <div><div style={{fontWeight:700,fontSize:12.5,color:C.charcoal}}>{s.title}</div><div style={{fontSize:11.5,color:C.muted,marginTop:2}}>{s.detail}</div></div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* PART H — Financial Projections, Insurance & Credit */}
+              <Card>
+                <PartHeader letter="H" title="Financial Projections, Insurance & Credit" subtitle="5-Year cash flow shape — modeled year by year, not averaged"/>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:14}}>
+                  {plan.partH.fiveYearCashFlow.map((y)=>(
+                    <div key={y.yr} style={{textAlign:"center",padding:"8px 6px",border:`1px solid ${C.border}`,borderRadius:8,background:y.gatePassed?C.greenPale:C.cream}}>
+                      <div style={{fontSize:10.5,fontWeight:700,color:C.muted}}>Yr {y.yr}</div>
+                      <div style={{fontSize:12,fontWeight:800,color:y.netProfit>=0?C.green:C.red}}>₹{Math.round(y.netProfit/1000)}K</div>
+                      <div style={{fontSize:9.5,color:C.muted}}>{y.cushionRatio}x cushion</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                  <div style={{padding:"10px 12px",background:C.soilLight,borderRadius:8}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.soil,marginBottom:4}}>🛡 {plan.partH.insurance.scheme}</div>
+                    <div style={{fontSize:11,color:C.charcoal}}>{plan.partH.insurance.note}</div>
                   </div>
-                </Card>
-              </div>
+                  <div style={{padding:"10px 12px",background:"#EBF5FB",borderRadius:8}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.blue,marginBottom:4}}>💳 Transition Credit Need: ₹{plan.partH.credit.transitionCreditNeed.toLocaleString()}</div>
+                    <div style={{fontSize:11,color:C.charcoal}}>{plan.partH.credit.note}</div>
+                  </div>
+                </div>
+              </Card>
 
-              {/* CORE METRICS AND TRACE CARDS GRID */}
-              <Card><div style={{ fontWeight: 700, color: C.maroon, marginBottom: 10, fontSize: 14 }}>⚠️ Deterministic Key Soil Issues discovered by Core Engine</div>{plan.keyIssues?.map((issue, i) => <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 13 }}><span style={{ color: C.orange }}>•</span><span>{issue}</span></div>)}</Card>
+              {/* PART I — Monitoring, Review & Adaptive Management Cycle */}
+              <Card>
+                <PartHeader letter="I" title="Monitoring, Review & Adaptive Management" subtitle="A plan without a feedback loop is a document, not a system"/>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {plan.partI.cycles.map((c,i)=>(
+                    <div key={i} style={{display:"grid",gridTemplateColumns:"1.3fr 1fr 1fr 1.4fr",gap:10,padding:"8px 0",borderBottom:i<plan.partI.cycles.length-1?`1px dashed ${C.border}`:"none",fontSize:11.5}}>
+                      <span style={{fontWeight:700}}>{c.item}</span>
+                      <span style={{color:C.muted}}>{c.cadence}</span>
+                      <span style={{color:C.blue}}>→ {c.feedsInto}</span>
+                      <span style={{color:C.charcoal}}>{c.checks}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* PART J — One-Page Executive Summary */}
+              <Card style={{background:C.soilLight,border:`1.5px solid ${C.soil}44`}}>
+                <PartHeader letter="J" title="One-Page Executive Summary" subtitle="Compressed for the farmer, a lender, FPO, or policy audience"/>
+                <div style={{display:"flex",flexDirection:"column",gap:8,fontSize:12.5}}>
+                  {[["Farm Profile",plan.partJ.farmProfile],["Current State",plan.partJ.currentState],["5-Yr Soil Restoration Phase",plan.partJ.restorationPhase],["This Season's Crop Mix",plan.partJ.seasonCropMix],["C2+50% Target vs Realized",plan.partJ.c2Gap],["Top Pest/Disease Risk Window",plan.partJ.topPestWindow],["This Month's Weather Call",plan.partJ.weatherCallThisMonth],["Market Channel Plan",plan.partJ.marketChannelPlan],["Next Review Checkpoint",plan.partJ.nextReviewCheckpoint]].map(([k,v])=>(
+                    <div key={k} style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                      <span style={{fontWeight:700,color:C.maroon,minWidth:200,flexShrink:0}}>{k}:</span>
+                      <span style={{color:C.charcoal}}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
 
               <Btn variant="gold" onClick={handleGenerate} small style={{ alignSelf: "flex-start" }}>🔄 Regenerate Case File Summary</Btn>
             </div>
