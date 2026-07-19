@@ -1960,17 +1960,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
       </aside>
 
       {/* Main Workspace Frame Viewport */}
-      <main
-  style={{
-    marginLeft: 248,
-    flex: 1,
-    width: "calc(100vw - 248px)",
-    maxWidth: "none",
-    padding: "24px 40px",
-    boxSizing: "border-box",
-    overflowX: "hidden"
-  }}
->
+      <main style={{ marginLeft: 248, flex: 1, width: "calc(100vw - 248px)", maxWidth: "none", padding: "24px 40px", boxSizing: "border-box", overflowX: "hidden" }}>
         {/* Top Header Grid */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 22, flexWrap: "wrap" }}>
           <div>
@@ -2045,7 +2035,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
               </div>
 
               {/* BOX C — Optimized Unified Operational Alerts Column Stack */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, height: "100%", maxHheight: 320, boxSizing: "border-box" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, height: "100%", minHeight: 420, boxSizing: "border-box" }}>
 
                 {/* Slot C.1: Soil Degradation Real-time Filter */}
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "10px 14px", flexShrink: 0 }}>
