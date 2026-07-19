@@ -98,7 +98,7 @@ const WATER_OPTIONS = ["Canal irrigation","Borewell (seasonal)","Borewell (peren
 const DISTRICTS = ["Hamirpur","Jhansi","Banda","Mahoba","Lalitpur","Chitrakoot","Kanpur Dehat","Kanpur Nagar"];
 const ECO_PROFILES = ["Marginal (<1ha)","Small (1–2ha)","Semi-medium (2–4ha)","Medium (4–10ha)"];
 const PRODUCE_STAGES = ["Harvested","Cold Storage","Buyer Matched","Dispatched","Sold"];
-const BUYER_TYPES = ["Mandi Sell","B2B Buyer","B2C Premium","FPO Aggregation","Cold Storage Hold"];
+const BUYER_TYPES = ["Mandi Sell","B2B Buyer","B2C Premium","Cooperative Aggregation","Cold Storage Hold"];
 const MANDI_PER_KG = {
   // --- Market Stability & Core Grains ---
   "Wheat": 22.75, "Paddy": 23.00, "Mustard": 56.50, "Gram": 54.40, "Barley": 21.00,
@@ -332,10 +332,10 @@ function buildDeterministicBlueprint(farmer) {
   // ── PART G — Market & Institutional Strategy (exiting the MSP trap) ──
   const partG = {
     steps: [
-      { step:1, title:"Aggregate before diversifying", detail:"Join or form an FPO for collective input purchase and output sale — typically improves realized price by cutting out one or two middlemen layers." },
-      { step:2, title:"Lock a floor before dropping MSP area", detail:`Only reduce ${floorCrop.crop} area once a contract-farming or FPO-aggregation arrangement for ${growthCrop.crop} is actually signed, not assumed.` },
-      { step:3, title:"Add storage or primary processing", detail:"On-farm or FPO-level scientific storage — even basic — breaks the distress-sale-at-harvest pattern that depresses realized price below C2+50%." },
-      { step:4, title:"Diversify sales channels", detail:"Mandi sale, FPO-aggregated sale, direct-to-retail/consumer where feasible, and contract farming for processing-grade produce. No single channel should carry all the risk." },
+      { step:1, title:"Aggregate before diversifying", detail:"Join or form a cooperative for collective input purchase and output sale — typically improves realized price by cutting out one or two middlemen layers." },
+      { step:2, title:"Lock a floor before dropping MSP area", detail:`Only reduce ${floorCrop.crop} area once a contract-farming or cooperative-aggregation arrangement for ${growthCrop.crop} is actually signed, not assumed.` },
+      { step:3, title:"Add storage or primary processing", detail:"On-farm or community-level scientific storage — even basic — breaks the distress-sale-at-harvest pattern that depresses realized price below C2+50%." },
+      { step:4, title:"Diversify sales channels", detail:"Mandi sale, cooperative-aggregated sale, direct-to-retail/consumer where feasible, and contract farming for processing-grade produce. No single channel should carry all the risk." },
     ],
   };
 
@@ -345,7 +345,7 @@ function buildDeterministicBlueprint(farmer) {
   const partH = {
     fiveYearCashFlow: fiveYear,
     insurance: { scheme:"PMFBY (Pradhan Mantri Fasal Bima Yojana)", note:`Enrollment must be mapped to all Part C rotation crops (${floorCrop.crop}, ${legumeCrop.crop}, ${growthCrop.crop}) — coverage limited to the old monocrop leaves the new income streams unprotected against Part F weather risk.` },
-    credit: { transitionCreditNeed, note:"Part B soil-restoration inputs (compost, biofertilizer, green-manure seed) need short-term credit before they pay back. Size Kisan Credit Card / FPO-linked credit against this transition cost, not just standard seasonal input cost." },
+    credit: { transitionCreditNeed, note:"Part B soil-restoration inputs (compost, biofertilizer, green-manure seed) need short-term credit before they pay back. Size Kisan Credit Card / cooperative-linked credit against this transition cost, not just standard seasonal input cost." },
   };
 
   // ── PART I — Monitoring, Review & Adaptive Management Cycle ──
@@ -355,7 +355,7 @@ function buildDeterministicBlueprint(farmer) {
       { item:"Seasonal cost-benefit review", cadence:"End of each season", feedsInto:"Part D model recalibration", checks:"Actual A2/C2 cost vs projection; realized price vs C2+50%" },
       { item:"Pest & disease incidence log", cadence:"Continuous, reviewed monthly", feedsInto:"Part E cluster map refinement", checks:"Which risk-cluster predictions held vs missed" },
       { item:"Weather-trigger log", cadence:"Weekly during season", feedsInto:"Part F matrix refinement", checks:"Dry/wet week calls vs actual irrigation/spray decisions" },
-      { item:"Market channel review", cadence:"After harvest each season", feedsInto:"Part G channel-mix adjustment", checks:"Realized price by channel (mandi, FPO, contract)" },
+      { item:"Market channel review", cadence:"After harvest each season", feedsInto:"Part G channel-mix adjustment", checks:"Realized price by channel (mandi, cooperative, contract)" },
     ],
   };
 
@@ -370,7 +370,7 @@ function buildDeterministicBlueprint(farmer) {
     c2Gap: [partD.floor, partD.legume, partD.growth].map(d=>`${d.crop}: ${d.gap>=0?"+":""}₹${d.gap.toLocaleString()} vs C2+50% target`).join(" | "),
     topPestWindow: `${partE.stages[0].stage} — ${partE.stages[0].clusterRisk}`,
     weatherCallThisMonth: `${thisMonthWeather.month}: ${thisMonthWeather.wetWeeks}W/${thisMonthWeather.dryWeeks}D — ${thisMonthWeather.action}`,
-    marketChannelPlan: "FPO aggregation primary, Squire Outlet cold storage for timing arbitrage, mandi as residual channel",
+    marketChannelPlan: "Cooperative aggregation primary, Squire Outlet cold storage for timing arbitrage, mandi as residual channel",
     nextReviewCheckpoint: "Season-end cost-benefit review (Part I) at next harvest close",
   };
 
@@ -1092,7 +1092,7 @@ function EconomicsTab({ isMobile, farmer, plan, machineryRentalCost }) {
                 { label: "Gross Market Valuation Output", key: "gross", color: C.blue, bold: false },
                 { label: "Comprehensive Cost Ledger (C2)", key: "costs", color: C.red, bold: false },
                 { label: "Net Operational Income P&L", key: "net", color: C.green, bold: true },
-                { label: "Squire FPO Restorative Premium", key: "bonus", color: C.maroon, bold: false },
+                { label: "Squire Restorative Premium", key: "bonus", color: C.maroon, bold: false },
                 { label: "Total Combined Capital Yield", key: "totalComp", color: C.green, bold: true },
                 { label: "Return on Investment (ROI %)", key: "roi", color: C.charcoal, bold: false, suffix: "%" }
               ].map((row, idx) => (
@@ -1208,7 +1208,7 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
 
   const produceItems=farmer.produce.map(p=>{
     const pricePerKg=MANDI_PER_KG[resolveCropKey(p.crop)]||30, grossRevenue=Math.round((parseFloat(p.qty)||0)*pricePerKg);
-    const commissionPct=p.buyer==="B2C Premium"?0.05:p.buyer==="B2B Buyer"?0.07:p.buyer==="FPO Aggregation"?0.06:0.10;
+    const commissionPct=p.buyer==="B2C Premium"?0.05:p.buyer==="B2B Buyer"?0.07:p.buyer==="Cooperative Aggregation"?0.06:0.10;
     const commission=Math.round(grossRevenue*commissionPct);
     return {...p,pricePerKg,grossRevenue,commission,commissionPct,netRevenue:grossRevenue-commission};
   });
@@ -1532,7 +1532,7 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
 
               {/* PART J — One-Page Executive Summary */}
               <Card style={{background:C.soilLight,border:`1.5px solid ${C.soil}44`}}>
-                <PartHeader letter="J" title="One-Page Executive Summary" subtitle="Compressed for the farmer, a lender, FPO, or policy audience"/>
+                <PartHeader letter="J" title="One-Page Executive Summary" subtitle="Compressed for the farmer, a lender, cooperative, or policy audience"/>
                 <div style={{display:"flex",flexDirection:"column",gap:8,fontSize:12.5}}>
                   {[["Farm Profile",plan.partJ.farmProfile],["Current State",plan.partJ.currentState],["5-Yr Soil Restoration Phase",plan.partJ.restorationPhase],["This Season's Crop Mix",plan.partJ.seasonCropMix],["C2+50% Target vs Realized",plan.partJ.c2Gap],["Top Pest/Disease Risk Window",plan.partJ.topPestWindow],["This Month's Weather Call",plan.partJ.weatherCallThisMonth],["Market Channel Plan",plan.partJ.marketChannelPlan],["Next Review Checkpoint",plan.partJ.nextReviewCheckpoint]].map(([k,v])=>(
                     <div key={k} style={{display:"flex",gap:10,flexWrap:"wrap"}}>
@@ -1846,7 +1846,7 @@ function Reports({ isMobile, farmers, rentals, onBack }) {
   );
 }
 
-// ─── MACHINERY HUB ───────────────────────────────────────────────
+// ─── CUSTOM HIRING BAY ───────────────────────────────────────────
 function MachineryHub({ isMobile, rentals, onBack, onAddRental, farmers }) {
   const [booking, setBooking]=useState(null);
   const [form, setForm]=useState({farmerId:"",startDate:"",endDate:"",hours:""});
@@ -1862,7 +1862,7 @@ function MachineryHub({ isMobile, rentals, onBack, onAddRental, farmers }) {
     <div>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
         <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:22,color:C.muted}}>←</button>
-        <div><div style={{fontWeight:800,fontSize:20,color:C.charcoal}}>Machinery Rental Hub</div><div style={{fontSize:13,color:C.muted}}>Squire Outlet — Jhansi Cluster</div></div>
+        <div><div style={{fontWeight:800,fontSize:20,color:C.charcoal}}>Custom Hiring Bay</div><div style={{fontSize:13,color:C.muted}}>Squire Outlet — Jhansi Cluster</div></div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr 1fr",gap:12,marginBottom:20}}>
         <Card style={{textAlign:"center",padding:14}}><div style={{fontSize:22,fontWeight:800,color:C.green}}>₹{rentals.filter(r=>r.status==="Completed").reduce((a,r)=>a+r.totalCost,0)}</div><div style={{fontSize:11,color:C.muted}}>Revenue Collected</div></Card>
@@ -2015,9 +2015,10 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
   const [salesLedger, setSalesLedger] = useState(MOCK_DAILY_SALES.transactionsList);
   const [salesSort, setSalesSort] = useState("date-desc");
   const [salesPage, setSalesPage] = useState(1);
+  const [salesSelectedIndex, setSalesSelectedIndex] = useState((MOCK_DAILY_SALES && MOCK_DAILY_SALES.dates) ? MOCK_DAILY_SALES.dates.length - 1 : 29);
   
   // Squire Outlets Sub-tabs state
-  const [outletsSubTab, setOutletsSubTab] = useState("machinery"); // 'machinery', 'coldstorage', 'footfall'
+  const [outletsSubTab, setOutletsSubTab] = useState("coldstorage"); // 'coldstorage', 'footfall'
   
   // Cold Storage state
   const [coldStorageDeposits, setColdStorageDeposits] = useState([
@@ -2052,6 +2053,36 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
   const [aiError, setAiError] = useState(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
+  // Digital Brain Interactive Console states
+  const [brainQuery, setBrainQuery] = useState("");
+  const [brainResponse, setBrainResponse] = useState("");
+  const [brainLoading, setBrainLoading] = useState(false);
+  const [brainError, setBrainError] = useState("");
+
+  const handleBrainConsult = async (queryText = brainQuery) => {
+    const textToQuery = typeof queryText === "string" ? queryText : brainQuery;
+    if (!textToQuery.trim()) return;
+    setBrainLoading(true);
+    setBrainError("");
+    setBrainResponse("");
+    try {
+      const response = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: `You are Squire Digital Brain, a highly expert agricultural advisor assistant. Answer this query with clinical agronomic precision and strategic market wisdom, tailored specifically for smallholders and field agents in Bundelkhand, Uttar Pradesh (Mataundh, Jhansi, Banda, etc.): "${textToQuery}"` }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `Server error ${response.status}`);
+      }
+      setBrainResponse(data.text);
+    } catch (err) {
+      setBrainError(err.message);
+    } finally {
+      setBrainLoading(false);
+    }
+  };
+
   const handleSeasonChange = (season) => {
     setMandiSeason(season);
     const categories = Object.keys(SEASON_CROPS_MAP[season]);
@@ -2073,16 +2104,65 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
 
   useEffect(() => {
     if (activeSection === "market" && mandiCrop) {
+      let isCancelled = false;
       setAiLoading(true);
       setAiError(null);
-      
-      // Instantly generate the local, offline fallback speculation report.
-      // This runs locally, consumes zero API credits, and executes instantaneously.
-      const fallback = getFallbackSpeculation(mandiCrop, mandiSeason);
-      setAiSpeculation(fallback);
-      setAiLoading(false);
+      setAiSpeculation(null);
+
+      const prompt = `You are the Squire Digital Brain. Analyze the commodity market outlook for the crop "${mandiCrop}" during the upcoming "${mandiSeason}" season for a farmer located in Fatehpur, Bundelkhand, Uttar Pradesh.
+
+Consider the following agricultural and macro-economic factors:
+1. Macro-Economics: Current food inflation at 5.4%, RBI repo rate (6.5%), KCC agri credits.
+2. Production Costs: Diesel price at ₹94.5/litre (affects tillage and irrigation pumping), rising DAP/Potash fertilizer index.
+3. Weather Outlook: Semi-arid Bundelkhand moisture patterns, temperature anomalies, monsoon progression.
+4. Supply-Demand dynamics for this crop across Indian terminal markets (Azadpur, Kanpur, Vashi).
+
+Write a highly expert, clinical, 3-paragraph market speculation and risk advisory report for the farmer:
+- Paragraph 1: Price Outlook & Driving Forces (How fuel, weather, and macro inflation are pushing or capping prices).
+- Paragraph 2: Risk and Volatility Assessment (Pest indices, weather spikes, moisture stress during critical growth stages).
+- Paragraph 3: Actionable Storage and Liquidation Strategy (Should they sell spot at harvest, store in Squire cold storage for 3-5 months to arbitrage off-season premiums, or forward contract with cooperatives).
+
+Return ONLY a valid, raw JSON object matching this schema. Do not include markdown code fences, backticks, or any leading/trailing commentary. It must parse directly:
+{
+  "speculativeSummary": "Your expert 3-paragraph analysis here with double newlines (\\\\n\\\\n) separating paragraphs.",
+  "riskRating": "Low" | "Medium" | "High",
+  "recommendedAction": "e.g., Hold in Cold Storage for 90 days",
+  "confidenceScore": 85
+}`;
+
+      fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("Server error " + res.status);
+          return res.json();
+        })
+        .then((data) => {
+          if (isCancelled) return;
+          if (!data.text) throw new Error("Empty response from server");
+          
+          const jsonMatch = data.text.match(/\\{[\\s\\S]*\\}/);
+          if (!jsonMatch) throw new Error("No JSON found in response");
+          
+          const parsed = JSON.parse(jsonMatch[0]);
+          setAiSpeculation(parsed);
+          setAiLoading(false);
+        })
+        .catch((err) => {
+          if (isCancelled) return;
+          console.warn("Speculation API error (e.g. rate limits), activating offline expert model:", err);
+          const fallback = getFallbackSpeculation(mandiCrop, mandiSeason);
+          setAiSpeculation(fallback);
+          setAiLoading(false);
+        });
+
+      return () => {
+        isCancelled = true;
+      };
     }
-  }, [mandiCrop, mandiSeason, activeSection]);
+  }, [mandiCrop, mandiSeason, activeSection, refetchTrigger]);
   
   // Isolated state configuration to control sidebar visibility transitions smoothly on the front page
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -2742,7 +2822,13 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                       </div>
                       {aiSpeculation && aiSpeculation.isLocalModel && (
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 9.5, fontWeight: 700, color: C.green, background: "#EEF6F0", border: `1px solid ${C.green}44`, padding: "2px 6px", borderRadius: 4 }}>Local Engine (Free)</span>
+                          <span style={{ fontSize: 9.5, fontWeight: 700, color: C.gold, background: "#FFF9E6", border: `1px solid ${C.gold}44`, padding: "2px 6px", borderRadius: 4 }}>Offline Mode</span>
+                          <button
+                            onClick={() => setRefetchTrigger(prev => prev + 1)}
+                            style={{ background: "none", border: "none", color: C.blue, fontSize: 10.5, fontWeight: 700, textDecoration: "underline", cursor: "pointer", padding: 0 }}
+                          >
+                            Sync Live AI
+                          </button>
                         </div>
                       )}
                     </div>
@@ -2833,7 +2919,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
               }
             });
 
-            // Apply FPO Cooperative Scale multiplier
+            // Apply Cooperative Scale multiplier
             targetAcres = targetAcres * coopScaler;
             calculatedQty = calculatedQty * coopScaler;
 
@@ -2918,7 +3004,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
               crop: `Input: ${selectedItem.name}`,
               qty: `${qtyVal} ${selectedItem.unit}`,
               price: `₹${totalCost.toLocaleString()}`,
-              mandi: "FPO Outlet",
+              mandi: "Squire Outlet",
               status: "sold"
             };
             setTransactions(prev => [newTxn, ...prev]);
@@ -2976,7 +3062,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                 <div style={{ display: "flex", gap: 2, borderBottom: `2px solid ${C.border}`, marginTop: 20, overflowX: "auto" }}>
                   {[
                     { id: "inventory", label: "🌱 Outlet Inventory", desc: "View & refill stock" },
-                    { id: "planner", label: "📊 Bulk Demand Planner", desc: "FPO cooperative purchasing" },
+                    { id: "planner", label: "📊 Bulk Demand Planner", desc: "Cooperative purchasing" },
                     { id: "dispense", label: "🤝 Dispense to Farmer", desc: "Record allocation" },
                     { id: "logs", label: "📜 Dispensation Ledger", desc: "Supply histories" }
                   ].map(tab => (
@@ -3260,15 +3346,15 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <span style={{ fontSize: 20 }}>📊</span>
                       <div>
-                        <strong style={{ fontSize: 13, color: C.green }}>FPO Bulk Direct Procurement Model</strong>
+                        <strong style={{ fontSize: 13, color: C.green }}>Squire Bulk Direct Procurement Model</strong>
                         <div style={{ fontSize: 11.5, color: C.charcoal, marginTop: 2, lineHeight: 1.4 }}>
-                          The FPO consolidates inputs orders across individual farmer case files to negotiate wholesale rates directly with manufacturers (IFFCO, KRIBHCO, National Seeds Corporation). Saving up to 15% in procurement costs and cutting transit waste.
+                          The collective consolidates inputs orders across individual farmer case files to negotiate wholesale rates directly with manufacturers (IFFCO, KRIBHCO, National Seeds Corporation). Saving up to 15% in procurement costs and cutting transit waste.
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* FPO scale simulation selector */}
+                  {/* Cooperative scale simulation selector */}
                   <Card style={{ padding: 14, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>Scale Cooperative Order Size:</div>
@@ -3278,7 +3364,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                       {[
                         { val: 1, label: "Digitized Only", desc: "3 farmers" },
                         { val: 10, label: "Cluster Coop", desc: "30 farmers" },
-                        { val: 50, label: "Fatehpur Block FPO", desc: "150 farmers" }
+                        { val: 50, label: "Fatehpur Block Coop", desc: "150 farmers" }
                       ].map(sc => (
                         <button
                           key={sc.val}
@@ -3309,7 +3395,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                             <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Acreage</th>
                             <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Aggregated Demand</th>
                             <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Standard Retail Cost</th>
-                            <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>FPO Wholesale Cost</th>
+                            <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Bulk Wholesale Cost</th>
                             <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Net Savings (15%)</th>
                           </tr>
                         </thead>
@@ -3343,7 +3429,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                   <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 20px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>Place FPO Wholesale Order</div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>Place Bulk Wholesale Order</div>
                         <div style={{ fontSize: 11.5, color: C.muted, marginTop: 1 }}>Submit request directly to national manufacturers with wholesale credit lines</div>
                       </div>
                       <div>
@@ -3353,7 +3439,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                           </span>
                         ) : (
                           <Btn variant="green" small onClick={() => setPlannerOrderPlaced(true)}>
-                            Transmit FPO Wholesale Purchase Order
+                            Transmit Bulk Wholesale Purchase Order
                           </Btn>
                         )}
                       </div>
@@ -3361,7 +3447,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
 
                     {plannerOrderPlaced && (
                       <div style={{ background: "#F4FAF6", border: `1px solid ${C.green}22`, borderRadius: 10, padding: 12, marginTop: 12, fontSize: 11.5, color: C.charcoal, lineHeight: 1.5 }}>
-                        <strong>📝 Order Manifest:</strong> PO ID: <strong style={{ fontFamily: "monospace" }}>FPO-NSC-2026-8942</strong><br/>
+                        <strong>📝 Order Manifest:</strong> PO ID: <strong style={{ fontFamily: "monospace" }}>SQ-NSC-2026-8942</strong><br/>
                         Successfully placed wholesale order with National Seeds Corporation for ₹{totalProcurementCost.toLocaleString()}.<br/>
                         15% bulk discount of <strong>₹{totalProcurementSavings.toLocaleString()}</strong> applied dynamically on credit account.<br/>
                         Transit dispatch is assigned to National Freight Corridor. Delivery expected at Squire Outlet, Jhansi in 48 hours.
@@ -3419,7 +3505,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                         <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 6 }}>
                           <button
                             onClick={() => {
-                              alert("SMS alert triggered: 'Dear farmer, ₹" + dispenseSuccessDetail?.totalCost?.toLocaleString() + " has been debited under FPO KCC sub-limit for " + dispenseSuccessDetail?.quantity + " " + dispenseSuccessDetail?.unit + " of " + dispenseSuccessDetail?.itemName + ".'");
+                              alert("SMS alert triggered: 'Dear farmer, ₹" + dispenseSuccessDetail?.totalCost?.toLocaleString() + " has been debited under KCC sub-limit for " + dispenseSuccessDetail?.quantity + " " + dispenseSuccessDetail?.unit + " of " + dispenseSuccessDetail?.itemName + ".'");
                             }}
                             style={{ padding: "6px 12px", background: "#fff", border: `1.5px solid ${C.border}`, color: C.charcoal, borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
                           >
@@ -3500,7 +3586,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                             style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.border}`, outline: "none", fontSize: 13, background: "#fff" }}
                           >
                             <option value="KCC Credit Limit">KCC Agri Bank Credit Limit</option>
-                            <option value="FPO Wallet Subsidy">FPO Unified Wallet (Subsidy-offset)</option>
+                            <option value="Cooperative Wallet Subsidy">Cooperative Unified Wallet (Subsidy-offset)</option>
                             <option value="Direct Cash Settlement">Direct Cash Settlement (Spot)</option>
                           </select>
                         </div>
@@ -3582,7 +3668,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                 <Card style={{ padding: 16 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                     <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13.5 }}>📜 SUPPLY DISPENSATION LEDGER LOGS</div>
-                    <span style={{ fontSize: 11, color: C.muted }}>Showing local FPO outlet supply tracks</span>
+                    <span style={{ fontSize: 11, color: C.muted }}>Showing local outlet supply tracks</span>
                   </div>
 
                   <div style={{ overflowX: "auto" }}>
@@ -3637,16 +3723,299 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
         )}
 
         {/* 5. DIGITAL BRAIN ADVISORY VIEWPORT */}
-        {activeSection === "brain" && (
-          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 24 }}>
-            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>AI Digital Blueprint Constraints Parameters</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, textAlign: "center" }}>
-              <div><div style={{ fontSize: 26, fontWeight: 800, color: C.maroon }}>{assessed}</div><div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Blueprints Issued</div></div>
-              <div><div style={{ fontSize: 26, fontWeight: 800, color: C.green }}>298</div><div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Soil Profiles Mapped</div></div>
-              <div><div style={{ fontSize: 26, fontWeight: 800, color: C.gold }}>14</div><div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Active Risk Advisories</div></div>
+        {activeSection === "brain" && (() => {
+          // Dynamic district soil averages computed from registered farmers
+          const districtsList = ["Hamirpur", "Jhansi", "Banda"];
+          const districtAverages = districtsList.map(d => {
+            const matching = farmers.filter(f => f.district === d);
+            const count = matching.length;
+            if (count === 0) {
+              return {
+                district: d,
+                avgSOC: 0.28,
+                avgNPK: "160-22-195",
+                risk: "High",
+                registered: 0
+              };
+            }
+            const avgSOC = (matching.reduce((acc, f) => acc + (parseFloat(f.soc) || 0), 0) / count).toFixed(2);
+            const avgN = Math.round(matching.reduce((acc, f) => acc + (parseInt(f.nitrogen) || 0), 0) / count);
+            const avgP = Math.round(matching.reduce((acc, f) => acc + (parseInt(f.phosphorus) || 0), 0) / count);
+            const avgK = Math.round(matching.reduce((acc, f) => acc + (parseInt(f.potassium) || 0), 0) / count);
+            const risk = parseFloat(avgSOC) < 0.3 ? "Critical" : parseFloat(avgSOC) < 0.5 ? "High" : "Moderate";
+            return {
+              district: d,
+              avgSOC: parseFloat(avgSOC),
+              avgNPK: `${avgN}-${avgP}-${avgK}`,
+              risk,
+              registered: count
+            };
+          });
+
+          // Helper to format inline bold text and bullet lists for the AI's response text
+          const formatBrainResponse = (text) => {
+            if (!text) return null;
+            return text.split("\n").map((line, idx) => {
+              const cleanLine = line.trim();
+              if (cleanLine.startsWith("* ") || cleanLine.startsWith("- ")) {
+                return (
+                  <li key={idx} style={{ marginLeft: 16, marginBottom: 6, listStyleType: "disc", fontSize: 12.5, color: "#374151" }}>
+                    {renderInlineBold(cleanLine.substring(2))}
+                  </li>
+                );
+              }
+              return (
+                <p key={idx} style={{ margin: "0 0 10px 0", lineHeight: 1.5, fontSize: 12.5, color: "#374151" }}>
+                  {renderInlineBold(line)}
+                </p>
+              );
+            });
+          };
+
+          const renderInlineBold = (text) => {
+            const parts = text.split(/\*\*(.*?)\*\*/g);
+            return parts.map((part, index) => {
+              if (index % 2 === 1) {
+                return <strong key={index} style={{ fontWeight: 700, color: C.charcoal }}>{part}</strong>;
+              }
+              return part;
+            });
+          };
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              
+              {/* Header card explaining how Digital Brain is the central agronomic core */}
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 22px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 32 }}>🧠</span>
+                  <div>
+                    <h2 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 19, color: C.charcoal, margin: 0 }}>Squire Digital Brain central intelligence</h2>
+                    <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>
+                      Combining the Swaminathan C2+50% Cost Cushion Core, soil health metrics (DRS), stochastic pest indices, and server-side generative intelligence to guide smallholder farm transitions.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Central Metrics Board */}
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14 }}>
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>Blueprints Issued</div>
+                  <strong style={{ fontSize: 22, color: C.maroon, display: "block", marginTop: 4, fontFamily: "monospace" }}>
+                    {assessed}
+                  </strong>
+                  <span style={{ fontSize: 11, color: C.muted, display: "block", marginTop: 4 }}>
+                    Active farmer case files
+                  </span>
+                </div>
+
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>Soil Profiles Mapped</div>
+                  <strong style={{ fontSize: 22, color: C.green, display: "block", marginTop: 4, fontFamily: "monospace" }}>
+                    {295 + farmers.length}
+                  </strong>
+                  <span style={{ fontSize: 11, color: C.muted, display: "block", marginTop: 4 }}>
+                    Dynamic district records
+                  </span>
+                </div>
+
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>Active Risk Advisories</div>
+                  <strong style={{ fontSize: 22, color: C.gold, display: "block", marginTop: 4, fontFamily: "monospace" }}>
+                    {12 + farmers.filter(f => !f.planGenerated).length}
+                  </strong>
+                  <span style={{ fontSize: 11, color: C.muted, display: "block", marginTop: 4 }}>
+                    Monocrop warning triggers
+                  </span>
+                </div>
+
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>Swaminathan Gate %</div>
+                  <strong style={{ fontSize: 22, color: C.green, display: "block", marginTop: 4, fontFamily: "monospace" }}>
+                    {assessed > 0 ? `${Math.round((farmers.filter(f => f.planGenerated && f.plan?.profitabilityIndex?.includes("Free Market")).length / assessed) * 100)}%` : "100%"}
+                  </strong>
+                  <span style={{ fontSize: 11, color: C.muted, display: "block", marginTop: 4 }}>
+                    Passing C2+50% gate
+                  </span>
+                </div>
+              </div>
+
+              {/* Bento Grid layout for diagnostics and interactive consultant */}
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.1fr 0.9fr", gap: 16 }}>
+                
+                {/* INTERACTIVE BRAIN CONSULTATION CARD */}
+                <Card style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div>
+                    <strong style={{ fontSize: 13.5, color: C.maroon, display: "block", marginBottom: 2 }}>💬 Consult Squire Digital Brain</strong>
+                    <span style={{ fontSize: 11.5, color: C.muted }}>Ask general agronomic, soil remediation, crop rotation, or market pricing questions</span>
+                  </div>
+
+                  {/* Preset queries for lightning fast testing */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.2 }}>Suggested Queries:</span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {[
+                        "Explain Swaminathan C2+50% cost cushion formulation.",
+                        "What is the restorative crop mix for Sandy Loam in Bundelkhand?",
+                        "How to manage Mustard Aphid infestations with organic biopesticides?"
+                      ].map((preset, pIdx) => (
+                        <button
+                          key={pIdx}
+                          onClick={() => {
+                            setBrainQuery(preset);
+                            handleBrainConsult(preset);
+                          }}
+                          disabled={brainLoading}
+                          style={{
+                            background: "#F9FAF7",
+                            border: `1.5px solid ${C.border}`,
+                            color: C.charcoal,
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            fontSize: 11,
+                            textAlign: "left",
+                            cursor: brainLoading ? "not-allowed" : "pointer",
+                            width: "100%"
+                          }}
+                        >
+                          ❓ {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+                    <textarea
+                      placeholder="Type your agricultural or market risk advisory query here..."
+                      value={brainQuery}
+                      onChange={(e) => setBrainQuery(e.target.value)}
+                      disabled={brainLoading}
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        border: `1px solid ${C.border}`,
+                        fontSize: 12.5,
+                        outline: "none",
+                        background: "#fff",
+                        lineHeight: 1.4,
+                        resize: "none"
+                      }}
+                    />
+                    
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <Btn
+                        variant="maroon"
+                        small
+                        onClick={() => handleBrainConsult()}
+                        disabled={brainLoading || !brainQuery.trim()}
+                      >
+                        {brainLoading ? "Processing Query..." : "🌱 Query Squire Brain"}
+                      </Btn>
+                    </div>
+                  </div>
+
+                  {/* Response viewport with nice formatting */}
+                  {(brainLoading || brainResponse || brainError) && (
+                    <div style={{ background: "#FDFAF6", border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginTop: 4 }}>
+                      {brainLoading && (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 0", gap: 10 }}>
+                          <span style={{ fontSize: 24 }}>⚙️</span>
+                          <span style={{ fontSize: 11.5, color: C.muted, fontWeight: 600 }}>Squire Digital Brain is synthesising advice...</span>
+                        </div>
+                      )}
+
+                      {brainError && (
+                        <div style={{ color: C.red, fontSize: 12 }}>
+                          ⚠️ <strong>Query Error:</strong> {brainError}
+                        </div>
+                      )}
+
+                      {brainResponse && !brainLoading && (
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, borderBottom: `1px solid ${C.border}`, paddingBottom: 6, marginBottom: 10 }}>
+                            <span style={{ fontSize: 14 }}>🧠</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.maroon, textTransform: "uppercase", letterSpacing: 0.3 }}>Advisory Response:</span>
+                          </div>
+                          <div style={{ maxHeight: 280, overflowY: "auto", paddingRight: 4 }}>
+                            {formatBrainResponse(brainResponse)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
+
+                {/* REGIONAL DIAGNOSTICS & ANALYTICAL METRICS */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  
+                  {/* Soil degradation profile table */}
+                  <Card style={{ padding: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <strong style={{ fontSize: 12.5, color: C.soil }}>🧪 Regional Soil Degradation Matrices</strong>
+                      <span style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", fontWeight: 700 }}>Bundelkhand Pilot</span>
+                    </div>
+
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
+                        <thead>
+                          <tr style={{ borderBottom: `1.5px solid ${C.border}` }}>
+                            <th style={{ padding: "6px", textAlign: "left", color: C.muted, fontWeight: 700 }}>District</th>
+                            <th style={{ padding: "6px", textAlign: "center", color: C.muted, fontWeight: 700 }}>Avg SOC</th>
+                            <th style={{ padding: "6px", textAlign: "center", color: C.muted, fontWeight: 700 }}>Avg N-P-K</th>
+                            <th style={{ padding: "6px", textAlign: "right", color: C.muted, fontWeight: 700 }}>Risk Level</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {districtAverages.map((da, idx) => (
+                            <tr key={idx} style={{ borderBottom: `1px solid ${C.border}` }}>
+                              <td style={{ padding: "8px 6px", fontWeight: 600, color: C.charcoal }}>{da.district}</td>
+                              <td style={{ padding: "8px 6px", textAlign: "center", fontFamily: "monospace" }}>{da.avgSOC}%</td>
+                              <td style={{ padding: "8px 6px", textAlign: "center", fontFamily: "monospace", color: C.muted }}>{da.avgNPK}</td>
+                              <td style={{ padding: "8px 6px", textAlign: "right" }}>
+                                <Badge color={da.risk === "Critical" || da.risk === "High" ? "red" : "gold"}>
+                                  {da.risk}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+
+                  {/* Pest vulnerability forest index */}
+                  <Card style={{ padding: 16 }}>
+                    <strong style={{ fontSize: 12.5, color: C.maroon, display: "block", marginBottom: 10 }}>🐛 Regional Pest & Monocrop Vulnerability Index</strong>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {[
+                        { crop: "Wheat Monocrop", pest: "White Termites & Rust", index: 65, status: "Critical" },
+                        { crop: "Paddy Monocrop", pest: "Stem Borer & Leaf Roller", index: 48, status: "High" },
+                        { crop: "Mustard Rotation", pest: "Mustard Aphid (Lipaphis erysimi)", index: 24, status: "Low Risk" },
+                        { crop: "Gram Rotation", pest: "Gram Pod Borer (Helicoverpa)", index: 18, status: "Low Risk" }
+                      ].map((item, iIdx) => (
+                        <div key={iIdx} style={{ background: "#FAF8F5", borderRadius: 8, padding: 8, border: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ fontSize: 11.5, fontWeight: 700, color: C.charcoal }}>{item.crop}</div>
+                            <div style={{ fontSize: 10.5, color: C.muted }}>Primary Threat: {item.pest}</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: item.status.includes("Low") ? C.green : item.status === "High" ? C.orange : C.red }}>{item.index}%</div>
+                            <div style={{ fontSize: 9.5, color: C.muted }}>{item.status}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+
+                </div>
+              </div>
+
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* 6. SQUIRE OUTLETS PAGE VIEWPORT */}
         {activeSection === "outlets" && (
@@ -3683,14 +4052,13 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
                 <div>
                   <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 18, color: C.charcoal, margin: 0 }}>Squire Shared Logistics Infrastructure</h3>
-                  <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>Manage machinery hiring bay, cold storage deposits, and daily walk-in services.</div>
+                  <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>Manage cold storage deposits and daily walk-in services.</div>
                 </div>
               </div>
 
               {/* Tab Selector Buttons */}
               <div style={{ display: "flex", borderBottom: `2px solid ${C.border}`, marginBottom: 20, overflowX: "auto", gap: 4 }}>
                 {[
-                  { id: "machinery", label: "🚜 Custom Hiring Bay" },
                   { id: "coldstorage", label: "❄️ Cold Storage Vault" },
                   { id: "footfall", label: "👣 Visitor Registry" }
                 ].map(tab => {
@@ -3712,193 +4080,6 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                   );
                 })}
               </div>
-
-              {/* TAB CONTENT: MACHINERY CUSTOM HIRING BAY */}
-              {outletsSubTab === "machinery" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                  <div style={{ background: "#EEF6F0", border: `1px solid ${C.green}33`, borderRadius: 10, padding: 12, fontSize: 12.5, color: C.green }}>
-                    <strong>🚜 Cooperative Machinery Sharing Model:</strong> Rent digital-NPK field test kits, heavy-tillage rotavators, and laser land-levelers. Subsidized rental prices are offset by your FPO membership.
-                  </div>
-
-                  {/* Machinery Booking Sub-form */}
-                  {selectedMachine && (
-                    <div style={{ background: C.cream, border: `1.5px solid ${C.gold}`, borderRadius: 12, padding: 16 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                        <div>
-                          <strong style={{ fontSize: 14, color: C.maroon }}>Book Machinery: {selectedMachine.icon} {selectedMachine.name}</strong>
-                          <div style={{ fontSize: 11, color: C.muted }}>Subsidized Rate: <strong>₹{selectedMachine.ratePerHour}/hr</strong></div>
-                        </div>
-                        <button onClick={() => setSelectedMachine(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.muted }}>✕</button>
-                      </div>
-
-                      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 12, marginBottom: 12 }}>
-                        <div>
-                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Select Farmer *</label>
-                          <select
-                            value={machineForm.farmerId}
-                            onChange={e => setMachineForm(prev => ({ ...prev, farmerId: e.target.value }))}
-                            style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff" }}
-                          >
-                            <option value="">-- Choose Farmer --</option>
-                            {farmers.map(f => (
-                              <option key={f.id} value={f.id}>{f.name} ({f.village})</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Start Date *</label>
-                          <input
-                            type="date"
-                            value={machineForm.startDate}
-                            onChange={e => setMachineForm(prev => ({ ...prev, startDate: e.target.value }))}
-                            style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5 }}
-                          />
-                        </div>
-
-                        <div>
-                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Duration (Hours) *</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={machineForm.hours}
-                            onChange={e => setMachineForm(prev => ({ ...prev, hours: e.target.value }))}
-                            placeholder="e.g. 6"
-                            style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5 }}
-                          />
-                        </div>
-                      </div>
-
-                      {machineForm.hours && parseInt(machineForm.hours) > 0 && (
-                        <div style={{ background: C.greenPale, border: `1px solid ${C.green}22`, borderRadius: 8, padding: "10px 12px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 12.5, color: C.green, fontWeight: 600 }}>Estimated Bill Calculation:</span>
-                          <strong style={{ fontSize: 14, color: C.green, fontFamily: "monospace" }}>₹{(parseInt(machineForm.hours) * selectedMachine.ratePerHour).toLocaleString()}</strong>
-                        </div>
-                      )}
-
-                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                        <button onClick={() => setSelectedMachine(null)} style={{ padding: "6px 12px", background: "#fff", border: `1.5px solid ${C.border}`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", color: C.charcoal }}>Cancel</button>
-                        <button
-                          disabled={!machineForm.farmerId || !machineForm.startDate || !machineForm.hours}
-                          onClick={() => {
-                            const sf = farmers.find(f => f.id === machineForm.farmerId);
-                            const hoursVal = parseInt(machineForm.hours);
-                            const cost = hoursVal * selectedMachine.ratePerHour;
-                            const today = new Date().toISOString().split("T")[0];
-                            
-                            onAddRental({
-                              id: "R" + Date.now(),
-                              farmerId: machineForm.farmerId,
-                              farmerName: sf ? sf.name : "Walk-in Farmer",
-                              equipment: selectedMachine.name,
-                              startDate: machineForm.startDate,
-                              endDate: machineForm.startDate, // simplified end date
-                              hours: hoursVal,
-                              ratePerHour: selectedMachine.ratePerHour,
-                              totalCost: cost,
-                              status: "Confirmed"
-                            });
-                            
-                            alert(`Success: Booking confirmed! Registered ${selectedMachine.name} for ${sf ? sf.name : "Farmer"} for ${hoursVal} hours.`);
-                            setSelectedMachine(null);
-                            setMachineForm({ farmerId: "", startDate: "", endDate: "", hours: "" });
-                          }}
-                          style={{ padding: "6px 14px", background: C.maroon, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: (!machineForm.farmerId || !machineForm.startDate || !machineForm.hours) ? 0.5 : 1 }}
-                        >
-                          Confirm & Transmit Booking
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Machinery Selection Fleet Grid */}
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Select Squire Equipment from Hub Fleet:</div>
-                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 12 }}>
-                      {EQUIPMENT_LIST.map(eq => {
-                        const isAvailable = eq.available;
-                        return (
-                          <div
-                            key={eq.name}
-                            style={{
-                              background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: 12,
-                              display: "flex", flexDirection: "column", justifyContent: "space-between",
-                              opacity: isAvailable ? 1 : 0.7, transition: "transform 0.15s ease"
-                            }}
-                          >
-                            <div>
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                                <span style={{ fontSize: 20 }}>{eq.icon}</span>
-                                <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", padding: "2px 6px", borderRadius: 4, background: isAvailable ? "#DCEEE1" : "#FCE4E4", color: isAvailable ? "#2F6B45" : "#C0392B" }}>
-                                  {isAvailable ? "Available" : "In Use"}
-                                </span>
-                              </div>
-                              <div style={{ fontWeight: 700, fontSize: 12.5, color: C.charcoal, marginBottom: 2 }}>{eq.name}</div>
-                              <p style={{ fontSize: 11, color: C.muted, margin: 0, lineHeight: 1.3, height: 34, overflow: "hidden" }}>{eq.desc}</p>
-                            </div>
-
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${C.border}`, paddingTop: 8, marginTop: 8 }}>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>₹{eq.ratePerHour}/hr</span>
-                              {isAvailable ? (
-                                <button
-                                  onClick={() => { setSelectedMachine(eq); }}
-                                  style={{ padding: "3px 8px", background: C.maroon, color: "#fff", border: "none", borderRadius: 4, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
-                                >
-                                  Book ⚡
-                                </button>
-                              ) : (
-                                <span style={{ fontSize: 10.5, color: C.muted, fontStyle: "italic" }}>Booked</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* rentals log */}
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10, display: "flex", justifyContent: "space-between" }}>
-                      <span>Active Hire Ledger Track:</span>
-                      <span style={{ color: C.maroon, fontSize: 11 }}>Connected to Central Database</span>
-                    </div>
-                    {rentals.length === 0 ? (
-                      <div style={{ background: C.cream, padding: 14, textAlign: "center", borderRadius: 8, fontSize: 12, color: C.muted }}>No active machinery hire records found.</div>
-                    ) : (
-                      <div style={{ overflowX: "auto" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                          <thead>
-                            <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
-                              <th style={{ padding: "8px", textAlign: "left", color: C.muted }}>Renting Farmer</th>
-                              <th style={{ padding: "8px", textAlign: "left", color: C.muted }}>Equipment Type</th>
-                              <th style={{ padding: "8px", textAlign: "left", color: C.muted }}>Start Date</th>
-                              <th style={{ padding: "8px", textAlign: "right", color: C.muted }}>Usage Hours</th>
-                              <th style={{ padding: "8px", textAlign: "right", color: C.muted }}>Rental Value</th>
-                              <th style={{ padding: "8px", textAlign: "right", color: C.muted }}>Booking Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {rentals.map(r => (
-                              <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                                <td style={{ padding: "8px", fontWeight: 600, color: C.charcoal }}>{r.farmerName}</td>
-                                <td style={{ padding: "8px", color: C.charcoal }}>{r.equipment}</td>
-                                <td style={{ padding: "8px", color: C.muted }}>{r.startDate}</td>
-                                <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace" }}>{r.hours} hrs</td>
-                                <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{r.totalCost.toLocaleString()}</td>
-                                <td style={{ padding: "8px", textAlign: "right" }}>
-                                  <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: r.status === "Completed" ? "#DCEEE1" : "#DCEAF2", color: r.status === "Completed" ? "#2F6B45" : "#3B6E91" }}>
-                                    {r.status}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* TAB CONTENT: COLD STORAGE VAULT */}
               {outletsSubTab === "coldstorage" && (
@@ -3946,7 +4127,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                         <div style={{ textAlign: "center", padding: "12px 0" }}>
                           <div style={{ width: 40, height: 40, background: C.green, color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, margin: "0 auto 10px" }}>✓</div>
                           <strong style={{ fontSize: 13.5, color: C.charcoal }}>Deposit Registered Successfully</strong>
-                          <p style={{ fontSize: 11.5, color: C.muted, margin: "4px 0 12px" }}>Assigned Locker receipt under FPO storage guidelines.</p>
+                          <p style={{ fontSize: 11.5, color: C.muted, margin: "4px 0 12px" }}>Assigned Locker receipt under Squire storage guidelines.</p>
                           
                           {depositSuccessDetail && (
                             <div style={{ background: C.cream, border: `1px dashed ${C.border}`, borderRadius: 8, padding: 10, fontSize: 11, textAlign: "left", marginBottom: 12 }}>
@@ -4124,7 +4305,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
               {outletsSubTab === "footfall" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                   <div style={{ background: "#FEF3D0", border: `1px solid ${C.gold}33`, borderRadius: 10, padding: 12, fontSize: 12.5, color: C.soil }}>
-                    <strong>👣 Squire Daily Visitor Intake:</strong> Maintain dynamic logs of incoming FPO farmer walk-ins. Register seed collections, tillage hiring scheduling, or general agronomic advice queries.
+                    <strong>👣 Squire Daily Visitor Intake:</strong> Maintain dynamic logs of incoming farmer walk-ins. Register seed collections, tillage hiring scheduling, or general agronomic advice queries.
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.2fr", gap: 18 }}>
@@ -4155,7 +4336,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                             <option value="Machinery Rental">🚜 Machinery Rental Enquiry</option>
                             <option value="Soil Advice">🧠 Soil Testing & Advisory</option>
                             <option value="Cold Storage Deposit">❄️ Cold Storage Deposit</option>
-                            <option value="General Query">💬 General FPO Inquiry</option>
+                            <option value="General Query">💬 General Inquiry / Advice</option>
                           </select>
                         </div>
 
@@ -4293,10 +4474,9 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
           const trendPath = baseSales.map((val, i) => `${i === 0 ? "M" : "L"}${xFor(i)},${yFor(val)}`).join(" ");
           const trendArea = `${trendPath} L${xFor(dates.length - 1)},${yFor(minV)} L${xFor(0)},${yFor(minV)} Z`;
 
-          // Local state hook workaround inside self-executing functional component
-          // Since this is evaluated dynamically, we read selected point safely from window or local component state
-          // To make it fully stable without complex hook routing, we use a simple active index indicator
-          const [selectedIndex, setSelectedIndex] = useState(dates.length - 1);
+          // Map local state to lifted top-level state to satisfy React Rules of Hooks
+          const selectedIndex = salesSelectedIndex;
+          const setSelectedIndex = setSalesSelectedIndex;
 
           // Filtering for the Sales Ledger
           const filteredSalesLedger = salesLedger
@@ -4407,16 +4587,16 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
               
               {/* Header card */}
               <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 22px" }}>
-                <h2 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 20, color: C.charcoal, margin: 0 }}>📊 Squire FPO Sales & Growth Terminal</h2>
+                <h2 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 20, color: C.charcoal, margin: 0 }}>📊 Squire Sales & Growth Terminal</h2>
                 <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>
                   Monitor cumulative agricultural revenues, track sales velocity across 148+ crops, and invoice farmers directly.
                 </div>
               </div>
 
-              {/* FPO Cumulative Metrics row */}
+              {/* Squire Cumulative Metrics row */}
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14 }}>
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>FPO Gross Revenue</div>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>Gross Revenue</div>
                   <strong style={{ fontSize: 21, color: C.green, display: "block", marginTop: 4, fontFamily: "monospace" }}>
                     ₹{totalRevenue.toLocaleString()}
                   </strong>
@@ -4441,7 +4621,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                     ₹{avgTicket.toLocaleString()}
                   </strong>
                   <span style={{ fontSize: 11, color: C.muted, display: "block", marginTop: 4 }}>
-                    FPO member purchasing ticket
+                    Member purchasing ticket
                   </span>
                 </div>
 
@@ -4529,7 +4709,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                   <div>
                     <strong style={{ fontSize: 13.5, color: C.charcoal, display: "block", marginBottom: 2 }}>📦 Category Sales Distribution</strong>
-                    <span style={{ fontSize: 11, color: C.muted }}>Dynamic breakdown of FPO member sales</span>
+                    <span style={{ fontSize: 11, color: C.muted }}>Dynamic breakdown of member sales</span>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14, flex: 1, justifyContent: "center" }}>
@@ -4562,7 +4742,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                 
                 {/* Desk POS Cashier billing invoice form */}
                 <Card style={{ padding: 16 }}>
-                  <strong style={{ fontSize: 13.5, color: C.maroon, display: "block", marginBottom: 12 }}>🛒 FPO Billing Invoice Generator (POS)</strong>
+                  <strong style={{ fontSize: 13.5, color: C.maroon, display: "block", marginBottom: 12 }}>🛒 Billing Invoice Generator (POS)</strong>
                   
                   {directSaleSuccess ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "center", padding: "14px 10px" }}>
@@ -4600,7 +4780,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                       <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 6 }}>
                         <button
                           onClick={() => {
-                            alert(`FPO Invoice Receipt dispatched via SMS to member: 'Invoice ${directSaleSuccessDetail?.id} raised. Total ₹${directSaleSuccessDetail?.amount?.toLocaleString()} settled via ${directSaleSuccessDetail?.paymentMode}. Thank you for cooperative trading.'`);
+                            alert(`Invoice Receipt dispatched via SMS to member: 'Invoice ${directSaleSuccessDetail?.id} raised. Total ₹${directSaleSuccessDetail?.amount?.toLocaleString()} settled via ${directSaleSuccessDetail?.paymentMode}. Thank you for cooperative trading.'`);
                           }}
                           style={{ padding: "6px 12px", background: "#fff", border: `1.5px solid ${C.border}`, color: C.charcoal, borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
                         >
@@ -4684,7 +4864,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                             <option value="Direct Cash Settlement">Cash Settlement (Spot)</option>
                             <option value="UPI / Online Transfer">UPI / Online Transfer</option>
                             <option value="KCC Credit Limit">KCC Agri Bank Limit</option>
-                            <option value="FPO Wallet Subsidy">FPO Unified Wallet</option>
+                            <option value="Cooperative Wallet Subsidy">Cooperative Unified Wallet</option>
                           </select>
                         </div>
                       </div>
@@ -4731,7 +4911,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                 {/* Searchable Transaction Ledger logs */}
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                    <strong>📜 Squire FPO Sales Ledger ({filteredSalesLedger.length})</strong>
+                    <strong>📜 Squire Sales Ledger ({filteredSalesLedger.length})</strong>
                     
                     <div style={{ display: "flex", gap: 4 }}>
                       <select
@@ -4777,7 +4957,7 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
                       <option value="Direct Cash Settlement">Cash (Spot)</option>
                       <option value="UPI / Online Transfer">UPI / Online</option>
                       <option value="KCC Credit Limit">KCC Limit</option>
-                      <option value="FPO Wallet Subsidy">FPO Wallet</option>
+                      <option value="Cooperative Wallet Subsidy">Cooperative Wallet</option>
                     </select>
                   </div>
 
@@ -5271,7 +5451,7 @@ export default function App() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0", minWidth: 212 }}>
           <button onClick={() => { setView("onboard"); if (isMobile) setSidebarOpen(false); }} style={{ background: C.maroon, color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
           <button onClick={() => { setView("reports"); if (isMobile) setSidebarOpen(false); }} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
-          <button onClick={() => { setView("machinery"); if (isMobile) setSidebarOpen(false); }} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
+          <button onClick={() => { setView("machinery"); if (isMobile) setSidebarOpen(false); }} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Custom Hiring Bay</button>
         </div>
         <div style={{ marginTop: "auto", paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10, minWidth: 212 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#6B1E3B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#fff" }}>HV</div>
