@@ -1904,7 +1904,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
   const md = MANDI_DATA[mandiRange];
 
   const NAV = [
-    { id: "overview", icon: "▦", label: "Overview" },
+    { id: "overview", icon: "▦", label: "Dashboard" }, // Synchronized navigation title layer
     { id: "market", icon: "↗", label: "Market Sales" },
     { id: "seed", icon: "🌱", label: "Seed & Inputs" },
     { id: "farmers", icon: "👥", label: "Farmer Network" },
@@ -1934,7 +1934,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
   const filteredTxn = TXN.filter(r => !searchQ || Object.values(r).join(" ").toLowerCase().includes(searchQ.toLowerCase()));
   const filteredFarmers = farmers.filter(f => !searchQ || `${f.name} ${f.village} ${f.district} ${f.cropHistory}`.toLowerCase().includes(searchQ.toLowerCase()));
 
-  const scrollTo = (id) => { setActiveSection(id); };
+  const scrollTo = (id) => { scrollTo(id); };
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter',sans-serif" }}>
@@ -1946,7 +1946,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
         </div>
         <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {NAV.map(n => (
-            <button key={n.id} onClick={() => scrollTo(n.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: activeSection === n.id ? "rgba(200,150,62,.16)" : "transparent", color: activeSection === n.id ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
+            <button key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: activeSection === n.id ? "rgba(200,150,62,.16)" : "transparent", color: activeSection === n.id ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", pointerEvents: "none", textAlign: "left", position: "relative" }}>
               <span style={{ fontSize: 14 }}>{n.icon}</span>{n.label}
               {activeSection === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
             </button>
@@ -2009,19 +2009,17 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
               ))}
             </div>
 
-            {/* Dense actionable grid — Clean 4-Column Layout with Balanced Heights */}
+            {/* Cohesive 4-Column Operations Grid Layout */}
             <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.1fr 1.4fr 1.2fr", gap: 16, alignItems: "stretch" }}>
 
               {/* COLUMN 1 — Village Cluster Snapshot */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", justifyHeight: "100%" }}>
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>👥 Village Cluster Snapshot</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {Object.entries(farmers.reduce((acc, f) => { acc[f.village] = (acc[f.village] || 0) + 1; return acc; }, {})).reduce((acc, [v, c]) => {
-                    // Injecting dynamic Jhansi context mapping variables cleanly
-                    const displayVillage = v === "Mataundh" && f.district === "Jhansi" ? "Mauranipur" : v;
                     acc.push(
                       <div key={v} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
-                        <span style={{ color: "#2B211B" }}>{displayVillage}</span>
+                        <span style={{ color: "#2B211B" }}>{v}</span>
                         <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.maroon }}>{c} farmer{c > 1 ? "s" : ""}</span>
                       </div>
                     );
@@ -2031,7 +2029,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
               </div>
 
               {/* COLUMN 2 — Live Mandi Ticker */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", justifyHeight: "100%" }}>
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>📈 Live Mandi Ticker</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
@@ -2043,10 +2041,10 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                 </div>
               </div>
 
-              {/* COLUMN 3 — THE SINGLE UNIFIED ALERTS STACK (WIPES OUT WHITESPACE) */}
+              {/* COLUMN 3 — ACTIONABLE ALERTS BOX (UNIFIED TO REMOVE EMPTY WHITEPAGES) */}
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-                {/* Top: Soil Degradation Real-time Filter */}
+                {/* Sub-Card 1: Soil Stress Threshold Map */}
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flexShrink: 0 }}>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>⚠️ Critical Soil Risk Tracker</div>
                   {farmers.filter(f => f.soc < 0.4).slice(0, 2).map(f => {
@@ -2060,7 +2058,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                   })}
                 </div>
 
-                {/* Middle: Village Champion Active Registry Log */}
+                {/* Sub-Card 2: Village Champion Log Ledger */}
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flex: 1, display: "flex", flexDirection: "column" }}>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>👤 Champion Activity Log</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 90, overflowY: "auto", flex: 1 }}>
@@ -2073,7 +2071,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                   </div>
                 </div>
 
-                {/* Bottom: Present-Week Weather Call Box (July 2026 Calibrated) */}
+                {/* Sub-Card 3: Present Week Model Weather Trigger Advisory */}
                 {(() => {
                   const sampleFarmer = farmers[0] || INITIAL_FARMERS[0];
                   const weatherArray = calcWeather(sampleFarmer);
@@ -2098,7 +2096,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
               </div>
 
               {/* COLUMN 4 — Recent Transactions */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", justifyHeight: "100%" }}>
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>🧾 Recent Transactions</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {TXN.slice(0, 5).map((r, i) => (
