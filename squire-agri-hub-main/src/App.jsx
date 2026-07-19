@@ -1976,13 +1976,15 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
           </div>
         </div>
 
-        {/* 1. OVERVIEW PAGE VIEWPORT */}
+        {/* 1. DASHBOARD PAGE VIEWPORT */}
         {activeSection === "overview" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+            
+            {/* Crop Season Timeline Progress Bar */}
             <div style={{ display: "flex", alignItems: "center", background: "#fff", border: "1px solid #E8DFD2", borderRadius: 12, padding: "14px 20px" }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#8A7C6C", letterSpacing: "0.05em", textTransform: "uppercase", marginRight: 18, whiteSpace: "nowrap" }}>Crop Season</div>
               <div style={{ flex: 1, display: "flex", gap: 6, paddingTop: 22 }}>
-                {[{ label: "Kharif · Jun–Oct", flex: 0.42, active: true }, { label: "Rabi · Oct–Mar", flex: 0.42, active: false }, { label: "Zaid · Mar–Jun", flex: 0.16, active: false }].map((seg, i) => (
+                {[{ label: "Kharif • Jun–Oct", flex: 0.42, active: true }, { label: "Rabi • Oct–Mar", flex: 0.42, active: false }, { label: "Zaid • Mar–Jun", flex: 0.16, active: false }].map((seg, i) => (
                   <div key={i} style={{ flex: seg.flex, height: 8, borderRadius: 5, background: seg.active ? "linear-gradient(90deg,#C8963E 0%,#4A7C59 100%)" : "#E8DFD2", position: "relative" }}>
                     <span style={{ position: "absolute", top: -18, left: 0, fontSize: 10.5, fontWeight: 600, color: seg.active ? "#6B1E3B" : "#8A7C6C", whiteSpace: "nowrap" }}>{seg.label}</span>
                     {seg.active && <div style={{ position: "absolute", top: -4, left: "6%", width: 14, height: 14, borderRadius: "50%", background: "#6B1E3B", border: "2.5px solid #fff", boxShadow: "0 0 0 2px #6B1E3B" }} />}
@@ -1990,17 +1992,118 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                 ))}
               </div>
             </div>
+
+            {/* Live Warning Action Banner */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: 500 }}>
-              ⚠️ <span><strong>2 seed varieties</strong> below reorder threshold · <strong>1 Mandi price alert</strong> needs review</span>
+              <span>⚠️ <strong>2 seed varieties</strong> below reorder threshold • <strong>1 Mandi price alert</strong> needs optimization review</span>
             </div>
+
+            {/* Primary Metric Summary Cards Row */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-              {[{ label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true }, { label: "Outlet Revenue · MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true }, { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true }, { label: "Seed Stock Health", value: "82%", delta: "⚠ 2 items low", up: false }].map((k, i) => (
+              {[{ label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true }, { label: "Outlet Revenue • MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true }, { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true }, { label: "Seed Stock Health", value: "82%", delta: "⚠️ 2 items low", up: false }].map((k, i) => (
                 <div key={i} style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: "18px 20px" }}>
                   <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
                   <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 600, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11.5, fontWeight: 600, marginTop: 2, color: k.up ? "#2F6B45" : "#8A5A12" }}>{k.delta}</div>
                 </div>
               ))}
+            </div>
+
+            {/* COMPREHENSIVE BALANCED GRID: Added Suggestion 2 & 3 Reactively */}
+            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.3fr 1.1fr 1fr", gap: 16 }}>
+
+              {/* BOX A — Village Cluster Snapshot */}
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>👥 Village Cluster Snapshot</div>
+                {Object.entries(farmers.reduce((acc, f) => { acc[f.village] = (acc[f.village] || 0) + 1; return acc; }, {})).slice(0, 4).map(([village, count]) => (
+                  <div key={village} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
+                    <span style={{ color: "#2B211B" }}>{village}</span>
+                    <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.maroon }}>{count} farmer{count > 1 ? "s" : ""}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* BOX B — Live Mandi Ticker */}
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>📈 Live Mandi Ticker</div>
+                {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
+                  <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
+                    <span style={{ textTransform: "capitalize", color: "#2B211B" }}>{crop}</span>
+                    <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{priceArr[priceArr.length - 1].toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* BOX C — Dense Dynamic Slot Stack */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+                {/* Slot C.1: Soil Degradation Real-time Filter */}
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>⚠️ Critical Soil Risk Tracker</div>
+                  {farmers.filter(f => f.soc < 0.4).slice(0, 2).map(f => {
+                    const d = calcDRS(f);
+                    return (
+                      <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 8px", background: "#FDEDEC", borderRadius: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "#2B211B" }}>{f.name}</span>
+                        <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 12, color: C.red }}>DRS {d.drs}/100</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Slot C.2: Village Champion Dynamic Activity Registry Log */}
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flex: 1 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>👤 Champion Activity Log</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 110, overflowY: "auto" }}>
+                    <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4, paddingBottom: 6, borderBottom: `1px dashed ${C.border}` }}>
+                      <strong style={{ color: C.maroon }}>[Cluster 4]</strong> Champion Sonkar initialized soil diagnostic test vectors for Farmer Devi in Mauranipur, Jhansi.
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4 }}>
+                      <strong style={{ color: C.maroon }}>[Cluster 1]</strong> Live Onboarding: 12 smallholder registry slots logged this morning.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slot C.3: Adaptive Present-Month Weather Evaluation Core */}
+                {(() => {
+                  const sampleFarmer = farmers[0] || INITIAL_FARMERS[0];
+                  const weatherArray = calcWeather(sampleFarmer);
+                  const currentMonthName = MONTHS[new Date().getMonth()]; 
+                  const activeWeather = weatherArray.find(m => m.month === currentMonthName) || weatherArray[6];
+                  
+                  return (
+                    <div style={{ background: "#FFFBF2", border: `1px solid ${C.gold}55`, borderRadius: 14, padding: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: C.soil, textTransform: "uppercase", letterSpacing: "0.05em" }}>🌦 Present Month Weather Call</span>
+                        <span style={{ fontSize: 10, background: "#FEF3D0", color: C.soil, padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>{activeWeather.month} 2026</span>
+                      </div>
+                      <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 4 }}>
+                        Calculated Transition Matrix Lean: <strong>{activeWeather.wetWeeks}W / {activeWeather.dryWeeks}D</strong>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#2B211B", lineHeight: 1.5, fontWeight: 500 }}>
+                        <strong>Agronomic Directive:</strong> {activeWeather.action === "Irrigate/Monitor" 
+                          ? "High soil moisture detected via model. Hold nitrogen field top-dressing to prevent leaching losses on sandy loam plots this cycle." 
+                          : `Steady-state operations confirmed. Proceed with ${activeWeather.action.toLowerCase()} baseline parameters.`}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* BOX D — Recent Transactions */}
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>🧾 Recent Transactions</div>
+                {TXN.slice(0, 4).map((r, i) => (
+                  <div key={i} style={{ padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 11.5 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#2B211B", fontWeight: 600 }}>{r.name}</span>
+                      <span style={{ fontFamily: "monospace", color: C.green, fontWeight: 700 }}>{r.price}</span>
+                    </div>
+                    <div style={{ color: "#8A7C6C", fontSize: 10.5 }}>{r.crop} · {r.qty}</div>
+                  </div>
+                ))}
+              </div>
+
             </div>
           </div>
         )}
