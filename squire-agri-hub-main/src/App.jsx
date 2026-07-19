@@ -2608,7 +2608,7 @@ export default function App() {
         </header>
 
         {/* Render Engine Content Outlet */}
-        <main style={{ padding: "30px 38px 60px", maxWidth: 1080, width: "100%", boxSizing: "border-box" }}>
+        <main style={{ padding: "30px 38px 60px", width: "100%", boxSizing: "border-box" }}>
           {view === "dashboard" && (
             <Dashboard farmers={farmers} activeSection={dashboardTab} onSelect={handleSelectFarmer} onNew={() => setView("onboard")} onViewReports={() => setView("reports")} onViewMachinery={() => setView("machinery")} />
           )}
