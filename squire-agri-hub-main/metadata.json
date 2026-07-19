@@ -1,0 +1,8 @@
+{
+  "name": "Squire Agri-Hub",
+  "description": "Squire — Restoring India's Soil. Rewiring Farmer Profit.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
