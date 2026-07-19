@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
+
 
 const app = express();
 const PORT = 3000;
@@ -29,31 +29,42 @@ app.post("/api/gemini", async (req, res) => {
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
-    // Call the Antigravity Agent via Interactions API
-    const interaction = await ai.interactions.create({
-      agent: "antigravity-preview-05-2026",
-      input: prompt,
-      environment: "remote",
-    }, { timeout: 300000 });
+    const optimizedPrompt =
+      prompt +
+      "\n\nIMPORTANT: Return ONLY a valid, clean raw JSON object string. Do not wrap it in markdown code blocks like ```json ... ```. Start directly with { and end with }.";
 
-    // Extract all output text parts from the model_output steps (agent may respond in multiple steps)
-    let text = "";
-    if (interaction.steps) {
-      for (const step of interaction.steps) {
-        if (step.type === "model_output") {
-          const textContent: any = step.content?.find((c: any) => c.type === "text");
-          if (textContent && textContent.text) {
-            text += textContent.text;
-          }
-        }
-      }
+    const geminiRes = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: optimizedPrompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 8192,
+        },
+      }),
+    });
+
+    const data = await geminiRes.json() as any;
+
+    if (!geminiRes.ok) {
+      return res.status(geminiRes.status).json({
+        error: data.error?.message || JSON.stringify(data),
+      });
     }
 
-    // Fallback if no steps had text
-    if (!text) {
-      text = interaction.output_text || "";
+    // Extract text from response
+    let text = "";
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+      if (part.text) text += part.text;
+    }
+
+    // Fallback extraction
+    if (!text && data?.candidates?.[0]?.content?.text) {
+      text = data.candidates[0].content.text;
     }
 
     // Strip markdown code fences if model added them
@@ -65,8 +76,91 @@ app.post("/api/gemini", async (req, res) => {
 
     if (!text) {
       return res.status(500).json({
-        error: "Empty response from Antigravity Agent",
-        diagnostic: JSON.stringify(interaction).slice(0, 500),
+        error: "Empty response from Gemini",
+        diagnostic: JSON.stringify(data).slice(0, 500),
+      });
+    }
+
+    return res.status(200).json({ text });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/antigravity", async (req, res) => {
+  const API_KEY = process.env.GEMINI_API_KEY;
+
+  if (!API_KEY) {
+    return res.status(500).json({
+      error: "GEMINI_API_KEY environment variable not set. Please configure it in AI Studio settings.",
+    });
+  }
+
+  const { prompt, history } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ error: "No prompt provided in request body." });
+  }
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+
+    const contents: any[] = [];
+    
+    // Support history if passed for a multi-turn chat
+    if (history && Array.isArray(history)) {
+      for (const msg of history) {
+        contents.push({
+          role: msg.role === "user" ? "user" : "model",
+          parts: [{ text: msg.text }]
+        });
+      }
+    }
+    
+    // Add current prompt
+    contents.push({
+      role: "user",
+      parts: [{ text: prompt }]
+    });
+
+    const body = {
+      contents,
+      systemInstruction: {
+        parts: [{ text: "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding. You specialize in software engineering, debugging, architecture, and developer workflows. Answer questions concisely and professionally." }]
+      },
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+      }
+    };
+
+    const geminiRes = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const data = await geminiRes.json() as any;
+
+    if (!geminiRes.ok) {
+      return res.status(geminiRes.status).json({
+        error: data.error?.message || JSON.stringify(data),
+      });
+    }
+
+    let text = "";
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+      if (part.text) text += part.text;
+    }
+
+    if (!text && data?.candidates?.[0]?.content?.text) {
+      text = data.candidates[0].content.text;
+    }
+
+    if (!text) {
+      return res.status(500).json({
+        error: "Empty response from Gemini",
+        diagnostic: JSON.stringify(data).slice(0, 500),
       });
     }
 
