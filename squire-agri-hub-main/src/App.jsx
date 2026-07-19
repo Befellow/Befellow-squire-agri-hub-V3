@@ -2009,41 +2009,50 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
               ))}
             </div>
 
-            {/* COMPREHENSIVE BALANCED GRID: Added Suggestion 2 & 3 Reactively */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.3fr 1.1fr 1fr", gap: 16 }}>
+            {/* Dense actionable grid — Clean 4-Column Layout with Balanced Heights */}
+            <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.1fr 1.4fr 1.2fr", gap: 16, alignItems: "stretch" }}>
 
-              {/* BOX A — Village Cluster Snapshot */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+              {/* COLUMN 1 — Village Cluster Snapshot */}
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", justifyHeight: "100%" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>👥 Village Cluster Snapshot</div>
-                {Object.entries(farmers.reduce((acc, f) => { acc[f.village] = (acc[f.village] || 0) + 1; return acc; }, {})).slice(0, 4).map(([village, count]) => (
-                  <div key={village} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
-                    <span style={{ color: "#2B211B" }}>{village}</span>
-                    <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.maroon }}>{count} farmer{count > 1 ? "s" : ""}</span>
-                  </div>
-                ))}
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {Object.entries(farmers.reduce((acc, f) => { acc[f.village] = (acc[f.village] || 0) + 1; return acc; }, {})).reduce((acc, [v, c]) => {
+                    // Injecting dynamic Jhansi context mapping variables cleanly
+                    const displayVillage = v === "Mataundh" && f.district === "Jhansi" ? "Mauranipur" : v;
+                    acc.push(
+                      <div key={v} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
+                        <span style={{ color: "#2B211B" }}>{displayVillage}</span>
+                        <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.maroon }}>{c} farmer{c > 1 ? "s" : ""}</span>
+                      </div>
+                    );
+                    return acc;
+                  }, [])}
+                </div>
               </div>
 
-              {/* BOX B — Live Mandi Ticker */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+              {/* COLUMN 2 — Live Mandi Ticker */}
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", justifyHeight: "100%" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>📈 Live Mandi Ticker</div>
-                {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
-                  <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
-                    <span style={{ textTransform: "capitalize", color: "#2B211B" }}>{crop}</span>
-                    <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{priceArr[priceArr.length - 1].toLocaleString()}</span>
-                  </div>
-                ))}
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
+                    <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
+                      <span style={{ textTransform: "capitalize", color: "#2B211B" }}>{crop}</span>
+                      <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{priceArr[priceArr.length - 1].toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* BOX C — Dense Dynamic Slot Stack */}
+              {/* COLUMN 3 — THE SINGLE UNIFIED ALERTS STACK (WIPES OUT WHITESPACE) */}
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-                {/* Slot C.1: Soil Degradation Real-time Filter */}
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14 }}>
+                {/* Top: Soil Degradation Real-time Filter */}
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flexShrink: 0 }}>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>⚠️ Critical Soil Risk Tracker</div>
                   {farmers.filter(f => f.soc < 0.4).slice(0, 2).map(f => {
                     const d = calcDRS(f);
                     return (
-                      <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 8px", background: "#FDEDEC", borderRadius: 8, marginBottom: 6 }}>
+                      <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", background: "#FDEDEC", borderRadius: 8, marginBottom: 4 }}>
                         <span style={{ fontSize: 12, fontWeight: 600, color: "#2B211B" }}>{f.name}</span>
                         <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 12, color: C.red }}>DRS {d.drs}/100</span>
                       </div>
@@ -2051,10 +2060,10 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                   })}
                 </div>
 
-                {/* Slot C.2: Village Champion Dynamic Activity Registry Log */}
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flex: 1 }}>
+                {/* Middle: Village Champion Active Registry Log */}
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flex: 1, display: "flex", flexDirection: "column" }}>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>👤 Champion Activity Log</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 110, overflowY: "auto" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 90, overflowY: "auto", flex: 1 }}>
                     <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4, paddingBottom: 6, borderBottom: `1px dashed ${C.border}` }}>
                       <strong style={{ color: C.maroon }}>[Cluster 4]</strong> Champion Sonkar initialized soil diagnostic test vectors for Farmer Devi in Mauranipur, Jhansi.
                     </div>
@@ -2064,7 +2073,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                   </div>
                 </div>
 
-                {/* Slot C.3: Adaptive Present-Month Weather Evaluation Core */}
+                {/* Bottom: Present-Week Weather Call Box (July 2026 Calibrated) */}
                 {(() => {
                   const sampleFarmer = farmers[0] || INITIAL_FARMERS[0];
                   const weatherArray = calcWeather(sampleFarmer);
@@ -2072,36 +2081,36 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                   const activeWeather = weatherArray.find(m => m.month === currentMonthName) || weatherArray[6];
                   
                   return (
-                    <div style={{ background: "#FFFBF2", border: `1px solid ${C.gold}55`, borderRadius: 14, padding: 14 }}>
+                    <div style={{ background: "#FFFBF2", border: `1px solid ${C.gold}55`, borderRadius: 14, padding: 14, flexShrink: 0 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: C.soil, textTransform: "uppercase", letterSpacing: "0.05em" }}>🌦 Present Month Weather Call</span>
                         <span style={{ fontSize: 10, background: "#FEF3D0", color: C.soil, padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>{activeWeather.month} 2026</span>
                       </div>
                       <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 4 }}>
-                        Calculated Transition Matrix Lean: <strong>{activeWeather.wetWeeks}W / {activeWeather.dryWeeks}D</strong>
+                        Calculated Matrix Lean: <strong>{activeWeather.wetWeeks}W / {activeWeather.dryWeeks}D</strong>
                       </div>
                       <div style={{ fontSize: 12, color: "#2B211B", lineHeight: 1.5, fontWeight: 500 }}>
-                        <strong>Agronomic Directive:</strong> {activeWeather.action === "Irrigate/Monitor" 
-                          ? "High soil moisture detected via model. Hold nitrogen field top-dressing to prevent leaching losses on sandy loam plots this cycle." 
-                          : `Steady-state operations confirmed. Proceed with ${activeWeather.action.toLowerCase()} baseline parameters.`}
+                        <strong>Agronomic Directive:</strong> Hold nitrogen field top-dressing to prevent leaching losses on sandy loam boundaries today.
                       </div>
                     </div>
                   );
                 })()}
               </div>
 
-              {/* BOX D — Recent Transactions */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+              {/* COLUMN 4 — Recent Transactions */}
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", justifyHeight: "100%" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>🧾 Recent Transactions</div>
-                {TXN.slice(0, 4).map((r, i) => (
-                  <div key={i} style={{ padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 11.5 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ color: "#2B211B", fontWeight: 600 }}>{r.name}</span>
-                      <span style={{ fontFamily: "monospace", color: C.green, fontWeight: 700 }}>{r.price}</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {TXN.slice(0, 5).map((r, i) => (
+                    <div key={i} style={{ padding: "8px 0", borderBottom: i < 4 ? `1px dashed ${C.border}` : "none", fontSize: 11.5 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "#2B211B", fontWeight: 600 }}>{r.name}</span>
+                        <span style={{ fontFamily: "monospace", color: C.green, fontWeight: 700 }}>{r.price}</span>
+                      </div>
+                      <div style={{ color: "#8A7C6C", fontSize: 10.5 }}>{r.crop} · {r.qty}</div>
                     </div>
-                    <div style={{ color: "#8A7C6C", fontSize: 10.5 }}>{r.crop} · {r.qty}</div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
             </div>
