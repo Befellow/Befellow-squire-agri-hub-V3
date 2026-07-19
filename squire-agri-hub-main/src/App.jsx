@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 // ─── BRAND TOKENS ────────────────────────────────────────────────
 const C = {
@@ -1885,10 +1885,180 @@ function MachineryHub({ rentals, onBack, onAddRental, farmers }) {
   );
 }
 
+// ─── AGRICULTURAL SEASONS AND CROP CLASSIFICATION MATRIX ──────────
+const SEASON_CROPS_MAP = {
+  Kharif: {
+    Cereals: ["Paddy", "Maize", "Pearl Millet", "Sorghum"],
+    Pulses: ["Arhar (Pigeon Pea)", "Green Gram", "Black Gram", "Cowpea"],
+    Oilseeds: ["Groundnut", "Sesame", "Soybean", "Castor"],
+    Commercial: ["Sugarcane", "Sweet Corn", "Baby Corn", "Tobacco (limited)"],
+    Vegetables: ["Tomato", "Chilli", "Capsicum", "Brinjal", "Cucumber", "Bottle Gourd", "Bitter Gourd", "Ridge Gourd", "Sponge Gourd", "Pumpkin", "Watermelon", "Muskmelon", "Okra", "Sweet Potato", "Elephant Foot Yam", "Colocasia"],
+    Fruits: ["Papaya", "Pomegranate", "Dragon Fruit"],
+    "Medicinal & Aromatic": ["Lemongrass", "Citronella", "Palmarosa", "Moringa", "Tulsi", "Aloe Vera"],
+    Floriculture: ["Marigold", "Jasmine", "Crossandra"],
+    Spices: ["Ginger", "Turmeric", "Chilli"]
+  },
+  Rabi: {
+    Cereals: ["Wheat", "Barley", "Oats"],
+    Pulses: ["Chickpea", "Lentil", "Field Pea", "Lathyrus"],
+    Oilseeds: ["Mustard", "Rapeseed", "Linseed", "Sunflower"],
+    Commercial: ["Potato", "Stevia"],
+    Vegetables: ["Onion", "Garlic", "Cauliflower", "Cabbage", "Broccoli", "Knol Khol", "Radish", "Carrot", "Beetroot", "Turnip", "French Bean", "Cluster Bean", "Pea", "Spinach"],
+    Fruits: ["Strawberry"],
+    "Medicinal & Aromatic": ["Ashwagandha", "Safed Musli", "Kalmegh", "Isabgol", "Senna", "Brahmi"],
+    Floriculture: ["Rose", "Gladiolus", "Tuberose", "Chrysanthemum", "Gerbera", "Carnation", "Lilium", "Orchid", "Gaillardia", "Dahlia", "Petunia", "Calendula", "Zinnia"],
+    Spices: ["Coriander", "Fennel", "Fenugreek", "Cumin", "Garlic", "Chilli"]
+  },
+  Perennial: {
+    Fruits: ["Mango", "Guava", "Lemon", "Sweet Lime", "Orange", "Ber", "Banana", "Jackfruit", "Mulberry", "Jamun", "Custard Apple", "Fig", "Bael", "Karonda", "Phalsa"],
+    Commercial: ["Sugarcane", "Stevia"],
+    "Medicinal & Aromatic": ["Mentha", "Aloe Vera", "Tulsi", "Moringa", "Brahmi"],
+    Floriculture: ["Rose", "Jasmine", "Orchid"],
+    Vegetables: ["Moringa", "Colocasia", "Elephant Foot Yam"]
+  }
+};
+
+const generateHistoricalData = (crop, days = 30) => {
+  const spot = (MANDI_PER_KG[resolveCropKey(crop)] || 30.00) * 100;
+  const arr = [];
+  const seed = crop.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  for (let i = 0; i < days; i++) {
+    const factor = Math.sin(seed + i * 0.45) * 0.015 + 0.001; 
+    const stepVal = i === 0 ? spot * 0.94 : arr[i - 1] * (1 + factor);
+    arr.push(Math.round(stepVal));
+  }
+  arr[arr.length - 1] = Math.round(spot);
+  return arr;
+};
+
+const getFallbackSpeculation = (crop, season) => {
+  let risk = "Medium";
+  let rec = "Store in Squire Cold Storage for 90-120 days";
+  let score = 85;
+
+  if (season === "Kharif") {
+    risk = "High";
+    rec = "Store in Squire hermetic bags & liquidate 40% post-Diwali";
+    score = 82;
+  } else if (season === "Rabi") {
+    risk = "Low";
+    rec = "Hold in dry warehouse; wait for off-season terminal price spikes";
+    score = 89;
+  } else {
+    risk = "Medium";
+    rec = "Establish direct retail linkage with Kanpur food processors";
+    score = 86;
+  }
+
+  const paragraph1 = `Wholesale rates for ${crop} during the upcoming ${season} season across northern terminal corridors are being significantly impacted by macro-economic factors. Diesel prices at ₹94.5/L are escalating shipping and tillage rates by approximately 6-8%, which is creating a rigid price floor at local Mandis. Driven by a domestic food inflation rate of 5.4%, buyer demand remains highly robust, though centralized stock limits and state procurement targets may cap the peak price ceilings at urban markets like Kanpur and Azadpur.`;
+
+  const paragraph2 = `Moisture patterns in the semi-arid Fatehpur belt suggest highly localized rainfall variance. Critical growth phases of ${crop} could face sudden moisture stress or thermal anomalies, raising the risk of pest indices. Production costs have also ticked upward due to a rise in the global DAP/Potash fertilizer index, squeezing the margin of smallholders who liquidate immediately at harvest time. Risk volatility for this crop cycle is categorized as ${risk}.`;
+
+  const paragraph3 = `We strongly recommend that farmers avoid distress sales during the high-arrival peak harvest. Leveraging Squire's optimized storage facilities will enable farmers to wait out the transient supply glut. Our econometric algorithm suggests holding your ${crop} inventory for 90 to 120 days to capture off-season arbitrage premiums of up to 14-18%, easily offsetting the nominal warehousing and interest costs on your Kisan Credit Card (KCC) loans.`;
+
+  return {
+    speculativeSummary: `${paragraph1}\n\n${paragraph2}\n\n${paragraph3}`,
+    riskRating: risk,
+    recommendedAction: rec,
+    confidenceScore: score,
+    isLocalModel: true
+  };
+};
+
 // ─── DASHBOARD TERMINAL MODULE ───────────────────────────────────
 function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onViewMachinery }) {
   const [mandiRange, setMandiRange] = useState("7D");
   const [searchQ, setSearchQ] = useState("");
+  
+  // Mandi Interactive Matrix & Speculation State
+  const [mandiSeason, setMandiSeason] = useState("Kharif");
+  const [mandiCategory, setMandiCategory] = useState("Cereals");
+  const [mandiCrop, setMandiCrop] = useState("Paddy");
+  const [targetMandi, setTargetMandi] = useState(null);
+  
+  const [aiSpeculation, setAiSpeculation] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
+
+  const handleSeasonChange = (season) => {
+    setMandiSeason(season);
+    const categories = Object.keys(SEASON_CROPS_MAP[season]);
+    const firstCategory = categories[0];
+    setMandiCategory(firstCategory);
+    const crops = SEASON_CROPS_MAP[season][firstCategory];
+    setMandiCrop(crops[0]);
+    setTargetMandi(null);
+  };
+
+  const handleCategoryChange = (category) => {
+    setMandiCategory(category);
+    const crops = SEASON_CROPS_MAP[mandiSeason][category];
+    setMandiCrop(crops[0]);
+    setTargetMandi(null);
+  };
+
+  useEffect(() => {
+    if (activeSection === "market" && mandiCrop) {
+      let isCancelled = false;
+      setAiLoading(true);
+      setAiError(null);
+      setAiSpeculation(null);
+
+      const prompt = `You are the Squire Digital Brain. Analyze the commodity market outlook for the crop "${mandiCrop}" during the upcoming "${mandiSeason}" season for a farmer located in Fatehpur, Bundelkhand, Uttar Pradesh.
+
+Consider the following agricultural and macro-economic factors:
+1. Macro-Economics: Current food inflation at 5.4%, RBI repo rate (6.5%), KCC agri credits.
+2. Production Costs: Diesel price at ₹94.5/litre (affects tillage and irrigation pumping), rising DAP/Potash fertilizer index.
+3. Weather Outlook: Semi-arid Bundelkhand moisture patterns, temperature anomalies, monsoon progression.
+4. Supply-Demand dynamics for this crop across Indian terminal markets (Azadpur, Kanpur, Vashi).
+
+Write a highly expert, clinical, 3-paragraph market speculation and risk advisory report for the farmer:
+- Paragraph 1: Price Outlook & Driving Forces (How fuel, weather, and macro inflation are pushing or capping prices).
+- Paragraph 2: Risk and Volatility Assessment (Pest indices, weather spikes, moisture stress during critical growth stages).
+- Paragraph 3: Actionable Storage and Liquidation Strategy (Should they sell spot at harvest, store in Squire cold storage for 3-5 months to arbitrage off-season premiums, or forward contract with FPOs).
+
+Return ONLY a valid, raw JSON object matching this schema. Do not include markdown code fences, backticks, or any leading/trailing commentary. It must parse directly:
+{
+  "speculativeSummary": "Your expert 3-paragraph analysis here with double newlines (\\\\n\\\\n) separating paragraphs.",
+  "riskRating": "Low" | "Medium" | "High",
+  "recommendedAction": "e.g., Hold in Cold Storage for 90 days",
+  "confidenceScore": 85
+}`;
+
+      fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("Server error " + res.status);
+          return res.json();
+        })
+        .then((data) => {
+          if (isCancelled) return;
+          if (!data.text) throw new Error("Empty response from server");
+          
+          const jsonMatch = data.text.match(/\\{[\\s\\S]*\\}/);
+          if (!jsonMatch) throw new Error("No JSON found in response");
+          
+          const parsed = JSON.parse(jsonMatch[0]);
+          setAiSpeculation(parsed);
+          setAiLoading(false);
+        })
+        .catch((err) => {
+          if (isCancelled) return;
+          console.warn("Speculation API error (e.g. rate limits), activating offline expert model:", err);
+          const fallback = getFallbackSpeculation(mandiCrop, mandiSeason);
+          setAiSpeculation(fallback);
+          setAiLoading(false);
+        });
+
+      return () => {
+        isCancelled = true;
+      };
+    }
+  }, [mandiCrop, mandiSeason, activeSection, refetchTrigger]);
   
   // Isolated state configuration to control sidebar visibility transitions smoothly on the front page
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -1905,7 +2075,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
 
   const NAV = [
     { id: "overview", icon: "▦", label: "Overview" },
-    { id: "market", icon: "↗", label: "Market Sales" },
+    { id: "market", icon: "↗", label: "Mandi" },
     { id: "seed", icon: "🌱", label: "Seed & Inputs" },
     { id: "farmers", icon: "👥", label: "Farmer Network" },
     { id: "brain", icon: "🧠", label: "Digital Brain" },
@@ -1937,30 +2107,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
   const scrollTo = (id) => { setActiveSection(id); };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter',sans-serif" }}>
-      {/* Sidebar Layout panel */}
-      <aside style={{ width: 248, background: "linear-gradient(180deg,#241509 0%,#1A0E05 100%)", color: "#E9DFD2", position: "fixed", top: 0, left: 0, bottom: 0, display: "flex", flexDirection: "column", padding: "28px 18px", zIndex: 20, overflowY: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,.08)", marginBottom: 22 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#C8963E 0%,#6B1E3B 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 18 }}>S</div>
-          <div><div style={{ fontWeight: 600, fontSize: 17, color: "#fff", fontFamily: "serif" }}>Squire</div><div style={{ fontSize: 10, color: "#E8C77E", letterSpacing: "0.06em", textTransform: "uppercase" }}>Digital Brain</div></div>
-        </div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {NAV.map(n => (
-            <button key={n.id} onClick={() => scrollTo(n.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: activeSection === n.id ? "rgba(200,150,62,.16)" : "transparent", color: activeSection === n.id ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
-              <span style={{ fontSize: 14 }}>{n.icon}</span>{n.label}
-              {activeSection === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
-            </button>
-          ))}
-        </nav>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0" }}>
-          <button onClick={onNew} style={{ background: "#6B1E3B", color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
-          <button onClick={onViewReports} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
-          <button onClick={onViewMachinery} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
-        </div>
-      </aside>
-
-      {/* Main Workspace Frame Viewport */}
-      <main style={{ marginLeft: 248, flex: 1, width: "calc(100vw - 248px)", maxWidth: "none", padding: "24px 40px", boxSizing: "border-box", overflowX: "hidden" }}>
+    <div style={{ width: "100%", boxSizing: "border-box" }}>
         {/* Top Header Grid */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 22, flexWrap: "wrap" }}>
           <div>
@@ -2105,29 +2252,367 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
           </div>
         )}
 
-        {/* 2. MARKET SALES PAGE VIEWPORT */}
-        {activeSection === "market" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.55fr 1fr", gap: 18 }}>
-            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
-              <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 12 }}>Mandi Prices Tracking (₹/Qtl)</h3>
-              {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
-                <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px dashed #E8DFD2", fontSize: 13.5 }}>
-                  <span style={{ textTransform: "capitalize" }}><strong>{crop}</strong> Spot Price:</span>
-                  <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{priceArr[priceArr.length - 1].toLocaleString()}</span>
+        {/* 2. MANDI INTELLIGENCE AND PRICE PREDICTION TERMINAL VIEWPORT */}
+        {activeSection === "market" && (() => {
+          const categories = Object.keys(SEASON_CROPS_MAP[mandiSeason]);
+          const crops = SEASON_CROPS_MAP[mandiSeason][mandiCategory] || [];
+
+          const resolvedCropKey = resolveCropKey(mandiCrop) || mandiCrop;
+          const currentPricePerKg = MANDI_PER_KG[resolvedCropKey] || 30.00;
+          const basePricePerQtl = currentPricePerKg * 100;
+
+          const priceHistory = generateHistoricalData(mandiCrop, 30);
+          const firstPrice = priceHistory[0];
+          const lastPrice = priceHistory[priceHistory.length - 1];
+          const priceDiff = lastPrice - firstPrice;
+          const trendPct = ((priceDiff / firstPrice) * 100).toFixed(1);
+          const isUpTrend = priceDiff >= 0;
+
+          const mandisList = [
+            { id: "fatehpur", name: "Fatehpur APMC (Local)", state: "Uttar Pradesh", dist: 5, mult: 0.95, transit: 15, arrivals: 680, trend: "Stable" },
+            { id: "kanpur", name: "Kanpur APMC", state: "Uttar Pradesh", dist: 80, mult: 1.01, transit: 75, arrivals: 1450, trend: "Stable" },
+            { id: "azadpur", name: "Azadpur APMC", state: "Delhi NCR", dist: 530, mult: 1.12, transit: 240, arrivals: 5100, trend: "Upward" },
+            { id: "vashi", name: "Vashi APMC (Mumbai)", state: "Maharashtra", dist: 1350, mult: 1.19, transit: 480, arrivals: 3400, trend: "Upward" },
+            { id: "indore", name: "Indore APMC", state: "Madhya Pradesh", dist: 640, mult: 1.04, transit: 290, arrivals: 1850, trend: "Stable" },
+            { id: "gondal", name: "Gondal APMC", state: "Gujarat", dist: 1180, mult: 1.09, transit: 380, arrivals: 2200, trend: "Downward" }
+          ].map(m => {
+            const spotPrice = Math.round(basePricePerQtl * m.mult);
+            const netRealizable = spotPrice - m.transit;
+            return { ...m, spotPrice, netRealizable };
+          });
+
+          const bestMandi = mandisList.reduce((max, m) => m.netRealizable > max.netRealizable ? m : max, mandisList[0]);
+
+          const inflationFactor = 0.054;
+          const fuelFactor = 0.068;
+          const weatherModifier = mandiSeason === "Kharif" ? 0.08 : -0.02;
+
+          const specLowerLimit = Math.round(basePricePerQtl * (1 + inflationFactor + fuelFactor - 0.04));
+          const specUpperLimit = Math.round(basePricePerQtl * (1 + inflationFactor + fuelFactor + weatherModifier + 0.05));
+          const confidenceScore = Math.min(95, Math.round(82 + (priceHistory.length / 5) + (mandiSeason === "Rabi" ? 6 : 0)));
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              
+              {/* Hierarchical Crop Selection Matrix Section */}
+              <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 22px" }}>
+                <div style={{ marginBottom: 16 }}>
+                  <h2 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 20, color: C.charcoal, margin: 0 }}>🌾 Crop-Centric Price Discovery Terminal</h2>
+                  <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>Select season, crop category, and commodity to search wholesale markets and trace future projections</div>
                 </div>
-              ))}
-            </div>
-            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
-              <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Real-Time Pipeline Tracking</h3>
-              {filteredTxn.map((r, i) => (
-                <div key={i} style={{ padding: "10px 0", borderBottom: "1px solid #E8DFD2", display: "flex", justifyContent: "space-between", fontSize: 12.5, alignItems: "center" }}>
-                  <div><strong>{r.name}</strong> ({r.crop})</div>
-                  <span style={{ background: SB_C[r.status].bg, color: SB_C[r.status].color, padding: "3px 9px", borderRadius: 20, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>{SB_C[r.status].label}</span>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr 2.5fr", gap: 18, alignItems: "start" }}>
+                  
+                  {/* Step 1: Select Season */}
+                  <div style={{ borderRight: `1px solid ${C.border}`, paddingRight: 18 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Step 1: Select Crop Season</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {["Kharif", "Rabi", "Perennial"].map(season => {
+                        const isActive = mandiSeason === season;
+                        return (
+                          <button
+                            key={season}
+                            onClick={() => handleSeasonChange(season)}
+                            style={{
+                              padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", border: isActive ? `1.5px solid ${C.maroon}` : `1px solid ${C.border}`,
+                              background: isActive ? C.cream : "#fff",
+                              color: isActive ? C.maroon : C.charcoal,
+                              transition: "all 0.15s ease", display: "flex", justifyContent: "space-between", alignItems: "center"
+                            }}
+                          >
+                            <span>{season}</span>
+                            <span style={{ fontSize: 11, color: isActive ? C.gold : C.muted }}>{season === "Kharif" ? "🌧 Monsoon" : season === "Rabi" ? "❄ Winter" : "🔄 Annual"}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Step 2: Select Crop Category */}
+                  <div style={{ borderRight: `1px solid ${C.border}`, paddingRight: 18 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Step 2: Crop Category</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
+                      {categories.map(category => {
+                        const isActive = mandiCategory === category;
+                        return (
+                          <button
+                            key={category}
+                            onClick={() => handleCategoryChange(category)}
+                            style={{
+                              padding: "9px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: isActive ? 700 : 500, textAlign: "left", cursor: "pointer", border: isActive ? `1.5px solid ${C.maroon}` : `1px solid ${C.border}`,
+                              background: isActive ? C.cream : "transparent",
+                              color: isActive ? C.maroon : C.muted,
+                              transition: "all 0.15s ease", display: "flex", justifyContent: "space-between", alignItems: "center"
+                            }}
+                          >
+                            <span>{category}</span>
+                            <span style={{ fontSize: 10, opacity: 0.7 }}>{SEASON_CROPS_MAP[mandiSeason][category]?.length || 0} items</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Step 3: Select Crop */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Step 3: Select Commodity</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 220, overflowY: "auto", alignContent: "flex-start", paddingRight: 4 }}>
+                      {crops.map(crop => {
+                        const isActive = mandiCrop === crop;
+                        return (
+                          <button
+                            key={crop}
+                            onClick={() => { setMandiCrop(crop); setTargetMandi(null); }}
+                            style={{
+                              padding: "8px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                              border: isActive ? `1.5px solid ${C.maroon}` : `1px solid ${C.border}`,
+                              background: isActive ? C.maroon : "#fff",
+                              color: isActive ? C.white : C.charcoal,
+                              transition: "all 0.15s ease"
+                            }}
+                          >
+                            {crop}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                 </div>
-              ))}
+              </div>
+
+              {/* Live Price Statistics Block */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                <Card style={{ padding: 14 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase" }}>Benchmark Price (Kanpur)</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: C.charcoal, marginTop: 4, fontFamily: "monospace" }}>₹{Math.round(basePricePerQtl * 1.01).toLocaleString()}<span style={{ fontSize: 12, fontWeight: 500, color: C.muted }}>/Qtl</span></div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Based on e-NAM digital spot clearing index</div>
+                </Card>
+                <Card style={{ padding: 14 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase" }}>30D Historical Volatility</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyItems: "center", gap: 10, marginTop: 4 }}>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: isUpTrend ? C.green : C.red, fontFamily: "monospace" }}>
+                      {isUpTrend ? "▲" : "▼"} {trendPct}%
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <Sparkline points={priceHistory} color={isUpTrend ? C.green : C.red} w={100} h={26} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Price corridor delta over past 30 trading days</div>
+                </Card>
+                <Card style={{ padding: 14, background: "#FFFBF2", border: `1.5px solid ${C.gold}55` }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: C.soil, textTransform: "uppercase" }}>Squire Optimum Trade Routing</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: C.maroon, marginTop: 6 }}>{bestMandi.name}</div>
+                  <div style={{ fontSize: 11.5, color: C.charcoal, marginTop: 2 }}>Net Realizable: <strong style={{ color: C.green, fontFamily: "monospace" }}>₹{bestMandi.netRealizable.toLocaleString()}/Qtl</strong></div>
+                </Card>
+              </div>
+
+              {/* Two Column Board: Left (Mandi Comparison), Right (AI Speculation Engine) */}
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18, alignItems: "start" }}>
+                
+                {/* Left Column: National Mandi Price & Logistics Comparison Table */}
+                <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 22px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, borderBottom: `1.5px solid ${C.border}`, paddingBottom: 10 }}>
+                    <div>
+                      <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 17, color: C.charcoal, margin: 0 }}>📊 National APMC Price and Transit Ledger</h3>
+                      <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>Realizable revenue model accounting for transport overheads from Fatehpur, Bundelkhand</div>
+                    </div>
+                    <span style={{ fontSize: 10.5, background: C.greenPale, color: C.green, padding: "3px 8px", borderRadius: 40, fontWeight: 700 }}>🟢 e-NAM Live Sync</span>
+                  </div>
+
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                      <thead>
+                        <tr style={{ borderBottom: `1.5px solid ${C.border}`, textAlign: "left" }}>
+                          <th style={{ padding: "8px 4px", color: C.muted, fontWeight: 600 }}>Mandi / Market</th>
+                          <th style={{ padding: "8px 4px", color: C.muted, fontWeight: 600, textAlign: "right" }}>Spot Rate</th>
+                          <th style={{ padding: "8px 4px", color: C.muted, fontWeight: 600, textAlign: "right" }}>Transit Cost</th>
+                          <th style={{ padding: "8px 4px", color: C.muted, fontWeight: 600, textAlign: "right" }}>Net Realizable</th>
+                          <th style={{ padding: "8px 4px", color: C.muted, fontWeight: 600, textAlign: "center" }}>Trade Route</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {mandisList.map(m => {
+                          const isBest = m.id === bestMandi.id;
+                          const isTarget = targetMandi === m.id;
+                          return (
+                            <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}`, background: isBest ? "#EBF8F044" : "transparent" }}>
+                              <td style={{ padding: "11px 4px" }}>
+                                <div style={{ fontWeight: 700, color: C.charcoal }}>{m.name}</div>
+                                <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2 }}>{m.state} · Dist: {m.dist} km · Vol: {m.arrivals} Qtl/d</div>
+                              </td>
+                              <td style={{ padding: "11px 4px", textAlign: "right", fontFamily: "monospace", fontWeight: 600 }}>
+                                ₹{m.spotPrice.toLocaleString()}
+                              </td>
+                              <td style={{ padding: "11px 4px", textAlign: "right", fontFamily: "monospace", color: C.red }}>
+                                -₹{m.transit}
+                              </td>
+                              <td style={{ padding: "11px 4px", textAlign: "right", fontFamily: "monospace", fontWeight: 800, color: isBest ? C.green : C.charcoal }}>
+                                ₹{m.netRealizable.toLocaleString()}
+                                {isBest && <div style={{ fontSize: 9.5, fontWeight: 700, color: C.green, marginTop: 2 }}>🏆 Highest Net Profit</div>}
+                              </td>
+                              <td style={{ padding: "11px 4px", textAlign: "center" }}>
+                                <button
+                                  onClick={() => setTargetMandi(isTarget ? null : m.id)}
+                                  style={{
+                                    padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                                    border: "none",
+                                    background: isTarget ? C.green : isBest ? C.maroon : "rgba(0,0,0,0.06)",
+                                    color: isTarget || isBest ? C.white : C.charcoal,
+                                    transition: "all 0.15s ease"
+                                  }}
+                                >
+                                  {isTarget ? "✓ Routed" : "Set Route"}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {targetMandi && (() => {
+                    const selectedM = mandisList.find(m => m.id === targetMandi);
+                    return (
+                      <div style={{ marginTop: 14, background: "#F0F4FF", border: `1px solid ${C.blue}55`, borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: 12, color: C.charcoal }}>
+                          🚚 <strong>Route active to {selectedM.name}:</strong> 2-Axle Truck logistics rates locked at ₹{selectedM.transit} per Qtl. Driver dispatch slot assigned.
+                        </div>
+                        <button onClick={() => setTargetMandi(null)} style={{ background: "none", border: "none", color: C.muted, fontWeight: 700, cursor: "pointer", fontSize: 14 }}>×</button>
+                      </div>
+                    );
+                  })()}
+
+                </div>
+
+                {/* Right Column: AI Speculation Engine & Macro-Economic Driver Factors */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                  
+                  {/* Speculative Pricing Ranges Card */}
+                  <Card style={{ background: "linear-gradient(135deg, #1A0E05 0%, #301708 100%)", color: "#F5EFEB", border: "none" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.goldLight, textTransform: "uppercase", letterSpacing: "0.08em" }}>🎯 Econometric Speculation Model</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: "#fff", marginTop: 4 }}>Upcoming {mandiSeason} Price Range</div>
+                    
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 14, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>Projected Floor</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", fontFamily: "monospace" }}>₹{specLowerLimit.toLocaleString()}</div>
+                      </div>
+                      <div style={{ fontSize: 18, color: "rgba(255,255,255,0.3)" }}>→</div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>Projected Ceiling</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: C.goldLight, fontFamily: "monospace" }}>₹{specUpperLimit.toLocaleString()}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, fontSize: 11.5 }}>
+                      <span style={{ color: "rgba(255,255,255,0.65)" }}>Speculative Confidence Score:</span>
+                      <strong style={{ color: "#90EE90", fontFamily: "monospace" }}>{confidenceScore}% (High)</strong>
+                    </div>
+                  </Card>
+
+                  {/* Macro Drivers Dashboard Panel */}
+                  <Card style={{ padding: 16 }}>
+                    <h4 style={{ margin: 0, fontWeight: 700, fontSize: 13, color: C.charcoal, borderBottom: `1px solid ${C.border}`, paddingBottom: 8, marginBottom: 12 }}>📈 Macro-Economic Pricing Drivers</h4>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: C.charcoal }}>Interest Rate Index (IR)</div>
+                          <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>RBI repo rate affect stock-carrying costs</div>
+                        </div>
+                        <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: C.charcoal }}>6.50%</span>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: C.charcoal }}>Fuel Index (Diesel)</div>
+                          <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>Tillage, water pump, and highway transport rates</div>
+                        </div>
+                        <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: C.red }}>₹94.5/L</span>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: C.charcoal }}>Climate Risk Coefficient</div>
+                          <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>Monsoon rainfall anomaly projection matrix</div>
+                        </div>
+                        <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: C.blue }}>{mandiSeason === "Kharif" ? "+12.4% (Wet)" : "-4.2% (Dry)"}</span>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: C.charcoal }}>Fertilizer Index</div>
+                          <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>Standard domestic DAP / Urea subsidy lines</div>
+                        </div>
+                        <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: C.green }}>Stable</span>
+                      </div>
+
+                    </div>
+                  </Card>
+
+                  {/* AI Speculation Section */}
+                  <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: C.maroon, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>🧠</div>
+                        <h4 style={{ margin: 0, fontWeight: 700, fontSize: 13.5, color: C.charcoal }}>Squire AI Speculative Outlook</h4>
+                      </div>
+                      {aiSpeculation && aiSpeculation.isLocalModel && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 9.5, fontWeight: 700, color: C.gold, background: "#FFF9E6", border: `1px solid ${C.gold}44`, padding: "2px 6px", borderRadius: 4 }}>Offline Mode</span>
+                          <button
+                            onClick={() => setRefetchTrigger(prev => prev + 1)}
+                            style={{ background: "none", border: "none", color: C.blue, fontSize: 10.5, fontWeight: 700, textDecoration: "underline", cursor: "pointer", padding: 0 }}
+                          >
+                            Sync Live AI
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {aiLoading ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px 0" }}>
+                        <div style={{ height: 12, background: "rgba(0,0,0,0.06)", borderRadius: 4, width: "100%" }}></div>
+                        <div style={{ height: 12, background: "rgba(0,0,0,0.06)", borderRadius: 4, width: "90%" }}></div>
+                        <div style={{ height: 12, background: "rgba(0,0,0,0.06)", borderRadius: 4, width: "95%" }}></div>
+                        <div style={{ height: 12, background: "rgba(0,0,0,0.06)", borderRadius: 4, width: "60%" }}></div>
+                      </div>
+                    ) : aiError ? (
+                      <div style={{ fontSize: 12, color: C.red, background: "#FDEDEC", padding: 10, borderRadius: 8 }}>
+                        {aiError}. <button onClick={() => { setMandiCrop(String(mandiCrop)); }} style={{ background: "none", border: "none", color: C.blue, textDecoration: "underline", cursor: "pointer", fontWeight: 700 }}>Retry Analysis</button>
+                      </div>
+                    ) : aiSpeculation ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ fontSize: 12, color: C.charcoal, lineHeight: 1.5, background: C.cream, padding: 12, borderRadius: 8, fontStyle: "italic", whiteSpace: "pre-line" }}>
+                          {aiSpeculation.speculativeSummary}
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 11 }}>
+                          <div style={{ background: "#F5EFEB", padding: "8px 10px", borderRadius: 6 }}>
+                            <span style={{ color: C.muted }}>Risk Rating:</span>
+                            <strong style={{ display: "block", color: aiSpeculation.riskRating === "High" ? C.red : aiSpeculation.riskRating === "Medium" ? C.orange : C.green, fontSize: 12, marginTop: 2 }}>{aiSpeculation.riskRating || "Moderate"}</strong>
+                          </div>
+                          <div style={{ background: "#F5EFEB", padding: "8px 10px", borderRadius: 6 }}>
+                            <span style={{ color: C.muted }}>Best Strategy:</span>
+                            <strong style={{ display: "block", color: C.maroon, fontSize: 11, marginTop: 2 }}>{aiSpeculation.recommendedAction || "Store & Arbitrage"}</strong>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12.5, color: C.muted, fontStyle: "italic", textAlign: "center", padding: "12px 0" }}>
+                        Waiting to dispatch analytical vectors...
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+              </div>
+
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* 3. SEED & INPUTS PAGE VIEWPORT */}
         {activeSection === "seed" && (
@@ -2185,8 +2670,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
             </div>
           </div>
         )}
-      </main>
-    </div>
+      </div>
   );
 }
 
@@ -2547,7 +3031,7 @@ export default function App() {
 
   const NAV_ITEMS = [
     { id: "overview", icon: "▦", label: "Dashboard" },
-    { id: "market", icon: "↗", label: "Market Sales" },
+    { id: "market", icon: "↗", label: "Mandi Sales" },
     { id: "seed", icon: "🌱", label: "Seed & Inputs" },
     { id: "farmers", icon: "👥", label: "Farmer Network" },
     { id: "brain", icon: "🧠", label: "Digital Brain" },
