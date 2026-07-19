@@ -2092,7 +2092,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>🧾 Recent Transactions</div>
                 {TXN.slice(0, 4).map((r, i) => (
                   <div key={i} style={{ padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 11.5 }}>
-                    <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:420 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span style={{ color: "#2B211B", fontWeight: 600 }}>{r.name}</span>
                       <span style={{ fontFamily: "monospace", color: C.green, fontWeight: 700 }}>{r.price}</span>
                     </div>
