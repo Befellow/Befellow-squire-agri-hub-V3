@@ -1886,12 +1886,9 @@ function MachineryHub({ rentals, onBack, onAddRental, farmers }) {
 }
 
 // ─── DASHBOARD TERMINAL MODULE ───────────────────────────────────
-function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onViewMachinery }) {
+function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onViewMachinery, md, calcDRS }) {
   const [mandiRange, setMandiRange] = useState("7D");
   const [searchQ, setSearchQ] = useState("");
-  
-  // Isolated state configuration to control sidebar visibility transitions smoothly on the front page
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const assessed = farmers.filter(f => f.planGenerated).length;
   const allProduce = farmers.flatMap(f => f.produce);
@@ -1901,10 +1898,10 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
     "30D": { labels: ["W1", "W2", "W3", "W4"], wheat: [2150, 2210, 2260, 2340], mustard: [5400, 5500, 5650, 5800], gram: [4800, 4900, 5000, 5100] },
     "90D": { labels: ["Apr", "May", "Jun"], wheat: [2080, 2190, 2310], mustard: [5150, 5420, 5720], gram: [4600, 4850, 5060] },
   };
-  const md = MANDI_DATA[mandiRange];
+  const activeMd = md || MANDI_DATA[mandiRange];
 
   const NAV = [
-    { id: "overview", icon: "▦", label: "Dashboard" }, // Renamed side menu text token safely
+    { id: "overview", icon: "▦", label: "Dashboard" },
     { id: "market", icon: "↗", label: "Market Sales" },
     { id: "seed", icon: "🌱", label: "Seed & Inputs" },
     { id: "farmers", icon: "👥", label: "Farmer Network" },
@@ -1921,188 +1918,243 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
     { name: "Suresh Yadav", crop: "Gram", qty: "7 Qtl", price: "₹4,980", mandi: "Banda", status: "sold" }
   ];
 
-  const filteredTxn = TXN.filter(r => !searchQ || Object.values(r).join(" ").toLowerCase().includes(searchQ.toLowerCase()));
-  const filteredFarmers = farmers.filter(f => !searchQ || `${f.name} ${f.village} ${f.district} ${f.cropHistory}`.toLowerCase().includes(searchQ.toLowerCase()));
-
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter',sans-serif" }}>
-      {/* Sidebar Layout panel */}
-      <aside style={{ width: 248, background: "linear-gradient(180deg,#241509 0%,#1A0E05 100%)", color: "#E9DFD2", position: "fixed", top: 0, left: 0, bottom: 0, display: "flex", flexDirection: "column", padding: "28px 18px", zIndex: 20, overflowY: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,.08)", marginBottom: 22 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#C8963E 0%,#6B1E3B 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 18 }}>S</div>
-          <div><div style={{ fontWeight: 600, fontSize: 17, color: "#fff", fontFamily: "serif" }}>Squire</div><div style={{ fontSize: 10, color: "#E8C77E", letterSpacing: "0.06em", textTransform: "uppercase" }}>Digital Brain</div></div>
-        </div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {NAV.map(n => (
-            <button key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: activeSection === n.id ? "rgba(200,150,62,.16)" : "transparent", color: activeSection === n.id ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", pointerEvents: "none", textAlign: "left", position: "relative" }}>
-              <span style={{ fontSize: 14 }}>{n.icon}</span>{n.label}
-              {activeSection === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
-            </button>
-          ))}
-        </nav>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0" }}>
-          <button onClick={onNew} style={{ background: "#6B1E3B", color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
-          <button onClick={onViewReports} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
-          <button onClick={onViewMachinery} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
-        </div>
-      </aside>
-
-      {/* Main Workspace Frame Viewport */}
-      <main style={{ marginLeft: 248, flex: 1, padding: "30px 38px 60px", maxWidth: 1080 }}>
-        {/* Top Header Grid */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 22, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A7C6C", marginBottom: 4 }}>Bundelkhand Pilot · Jhansi Cluster</div>
-            <h1 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 28, color: "#2B211B" }}>Good morning, <em style={{ fontStyle: "italic", color: "#6B1E3B", fontWeight: 500 }}>Harshit</em></h1>
-            <div style={{ fontSize: 13, color: "#8A7C6C", marginTop: 4 }}>Live Dashboard Terminal Hub · Isolated Workspace Viewports</div>
+    <div style={{ display: "flex", width: "100%" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 22 }}>
+        
+        {/* Crop Season Timeline Progress Bar */}
+        <div style={{ display: "flex", alignItems: "center", background: "#fff", border: "1px solid #E8DFD2", borderRadius: 12, padding: "14px 20px" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#8A7C6C", letterSpacing: "0.05em", textTransform: "uppercase", marginRight: 18, whiteSpace: "nowrap" }}>Crop Season</div>
+          <div style={{ flex: 1, display: "flex", gap: 6, paddingTop: 22 }}>
+            {[{ label: "Kharif • Jun–Oct", flex: 0.42, active: true }, { label: "Rabi • Oct–Mar", flex: 0.42, active: false }, { label: "Zaid • Mar–Jun", flex: 0.16, active: false }].map((seg, i) => (
+              <div key={i} style={{ flex: seg.flex, height: 8, borderRadius: 5, background: seg.active ? "linear-gradient(90deg,#C8963E 0%,#4A7C59 100%)" : "#E8DFD2", position: "relative" }}>
+                <span style={{ position: "absolute", top: -18, left: 0, fontSize: 10.5, fontWeight: 600, color: seg.active ? "#6B1E3B" : "#8A7C6C", whiteSpace: "nowrap" }}>{seg.label}</span>
+                {seg.active && <div style={{ position: "absolute", top: -4, left: "6%", width: 14, height: 14, borderRadius: "50%", background: "#6B1E3B", border: "2.5px solid #fff", boxShadow: "0 0 0 2px #6B1E3B" }} />}
+              </div>
+            ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #E8DFD2", borderRadius: 10, padding: "8px 12px", minWidth: 220 }}>
-              <span style={{ fontSize: 14, color: "#8A7C6C" }}>🔍</span>
-              <input value={searchQ} onChange={e => setSearchQ(e.target.value)} type="text" placeholder="Search farmers, crops, Mandi…" style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, width: "100%", color: "#2B211B" }} />
+        </div>
+
+        {/* Live Warning Action Banner */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: 500 }}>
+          <span>⚠️ <strong>2 seed varieties</strong> below reorder threshold • <strong>1 Mandi price alert</strong> needs optimization review</span>
+        </div>
+
+        {/* Primary Metric Summary Cards Row */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+          {[{ label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true }, { label: "Outlet Revenue • MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true }, { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true }, { label: "Seed Stock Health", value: "82%", delta: "⚠️ 2 items low", up: false }].map((k, i) => (
+            <div key={i} style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: "18px 20px" }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
+              <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 600, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11.5, fontWeight: 600, marginTop: 2, color: k.up ? "#2F6B45" : "#8A5A12" }}>{k.delta}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Cohesive Operations Grid Layout Matrix */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.1fr 1.4fr 1.2fr", gap: 16, alignItems: "stretch" }}>
+
+          {/* COLUMN 1 — Village Cluster Snapshot */}
+          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>👥 Village Cluster Snapshot</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {Object.entries(farmers.reduce((acc, f) => { acc[f.village] = (acc[f.village] || 0) + 1; return acc; }, {})).reduce((acc, [v, c]) => {
+                acc.push(
+                  <div key={v} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
+                    <span style={{ color: "#2B211B" }}>{v}</span>
+                    <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.maroon }}>{c} farmer{c > 1 ? "s" : ""}</span>
+                  </div>
+                );
+                return acc;
+              }, [])}
             </div>
           </div>
-        </div>
 
-        {/* 1. DASHBOARD PAGE VIEWPORT */}
-        {activeSection === "overview" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-            
-            {/* Crop Season Timeline Progress Bar */}
-            <div style={{ display: "flex", alignItems: "center", background: "#fff", border: "1px solid #E8DFD2", borderRadius: 12, padding: "14px 20px" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#8A7C6C", letterSpacing: "0.05em", textTransform: "uppercase", marginRight: 18, whiteSpace: "nowrap" }}>Crop Season</div>
-              <div style={{ flex: 1, display: "flex", gap: 6, paddingTop: 22 }}>
-                {[{ label: "Kharif • Jun–Oct", flex: 0.42, active: true }, { label: "Rabi • Oct–Mar", flex: 0.42, active: false }, { label: "Zaid • Mar–Jun", flex: 0.16, active: false }].map((seg, i) => (
-                  <div key={i} style={{ flex: seg.flex, height: 8, borderRadius: 5, background: seg.active ? "linear-gradient(90deg,#C8963E 0%,#4A7C59 100%)" : "#E8DFD2", position: "relative" }}>
-                    <span style={{ position: "absolute", top: -18, left: 0, fontSize: 10.5, fontWeight: 600, color: seg.active ? "#6B1E3B" : "#8A7C6C", whiteSpace: "nowrap" }}>{seg.label}</span>
-                    {seg.active && <div style={{ position: "absolute", top: -4, left: "6%", width: 14, height: 14, borderRadius: "50%", background: "#6B1E3B", border: "2.5px solid #fff", boxShadow: "0 0 0 2px #6B1E3B" }} />}
+          {/* COLUMN 2 — Live Mandi Ticker */}
+          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>📈 Live Mandi Ticker</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {Object.entries(activeMd).map(([crop, priceArr]) => {
+                if (crop === "labels") return null;
+                return (
+                  <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
+                    <span style={{ textTransform: "capitalize", color: "#2B211B" }}>{crop}</span>
+                    <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{Array.isArray(priceArr) ? priceArr[priceArr.length - 1].toLocaleString() : priceArr.toLocaleString()}</span>
                   </div>
-                ))}
+                );
+              })}
+            </div>
+          </div>
+
+          {/* COLUMN 3 — ACTIONABLE ALERTS UNIFIED STACK */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+            {/* Sub-Card 1: Soil Tracker */}
+            <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flexShrink: 0 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>⚠️ Critical Soil Risk Tracker</div>
+              {farmers.filter(f => f.soc < 0.4).slice(0, 2).map(f => {
+                const d = (f.nitrogen && f.phosphorus) ? { drs: Math.round((1 - (f.soc / 1.2)) * 100) } : { drs: 61 };
+                return (
+                  <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", background: "#FDEDEC", borderRadius: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#2B211B" }}>{f.name}</span>
+                    <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 12, color: C.red }}>DRS {d.drs}/100</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Sub-Card 2: Champion Log */}
+            <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flex: 1, display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>👤 Champion Activity Log</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 90, overflowY: "auto", flex: 1 }}>
+                <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4, paddingBottom: 6, borderBottom: `1px dashed ${C.border}` }}>
+                  <strong style={{ color: C.maroon }}>[Cluster 4]</strong> Champion Sonkar initialized soil diagnostic test vectors for Farmer Devi in Mauranipur, Jhansi.
+                </div>
+                <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4 }}>
+                  <strong style={{ color: C.maroon }}>[Cluster 1]</strong> Live Onboarding: 12 smallholder registry slots logged this morning.
+                </div>
               </div>
             </div>
 
-            {/* Live Warning Action Banner */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: 500 }}>
-              <span>⚠️ <strong>2 seed varieties</strong> below reorder threshold • <strong>1 Mandi price alert</strong> needs optimization review</span>
+            {/* Sub-Card 3: Current Month Weather Advice */}
+            <div style={{ background: "#FFFBF2", border: `1px solid ${C.gold}55`, borderRadius: 14, padding: 14, flexShrink: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.soil, textTransform: "uppercase", letterSpacing: "0.05em" }}>🌦 Present Month Weather Call</span>
+                <span style={{ fontSize: 10, background: "#FEF3D0", color: C.soil, padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>Jul 2026</span>
+              </div>
+              <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 4 }}>
+                Calculated Matrix Lean: <strong>2W / 2D</strong>
+              </div>
+              <div style={{ fontSize: 12, color: "#2B211B", lineHeight: 1.5, fontWeight: 500 }}>
+                <strong>Agronomic Directive:</strong> Hold nitrogen field top-dressing to prevent leaching losses on sandy loam boundaries today.
+              </div>
             </div>
+          </div>
 
-            {/* Primary Metric Summary Cards Row */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-              {[{ label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true }, { label: "Outlet Revenue • MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true }, { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true }, { label: "Seed Stock Health", value: "82%", delta: "⚠️ 2 items low", up: false }].map((k, i) => (
-                <div key={i} style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
-                  <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 600, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11.5, fontWeight: 600, marginTop: 2, color: k.up ? "#2F6B45" : "#8A5A12" }}>{k.delta}</div>
+          {/* COLUMN 4 — Recent Transactions */}
+          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>🧾 Recent Transactions</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {TXN.slice(0, 5).map((r, i) => (
+                <div key={i} style={{ padding: "8px 0", borderBottom: i < 4 ? `1px dashed ${C.border}` : "none", fontSize: 11.5 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#2B211B", fontWeight: 600 }}>{r.name}</span>
+                    <span style={{ fontFamily: "monospace", color: C.green, fontWeight: 700 }}>{r.price}</span>
+                  </div>
+                  <div style={{ color: "#8A7C6C", fontSize: 10.5 }}>{r.crop} · {r.qty}</div>
                 </div>
               ))}
             </div>
-
-            {/* Optimized 4-Column Layout Grid — Clustered heights to prevent vacant slots */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.1fr 1.4fr 1.2fr", gap: 16, alignItems: "stretch" }}>
-
-              {/* COLUMN 1 — Village Cluster Snapshot */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>👥 Village Cluster Snapshot</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {Object.entries(farmers.reduce((acc, f) => { acc[f.village] = (acc[f.village] || 0) + 1; return acc; }, {})).reduce((acc, [v, c]) => {
-                    acc.push(
-                      <div key={v} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
-                        <span style={{ color: "#2B211B" }}>{v}</span>
-                        <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.maroon }}>{c} farmer{c > 1 ? "s" : ""}</span>
-                      </div>
-                    );
-                    return acc;
-                  }, [])}
-                </div>
-              </div>
-
-              {/* COLUMN 2 — Live Mandi Ticker */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>📈 Live Mandi Ticker</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
-                    <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
-                      <span style={{ textTransform: "capitalize", color: "#2B211B" }}>{crop}</span>
-                      <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{priceArr[priceArr.length - 1].toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* COLUMN 3 — ACTIONABLE ALERTS BOXES COLLAPSED INTO A SINGLE DENSE STACK */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-
-                {/* Layer 1: Soil Stress Threshold Map */}
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flexShrink: 0 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>⚠️ Critical Soil Risk Tracker</div>
-                  {farmers.filter(f => f.soc < 0.4).slice(0, 2).map(f => {
-                    const d = calcDRS(f);
-                    return (
-                      <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", background: "#FDEDEC", borderRadius: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "#2B211B" }}>{f.name}</span>
-                        <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 12, color: C.red }}>DRS {d.drs}/100</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Layer 2 [Suggestion 2 Fixed]: Village Champion Chronological Registry Log */}
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flex: 1, display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>👤 Champion Activity Log</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 90, overflowY: "auto", flex: 1 }}>
-                    <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4, paddingBottom: 6, borderBottom: `1px dashed ${C.border}` }}>
-                      <strong style={{ color: C.maroon }}>[Cluster 4]</strong> Champion Sonkar initialized soil diagnostic test vectors for Farmer Devi in Mauranipur, Jhansi.[cite: 5]
-                    </div>
-                    <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4 }}>
-                      <strong style={{ color: C.maroon }}>[Cluster 1]</strong> Live Onboarding: 12 smallholder registry slots logged this morning.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Layer 3 [Suggestion Fixed]: Dynamic Reactive Present-Week Weather Actions Card */}
-                {(() => {
-                  const sampleFarmer = farmers[0] || INITIAL_FARMERS[0];
-                  const weatherArray = calcWeather(sampleFarmer);
-                  const currentMonthName = MONTHS[new Date().getMonth()]; 
-                  const activeWeather = weatherArray.find(m => m.month === currentMonthName) || weatherArray[6];
-                  
-                  return (
-                    <div style={{ background: "#FFFBF2", border: `1px solid ${C.gold}55`, borderRadius: 14, padding: 14, flexShrink: 0 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: C.soil, textTransform: "uppercase", letterSpacing: "0.05em" }}>🌦 Present Month Weather Call</span>
-                        <span style={{ fontSize: 10, background: "#FEF3D0", color: C.soil, padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>{activeWeather.month} 2026</span>
-                      </div>
-                      <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 4 }}>
-                        Calculated Matrix Lean: <strong>{activeWeather.wetWeeks}W / {activeWeather.dryWeeks}D</strong>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#2B211B", lineHeight: 1.5, fontWeight: 500 }}>
-                        <strong>Agronomic Directive:</strong> Hold nitrogen field top-dressing to prevent leaching losses on sandy loam boundaries today.
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* COLUMN 4 — Recent Transactions */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>🧾 Recent Transactions</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {TXN.slice(0, 5).map((r, i) => (
-                    <div key={i} style={{ padding: "8px 0", borderBottom: i < 4 ? `1px dashed ${C.border}` : "none", fontSize: 11.5 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "#2B211B", fontWeight: 600 }}>{r.name}</span>
-                        <span style={{ fontFamily: "monospace", color: C.green, fontWeight: 700 }}>{r.price}</span>
-                      </div>
-                      <div style={{ color: "#8A7C6C", fontSize: 10.5 }}>{r.crop} · {r.qty}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
           </div>
-        )}
+
+        </div>
       </main>
+    </div>
+  );
+}
+
+// ─── MAIN APP SYSTEM CORE WRAPPER LAYOUT ─────────────────────────
+export default function App() {
+  const [view, setView] = useState("dashboard"); 
+  const [dashboardTab, setDashboardTab] = useState("overview"); 
+  const [farmers, setFarmers] = useState(INITIAL_FARMERS);
+  const [selected, setSelected] = useState(null);
+  const [rentals, setRentals] = useState(INITIAL_RENTALS);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const handleSaveFarmer = f => { setFarmers(prev => [...prev, f]); setView("dashboard"); setDashboardTab("farmers"); };
+  const handleUpdateFarmer = u => { setFarmers(prev => prev.map(f => f.id === u.id ? u : f)); setSelected(u); };
+  const handleSelectFarmer = f => { setSelected(f); setView("detail"); };
+  const handleAddRental = r => setRentals(prev => [...prev, r]);
+  const liveSelected = selected ? farmers.find(f => f.id === selected.id) || selected : null;
+
+  const NAV_ITEMS = [
+    { id: "overview", icon: "▦", label: "Dashboard" },
+    { id: "market", icon: "↗", label: "Market Sales" },
+    { id: "seed", icon: "🌱", label: "Seed & Inputs" },
+    { id: "farmers", icon: "👥", label: "Farmer Network" },
+    { id: "brain", icon: "🧠", label: "Digital Brain" },
+    { id: "outlets", icon: "🏪", label: "Squire Outlets" }
+  ];
+
+  const mandiRange = "7D";
+  const MANDI_DATA = {
+    "7D": { labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], wheat: [2280, 2295, 2310, 2305, 2320, 2335, 2340], mustard: [5680, 5700, 5740, 5720, 5760, 5790, 5800], gram: [5020, 5035, 5060, 5045, 5070, 5090, 5100] },
+  };
+  const md = MANDI_DATA[mandiRange];
+
+  return (
+    <div style={{ fontFamily: "'Inter',system-ui,sans-serif", background: C.cream, minHeight: "100vh", display: "flex" }}>
+      
+      {/* Global Application Navigation Sidebar Panel */}
+      <aside style={{ 
+        width: sidebarOpen ? 248 : 0, 
+        opacity: sidebarOpen ? 1 : 0,
+        background: "linear-gradient(180deg,#241509 0%,#1A0E05 100%)", 
+        color: "#E9DFD2", 
+        position: "fixed", top: 0, left: 0, bottom: 0, 
+        display: "flex", flexDirection: "column", 
+        padding: sidebarOpen ? "28px 18px" : "28px 0px", 
+        zIndex: 90, transition: "all 0.22s ease-in-out", 
+        overflowX: "hidden", overflowY: "auto" 
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,.08)", marginBottom: 22, minWidth: 212 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#C8963E 0%,#6B1E3B 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 18 }}>S</div>
+          <div><div style={{ fontWeight: 600, fontSize: 17, color: "#fff", fontFamily: "serif" }}>Squire</div><div style={{ fontSize: 10, color: "#E8C77E", letterSpacing: "0.06em", textTransform: "uppercase" }}>Digital Brain</div></div>
+        </div>
+        <nav style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 212 }}>
+          {NAV_ITEMS.map(n => (
+            <button key={n.id} onClick={() => { setView("dashboard"); setDashboardTab(n.id); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: (view === "dashboard" && dashboardTab === n.id) ? "rgba(200,150,62,.16)" : "transparent", color: (view === "dashboard" && dashboardTab === n.id) ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
+              <span style={{ fontSize: 14 }}>{n.icon}</span>{n.label}
+              {view === "dashboard" && dashboardTab === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
+            </button>
+          ))}
+        </nav>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0", minWidth: 212 }}>
+          <button onClick={() => setView("onboard")} style={{ background: C.maroon, color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
+          <button onClick={() => setView("reports")} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
+          <button onClick={() => setView("machinery")} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
+        </div>
+        <div style={{ marginTop: "auto", paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10, minWidth: 212 }}>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#6B1E3B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#fff" }}>HV</div>
+          <div><div style={{ fontSize: 12.5, fontWeight: 600, color: "#F0E6D6" }}>Harshit Vimal</div><div style={{ fontSize: 10.5, color: "#9C8C7A" }}>Field Operations</div></div>
+        </div>
+      </aside>
+
+      {/* Main Framework Layout Container Panel Workspace */}
+      <div style={{ flex: 1, marginLeft: sidebarOpen ? 248 : 0, transition: "margin-left 0.22s ease-in-out", display: "flex", flexDirection: "column", minWidth: 0 }}>
+        
+        {/* Persistent Workspace Top Header Bar */}
+        <header style={{ height: 56, background: "#241509", padding: "0 24px", display: "flex", alignItems: "center", gap: 16, color: C.white, zIndex: 40, borderBottom: `1px solid ${C.border}` }}>
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, width: 34, height: 34, color: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}
+            title={sidebarOpen ? "Hide Navigation Drawer Menu" : "Show Navigation Drawer Menu"}
+          >
+            ☰
+          </button>
+          <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}>Squire System Pilot Control Dashboard</div>
+        </header>
+
+        {/* Render Engine Content Outlet */}
+        <main style={{ padding: "30px 38px 60px", maxWidth: 1080, width: "100%", boxSizing: "border-box" }}>
+          {view === "dashboard" && (
+            <Dashboard farmers={farmers} activeSection={dashboardTab} md={md} calcDRS={calcDRS} onSelect={handleSelectFarmer} onNew={() => setView("onboard")} onViewReports={() => setView("reports")} onViewMachinery={() => setView("machinery")} />
+          )}
+          {view === "onboard" && (
+            <><div style={{ fontWeight: 800, fontSize: 20, color: C.charcoal, marginBottom: 20 }}>Onboard New Farmer Champion</div><OnboardForm onSave={handleSaveFarmer} onCancel={() => setView("dashboard")} /></>
+          )}
+          {view === "detail" && liveSelected && (
+            <FarmerDetail farmer={liveSelected} onBack={() => setView("dashboard")} onUpdateFarmer={handleUpdateFarmer} rentals={rentals} onAddRental={handleAddRental} />
+          )}
+          {view === "reports" && (
+            <Reports farmers={farmers} rentals={rentals} onBack={() => setView("dashboard")} />
+          )}
+          {view === "machinery" && (
+            <MachineryHub rentals={rentals} onBack={() => setView("dashboard")} onAddRental={handleAddRental} farmers={farmers} />
+          )}
+        </main>
+      </div>
     </div>
   );
 }
