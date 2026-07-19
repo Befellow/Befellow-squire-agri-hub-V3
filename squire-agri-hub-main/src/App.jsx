@@ -2074,7 +2074,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                   return (
                     <div style={{ background: "#FFFBF2", border: `1px solid ${C.gold}55`, borderRadius: 14, padding: 10, flexShrink: 0 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                        <span style={{ fontSize: 10.5, fontWeight: 700, color: C.soil, textTransform: "uppercase", letterSpacing: "0.05em" }}> Brain Weather Call</span>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: C.soil, textTransform: "uppercase", letterSpacing: "0.05em" }}> 🌦 Present Month Weather Call</span>
                         <span style={{ fontSize: 9.5, background: "#FEF3D0", color: C.soil, padding: "1px 6px", borderRadius: 4, fontWeight: 700 }}>{activeWeather.month} 2026</span>
                       </div>
                       <div style={{ fontSize: 11, color: "#2B211B", lineHeight: 1.4, fontWeight: 500 }}>
