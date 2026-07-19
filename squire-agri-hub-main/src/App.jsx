@@ -2020,7 +2020,15 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
             </div>
 
             {/* COMPREHENSIVE BALANCED GRID: Added Suggestion 2 & 3 Reactively */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.3fr 1.1fr 1fr", gap: 16 }}>
+            <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "1.35fr 1.35fr 1.15fr 1.55fr",
+    gap: 18,
+    alignItems: "stretch",
+    width: "100%"
+  }}
+>
 
               {/* BOX A — Village Cluster Snapshot */}
               <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
