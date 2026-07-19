@@ -2020,14 +2020,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
             </div>
 
             {/* COMPREHENSIVE BALANCED GRID: Added Suggestion 2 & 3 Reactively */}
-            <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "1.35fr 1.35fr 1.15fr 1.55fr",
-    gap: 18,
-    alignItems: "stretch",
-    width: "100%"
-  }}
+            <div style={{ display: "grid", gridTemplateColumns: "1.35fr 1.35fr 1.15fr 1.55fr", gap: 18, alignItems: "stretch", width: "100%" }}
 >
 
               {/* BOX A — Village Cluster Snapshot */}
@@ -2042,7 +2035,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
               </div>
 
               {/* BOX B — Live Mandi Ticker */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", height: "100%", minHeight: 420 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>📈 Live Mandi Ticker</div>
                 {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
                   <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
