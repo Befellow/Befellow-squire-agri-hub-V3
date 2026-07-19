@@ -15,9 +15,11 @@ app.get("/api/health", (req, res) => {
 });
 
 app.post("/api/gemini", async (req, res) => {
+  console.log("[API] Received request to /api/gemini");
   const API_KEY = process.env.GEMINI_API_KEY;
 
   if (!API_KEY) {
+    console.error("[API] GEMINI_API_KEY environment variable not set!");
     return res.status(500).json({
       error: "GEMINI_API_KEY environment variable not set. Please configure it in AI Studio settings.",
     });
@@ -25,15 +27,23 @@ app.post("/api/gemini", async (req, res) => {
 
   const { prompt } = req.body;
   if (!prompt) {
+    console.error("[API] No prompt provided in request body.");
     return res.status(400).json({ error: "No prompt provided in request body." });
   }
 
   try {
+    console.log("[API] Sending fetch request to Gemini API...");
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${API_KEY}`;
 
     const optimizedPrompt =
       prompt +
       "\n\nIMPORTANT: Return ONLY a valid, clean raw JSON object string. Do not wrap it in markdown code blocks like ```json ... ```. Start directly with { and end with }.";
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn("[API] Gemini API request timed out (15s), aborting...");
+      controller.abort();
+    }, 15000);
 
     const geminiRes = await fetch(url, {
       method: "POST",
@@ -45,11 +55,16 @@ app.post("/api/gemini", async (req, res) => {
           maxOutputTokens: 8192,
         },
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
+    console.log("[API] Gemini API response status:", geminiRes.status);
     const data = await geminiRes.json() as any;
+    console.log("[API] Parsed Gemini response JSON");
 
     if (!geminiRes.ok) {
+      console.error("[API] Gemini API returned error:", data.error || data);
       return res.status(geminiRes.status).json({
         error: data.error?.message || JSON.stringify(data),
       });
