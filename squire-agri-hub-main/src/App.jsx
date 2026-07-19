@@ -2034,31 +2034,31 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                 ))}
               </div>
 
-              {/* BOX C — Dense Dynamic Slot Stack */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {/* BOX C — Optimized Unified Operational Alerts Column Stack */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, height: "100%", maxHheight: 320, boxSizing: "border-box" }}>
 
                 {/* Slot C.1: Soil Degradation Real-time Filter */}
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>⚠️ Critical Soil Risk Tracker</div>
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "10px 14px", flexShrink: 0 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>⚠️ Critical Soil Risk Tracker</div>
                   {farmers.filter(f => f.soc < 0.4).slice(0, 2).map(f => {
                     const d = calcDRS(f);
                     return (
-                      <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 8px", background: "#FDEDEC", borderRadius: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "#2B211B" }}>{f.name}</span>
-                        <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 12, color: C.red }}>DRS {d.drs}/100</span>
+                      <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px", background: "#FDEDEC", borderRadius: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 11.5, fontWeight: 600, color: "#2B211B" }}>{f.name}</span>
+                        <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 11.5, color: C.red }}>DRS {d.drs}/100</span>
                       </div>
                     );
                   })}
                 </div>
 
                 {/* Slot C.2: Village Champion Dynamic Activity Registry Log */}
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flex: 1 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>👤 Champion Activity Log</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 110, overflowY: "auto" }}>
-                    <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4, paddingBottom: 6, borderBottom: `1px dashed ${C.border}` }}>
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 12, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>👤 Champion Activity Log</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, overflowY: "auto", flex: 1, paddingRight: 4 }}>
+                    <div style={{ fontSize: 11, color: "#2B211B", lineHeight: 1.35, paddingBottom: 4, borderBottom: `1px dashed ${C.border}` }}>
                       <strong style={{ color: C.maroon }}>[Cluster 4]</strong> Champion Sonkar initialized soil diagnostic test vectors for Farmer Devi in Mauranipur, Jhansi.
                     </div>
-                    <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4 }}>
+                    <div style={{ fontSize: 11, color: "#2B211B", lineHeight: 1.35 }}>
                       <strong style={{ color: C.maroon }}>[Cluster 1]</strong> Live Onboarding: 12 smallholder registry slots logged this morning.
                     </div>
                   </div>
@@ -2072,18 +2072,15 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                   const activeWeather = weatherArray.find(m => m.month === currentMonthName) || weatherArray[6];
                   
                   return (
-                    <div style={{ background: "#FFFBF2", border: `1px solid ${C.gold}55`, borderRadius: 14, padding: 14 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: C.soil, textTransform: "uppercase", letterSpacing: "0.05em" }}>🌦 Present Month Weather Call</span>
-                        <span style={{ fontSize: 10, background: "#FEF3D0", color: C.soil, padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>{activeWeather.month} 2026</span>
+                    <div style={{ background: "#FFFBF2", border: `1px solid ${C.gold}55`, borderRadius: 14, padding: 10, flexShrink: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: C.soil, textTransform: "uppercase", letterSpacing: "0.05em" }}>智能 Brain Weather Call</span>
+                        <span style={{ fontSize: 9.5, background: "#FEF3D0", color: C.soil, padding: "1px 6px", borderRadius: 4, fontWeight: 700 }}>{activeWeather.month} 2026</span>
                       </div>
-                      <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 4 }}>
-                        Calculated Transition Matrix Lean: <strong>{activeWeather.wetWeeks}W / {activeWeather.dryWeeks}D</strong>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#2B211B", lineHeight: 1.5, fontWeight: 500 }}>
-                        <strong>Agronomic Directive:</strong> {activeWeather.action === "Irrigate/Monitor" 
-                          ? "High soil moisture detected via model. Hold nitrogen field top-dressing to prevent leaching losses on sandy loam plots this cycle." 
-                          : `Steady-state operations confirmed. Proceed with ${activeWeather.action.toLowerCase()} baseline parameters.`}
+                      <div style={{ fontSize: 11, color: "#2B211B", lineHeight: 1.4, fontWeight: 500 }}>
+                        <strong>Direct:</strong> {activeWeather.action === "Irrigate/Monitor" 
+                          ? "High soil moisture. Hold nitrogen top-dressing to prevent leaching losses." 
+                          : `Proceed with ${activeWeather.action.toLowerCase()} adjustments.`}
                       </div>
                     </div>
                   );
