@@ -1960,7 +1960,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
       </aside>
 
       {/* Main Workspace Frame Viewport */}
-      <main style={{ marginLeft: 248, flex: 1, padding: "30px 38px 60px", maxWidth: 1080 }}>
+      <main style={{ marginLeft: 248, flex: 1, padding: "30px 38px 60px", width: "100%" }}>
         {/* Top Header Grid */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 22, flexWrap: "wrap" }}>
           <div>
