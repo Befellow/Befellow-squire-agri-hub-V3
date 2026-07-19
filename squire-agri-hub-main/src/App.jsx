@@ -1,4 +1,26 @@
 import { useState, useMemo, useEffect } from "react";
+import { ALL_INVENTORY_ITEMS, MOCK_DAILY_SALES } from "./inventoryData";
+
+// Custom hook to detect mobile viewport width dynamically with media query fallback
+function useWindowSize() {
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== "undefined" ? window.innerWidth : 1200,
+    isMobile: typeof window !== "undefined" ? (window.innerWidth <= 768 || window.matchMedia("(max-width: 768px)").matches) : false
+  });
+
+  useEffect(() => {
+    function handleResize() {
+      const width = window.innerWidth;
+      const isMobile = width <= 768 || window.matchMedia("(max-width: 768px)").matches;
+      setWindowSize({ width, isMobile });
+    }
+    window.addEventListener("resize", handleResize);
+    handleResize();
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return windowSize;
+}
 
 // ─── BRAND TOKENS ────────────────────────────────────────────────
 const C = {
@@ -825,7 +847,7 @@ function calcWeather(f) {
 }
 
 // ─── ONBOARD FORM ────────────────────────────────────────────────
-function OnboardForm({ onSave, onCancel }) {
+function OnboardForm({ isMobile, onSave, onCancel }) {
   const [step, setStep]=useState(0);
   const [form, setForm]=useState({name:"",village:"",district:"",land:"",economicProfile:"",cropHistory:"",soilType:"",nitrogen:"",phosphorus:"",potassium:"",soc:"",waterAvail:""});
   const set=k=>v=>setForm(f=>({...f,[k]:v}));
@@ -834,7 +856,7 @@ function OnboardForm({ onSave, onCancel }) {
   const content=[
     <><Inp label="Farmer Name" value={form.name} onChange={set("name")} required/><Inp label="Village" value={form.village} onChange={set("village")} required/><Inp label="District" value={form.district} onChange={set("district")} options={DISTRICTS} required/><Inp label="Land (Ha)" value={form.land} onChange={set("land")} type="number" required hint="e.g. 1.5"/><Inp label="Economic Profile" value={form.economicProfile} onChange={set("economicProfile")} options={ECO_PROFILES} required/></>,
     <><Inp label="Crop History (last 3 seasons)" value={form.cropHistory} onChange={set("cropHistory")} required hint="e.g. Wheat, Wheat, Paddy"/></>,
-    <><Inp label="Soil Type" value={form.soilType} onChange={set("soilType")} options={SOIL_TYPES} required/><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><Inp label="Nitrogen (kg/ha)" value={form.nitrogen} onChange={set("nitrogen")} type="number" required/><Inp label="Phosphorus (kg/ha)" value={form.phosphorus} onChange={set("phosphorus")} type="number" required/><Inp label="Potassium (kg/ha)" value={form.potassium} onChange={set("potassium")} type="number" required/><Inp label="SOC (%)" value={form.soc} onChange={set("soc")} type="number" required hint="Soil Organic Carbon"/></div><Inp label="Water Availability" value={form.waterAvail} onChange={set("waterAvail")} options={WATER_OPTIONS} required/></>
+    <><Inp label="Soil Type" value={form.soilType} onChange={set("soilType")} options={SOIL_TYPES} required/><div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr",gap:12}}><Inp label="Nitrogen (kg/ha)" value={form.nitrogen} onChange={set("nitrogen")} type="number" required/><Inp label="Phosphorus (kg/ha)" value={form.phosphorus} onChange={set("phosphorus")} type="number" required/><Inp label="Potassium (kg/ha)" value={form.potassium} onChange={set("potassium")} type="number" required/><Inp label="SOC (%)" value={form.soc} onChange={set("soc")} type="number" required hint="Soil Organic Carbon"/></div><Inp label="Water Availability" value={form.waterAvail} onChange={set("waterAvail")} options={WATER_OPTIONS} required/></>
   ];
   return (
     <div>
@@ -854,7 +876,7 @@ function OnboardForm({ onSave, onCancel }) {
 }
 
 // ─── ECONOMICS TAB ───────────────────────────────────────────────
-function EconomicsTab({ farmer, plan, machineryRentalCost }) {
+function EconomicsTab({ isMobile, farmer, plan, machineryRentalCost }) {
   const [timeHorizon, setTimeHorizon] = useState(1); // 1, 3, or 5 years
   const [activeScenario, setActiveSection] = useState("base");
   const landAcres = parseFloat((farmer.land * 2.47).toFixed(1));
@@ -959,7 +981,7 @@ function EconomicsTab({ farmer, plan, machineryRentalCost }) {
       </div>
 
       {/* Crop-Wise Ledger Breakdown Panels */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
         {[ledgerS1, ledgerS2].map((ledger, idx) => (
           <Card key={idx} style={{ padding: 16 }}>
             <h4 style={{ fontWeight: 700, color: C.maroon, fontSize: 14, margin: "0 0 10px", borderBottom: `1px solid ${C.border}`, paddingBottom: 6 }}>
@@ -1001,7 +1023,7 @@ function EconomicsTab({ farmer, plan, machineryRentalCost }) {
       </div>
 
       {/* Analytics Visualization Panel: Line Graph + SVG Pie Chart */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.3fr 1fr", gap: 16 }}>
         {/* Line Graph Row */}
         <Card style={{ padding: 16 }}>
           <h4 style={{ fontWeight: 700, color: C.maroon, fontSize: 13, marginBottom: 12 }}>📈 5-Year Comprehensive Growth Horizon (Line Graph)</h4>
@@ -1095,7 +1117,7 @@ function EconomicsTab({ farmer, plan, machineryRentalCost }) {
 }
 
 // ─── MACHINERY TAB ───────────────────────────────────────────────
-function MachineryTab({ farmer, rentals, onAddRental }) {
+function MachineryTab({ isMobile, farmer, rentals, onAddRental }) {
   const [booking, setBooking]=useState(null);
   const [form, setForm]=useState({startDate:"",endDate:"",hours:""});
   const set=k=>v=>setForm(f=>({...f,[k]:v}));
@@ -1162,7 +1184,7 @@ function MachineryTab({ farmer, rentals, onAddRental }) {
 }
 
 // ─── FARMER DETAIL ───────────────────────────────────────────────
-function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) {
+function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAddRental }) {
   const [tab, setTab] = useState("soil");
   
   // ADD THIS LINE — Declares sub-routing state for the Economics Terminal toggle
@@ -1287,7 +1309,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
               </div>
 
               {/* THREE LAYER CORE RISK RING GAUGES */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12 }}>
                 <Card style={{ textAlign: "center" }}>
                   <RingGauge value={plan.soilHealthScore} max={100} color={plan.soilHealthScore > 60 ? C.green : plan.soilHealthScore > 35 ? C.orange : C.red} />
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Soil Health Score</div>
@@ -1328,7 +1350,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
               {/* PART A — Farm Diagnostic Profile & Baseline Assessment */}
               <Card>
                 <PartHeader letter="A" title="Farm Diagnostic Profile & Baseline Assessment" subtitle="Every downstream recommendation is only as accurate as this baseline"/>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:14}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr",gap:16,marginBottom:14}}>
                   <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Location</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.location}</div></div>
                   <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Land Holding</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.landHa} Ha ({plan.partA.landAcres} acres)</div></div>
                   <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Soil Type</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.soilType}</div></div>
@@ -1356,7 +1378,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
                 <div style={{fontSize:11.5,fontWeight:700,color:C.maroon,marginBottom:6}}>Key Actions This Phase</div>
                 {plan.partB.actions.map((a,i)=>(<div key={i} style={{display:"flex",gap:8,marginBottom:5,fontSize:12.5}}><span style={{color:C.green}}>✓</span><span>{a}</span></div>))}
                 <div style={{marginTop:10,padding:"8px 12px",background:C.soilLight,borderRadius:8,fontSize:12}}><strong>Expected Yield Effect:</strong> {plan.partB.expectedYieldEffect}</div>
-                <div style={{marginTop:10,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                <div style={{marginTop:10,display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr",gap:12}}>
                   <div><div style={{fontSize:11,color:C.muted,marginBottom:3}}>Agroforestry Species (boundary planting)</div><div style={{fontSize:12.5}}>{plan.partB.agroforestrySpecies.join(", ")}</div></div>
                   <div><div style={{fontSize:11,color:C.muted,marginBottom:3}}>Nitrogen-Fixing Pulses</div><div style={{fontSize:12.5}}>{plan.partB.nitrogenFixingPulses.join(", ")}</div></div>
                 </div>
@@ -1366,7 +1388,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
               {/* PART C — Cropping System Redesign */}
               <Card>
                 <PartHeader letter="C" title="Cropping System Redesign" subtitle="Exiting monocropping — floor crop for cash-flow security, growth crop for income, legume for soil"/>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr 1fr",gap:12,marginBottom:14}}>
                   {[["Floor Crop",plan.partC.floorCrop,C.blue],["Legume",plan.partC.legumeCrop,C.green],["Growth Crop",plan.partC.growthCrop,C.maroon]].map(([label,c,color])=>(
                     <div key={label} style={{border:`1.5px solid ${color}33`,borderRadius:10,padding:12,background:`${color}0A`}}>
                       <div style={{fontSize:10.5,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>{label}</div>
@@ -1389,7 +1411,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
                         <span style={{fontWeight:700,fontSize:13.5}}>{label}: {d.crop}</span>
                         <Badge color={d.clearsGate?"green":"red"}>{d.clearsGate?"Clears C2+50%":"Below C2+50%"}</Badge>
                       </div>
-                      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,fontSize:11.5}}>
+                      <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr 1fr" : "repeat(3,1fr)",gap:8,fontSize:11.5}}>
                         <div><span style={{color:C.muted}}>A2/acre: </span><strong>₹{Math.round(d.a2/plan.partA.landAcres).toLocaleString()}</strong></div>
                         <div><span style={{color:C.muted}}>A2+FL/acre: </span><strong>₹{Math.round(d.a2fl/plan.partA.landAcres).toLocaleString()}</strong></div>
                         <div><span style={{color:C.muted}}>C2/acre: </span><strong>₹{Math.round(d.c2/plan.partA.landAcres).toLocaleString()}</strong></div>
@@ -1432,8 +1454,8 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
                         <span style={{fontWeight:700,fontSize:12.5}}>{s.stage}</span>
                         <Badge color="gold">{s.currentLean}</Badge>
                       </div>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
-                        <div style={{padding:"10px 12px",borderRight:`1px solid ${C.border}`,background:"#FEF0E6"}}>
+                      <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr"}}>
+                        <div style={{padding:"10px 12px",borderRight:isMobile ? "none" : `1px solid ${C.border}`,borderBottom:isMobile ? `1px solid ${C.border}` : "none",background:"#FEF0E6"}}>
                           <div style={{fontSize:10.5,fontWeight:700,color:C.orange,marginBottom:4}}>☀️ IF DRY WEEK</div>
                           <div style={{fontSize:11.5,color:C.charcoal}}>{s.ifDry}</div>
                         </div>
@@ -1446,7 +1468,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
                   ))}
                 </div>
                 <div style={{fontSize:11,color:C.muted,fontStyle:"italic",marginBottom:10}}>{plan.partF.dataNote}</div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:6}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile ? "repeat(3, 1fr)" : "repeat(6, 1fr)",gap:6}}>
                   {plan.partF.monthly.map((m,i)=>(
                     <div key={i} style={{textAlign:"center",padding:"6px 4px",background:m.isSowing?C.greenPale:m.isHarvest?"#FEF3D0":C.cream,borderRadius:6}}>
                       <div style={{fontSize:10,fontWeight:700}}>{m.month}</div>
@@ -1472,7 +1494,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
               {/* PART H — Financial Projections, Insurance & Credit */}
               <Card>
                 <PartHeader letter="H" title="Financial Projections, Insurance & Credit" subtitle="5-Year cash flow shape — modeled year by year, not averaged"/>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:14}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile ? "repeat(3,1fr)" : "repeat(5,1fr)",gap:8,marginBottom:14}}>
                   {plan.partH.fiveYearCashFlow.map((y)=>(
                     <div key={y.yr} style={{textAlign:"center",padding:"8px 6px",border:`1px solid ${C.border}`,borderRadius:8,background:y.gatePassed?C.greenPale:C.cream}}>
                       <div style={{fontSize:10.5,fontWeight:700,color:C.muted}}>Yr {y.yr}</div>
@@ -1498,7 +1520,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
                 <PartHeader letter="I" title="Monitoring, Review & Adaptive Management" subtitle="A plan without a feedback loop is a document, not a system"/>
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {plan.partI.cycles.map((c,i)=>(
-                    <div key={i} style={{display:"grid",gridTemplateColumns:"1.3fr 1fr 1fr 1.4fr",gap:10,padding:"8px 0",borderBottom:i<plan.partI.cycles.length-1?`1px dashed ${C.border}`:"none",fontSize:11.5}}>
+                    <div key={i} style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1.3fr 1fr 1fr 1.4fr",gap:10,padding:"8px 0",borderBottom:i<plan.partI.cycles.length-1?`1px dashed ${C.border}`:"none",fontSize:11.5}}>
                       <span style={{fontWeight:700}}>{c.item}</span>
                       <span style={{color:C.muted}}>{c.cadence}</span>
                       <span style={{color:C.blue}}>→ {c.feedsInto}</span>
@@ -1537,18 +1559,22 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
           </div>
           <Card>
             <div style={{fontWeight:700,color:C.maroon,fontSize:14,marginBottom:12}}>🛒 Input Shopping List</div>
-            <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:8,padding:"6px 0",borderBottom:`1px solid ${C.border}`,marginBottom:4}}>
-              {["Item","Qty","Unit Cost","Total","Source"].map(h=><span key={h} style={{fontSize:10,fontWeight:700,color:C.muted}}>{h}</span>)}
-            </div>
-            {inputItems.map((item,i)=>(
-              <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:8,padding:"9px 0",borderBottom:`1px solid ${C.border}`,fontSize:12,alignItems:"center"}}>
-                <span style={{fontWeight:600}}>{item.item}</span>
-                <span style={{color:C.muted}}>{item.qty}</span>
-                <span>₹{item.unitCost}</span>
-                <span style={{color:C.orange,fontWeight:700}}>₹{item.totalCost.toLocaleString()}{item.isPerAcre&&<div style={{fontSize:9,color:C.muted}}>×{item.landAcres}ac</div>}</span>
-                <span style={{color:C.muted}}>{item.source}</span>
+            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+              <div style={{ minWidth: isMobile ? 550 : "auto" }}>
+                <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:8,padding:"6px 0",borderBottom:`1px solid ${C.border}`,marginBottom:4}}>
+                  {["Item","Qty","Unit Cost","Total","Source"].map(h=><span key={h} style={{fontSize:10,fontWeight:700,color:C.muted}}>{h}</span>)}
+                </div>
+                {inputItems.map((item,i)=>(
+                  <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:8,padding:"9px 0",borderBottom:`1px solid ${C.border}`,fontSize:12,alignItems:"center"}}>
+                    <span style={{fontWeight:600}}>{item.item}</span>
+                    <span style={{color:C.muted}}>{item.qty}</span>
+                    <span>₹{item.unitCost}</span>
+                    <span style={{color:C.orange,fontWeight:700}}>₹{item.totalCost.toLocaleString()}{item.isPerAcre&&<div style={{fontSize:9,color:C.muted}}>×{item.landAcres}ac</div>}</span>
+                    <span style={{color:C.muted}}>{item.source}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
             <div style={{display:"flex",justifyContent:"flex-end",padding:"10px 0",borderTop:`2px solid ${C.maroon}`,marginTop:4}}><span style={{fontWeight:700,fontSize:14,color:C.maroon}}>Total: ₹{totalInputCost.toLocaleString()}</span></div>
           </Card>
           <Card>
@@ -1567,7 +1593,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
             <Btn small variant="green" onClick={()=>setAddingProduce(true)}>+ Add Produce</Btn>
           </div>
           {farmer.produce.length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr 1fr",gap:10,marginBottom:14}}>
               <Card style={{textAlign:"center",padding:12,background:"#EBF5FB"}}><div style={{fontSize:18,fontWeight:800,color:C.blue}}>₹{totalGrossRevenue.toLocaleString()}</div><div style={{fontSize:11,color:C.muted}}>Gross Revenue</div></Card>
               <Card style={{textAlign:"center",padding:12,background:"#FEF0E6"}}><div style={{fontSize:18,fontWeight:800,color:C.orange}}>₹{totalCommission.toLocaleString()}</div><div style={{fontSize:11,color:C.muted}}>Commission</div></Card>
               <Card style={{textAlign:"center",padding:12,background:C.greenPale}}><div style={{fontSize:18,fontWeight:800,color:C.green}}>₹{totalNetRevenue.toLocaleString()}</div><div style={{fontSize:11,color:C.muted}}>Net to Farmer</div></Card>
@@ -1576,7 +1602,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
           {addingProduce&&(
             <Card style={{marginBottom:14,background:C.soilLight}}>
               <div style={{fontWeight:700,color:C.maroon,marginBottom:12}}>New Produce Entry</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr",gap:10}}>
                 <Inp label="Crop" value={newProduce.crop} onChange={v=>setNewProduce(p=>({...p,crop:v}))} options={CROP_OPTIONS} required/>
                 <Inp label="Quantity (kg)" value={newProduce.qty} onChange={v=>setNewProduce(p=>({...p,qty:v}))} type="number" required/>
                 <Inp label="Stage" value={newProduce.stage} onChange={v=>setNewProduce(p=>({...p,stage:v}))} options={PRODUCE_STAGES} required/>
@@ -1598,7 +1624,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
                     <div><div style={{fontWeight:700,fontSize:15}}>{p.crop}</div><div style={{fontSize:12,color:C.muted}}>{p.qty}kg · {p.buyer||"No buyer"}{p.harvestDate?` · ${p.harvestDate}`:""}</div></div>
                     <div style={{display:"flex",gap:6,alignItems:"center"}}>{p.qrGenerated&&<Badge color="green">🏷 QR</Badge>}<Badge color={p.stage==="Sold"?"green":p.stage==="Buyer Matched"?"blue":p.stage==="Cold Storage"?"maroon":"gold"}>{p.stage}</Badge></div>
                   </div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,background:C.cream,borderRadius:8,padding:"8px 10px"}}>
+                  <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr",gap:8,background:C.cream,borderRadius:8,padding:"8px 10px"}}>
                     <div style={{textAlign:"center"}}><div style={{fontSize:13,fontWeight:700}}>₹{p.pricePerKg}</div><div style={{fontSize:10,color:C.muted}}>per kg</div></div>
                     <div style={{textAlign:"center"}}><div style={{fontSize:13,fontWeight:700,color:C.blue}}>₹{p.grossRevenue.toLocaleString()}</div><div style={{fontSize:10,color:C.muted}}>Gross</div></div>
                     <div style={{textAlign:"center"}}><div style={{fontSize:13,fontWeight:700,color:C.orange}}>₹{p.commission.toLocaleString()}</div><div style={{fontSize:10,color:C.muted}}>Commission</div></div>
@@ -1623,7 +1649,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
         </div>
       )}
 
-      {tab==="machinery"&&<MachineryTab farmer={farmer} rentals={farmerRentals} onAddRental={onAddRental}/>}
+      {tab==="machinery"&&<MachineryTab isMobile={isMobile} farmer={farmer} rentals={farmerRentals} onAddRental={onAddRental}/>}
 
       {tab === "economics" && (
         <div>
@@ -1652,6 +1678,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
           {/* Conditional Sub-View Router Outlet */}
           {ecoSubTab === "quick" && (
             <EconomicsTab 
+              isMobile={isMobile}
               farmer={farmer} 
               plan={plan} 
               machineryRentalCost={machineryRentalCost} 
@@ -1659,6 +1686,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
           )}
           {ecoSubTab === "terminal" && (
             <EconometricProjectionTerminal 
+              isMobile={isMobile}
               farmer={farmer} 
               plan={plan} 
               actualSeason={{ totalInputCost, totalGrossRevenue, totalNetRevenue, machineryRentalCost, netPL }}
@@ -1671,7 +1699,7 @@ function FarmerDetail({ farmer, onBack, onUpdateFarmer, rentals, onAddRental }) 
 }
 
 // ─── REPORTS ─────────────────────────────────────────────────────
-function Reports({ farmers, rentals, onBack }) {
+function Reports({ isMobile, farmers, rentals, onBack }) {
   const [tab, setTab]=useState("overview");
   const allProduce=farmers.flatMap(f=>f.produce);
   const assessed=farmers.filter(f=>f.planGenerated).length;
@@ -1698,7 +1726,7 @@ function Reports({ farmers, rentals, onBack }) {
 
       {tab==="overview"&&(
         <div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr 1fr" : "1fr 1fr 1fr",gap:10,marginBottom:16}}>
             {[["👨‍🌾","Farmers",farmers.length,C.maroon],["🧠","Plans",assessed,C.green],["📈","Assessment %",`${Math.round((assessed/Math.max(farmers.length,1))*100)}%`,C.gold],["🌾","Land (Ha)",farmers.reduce((a,f)=>a+f.land,0).toFixed(1),C.green],["⚠️","Avg DRS",avgDRS,avgDRS>50?C.red:avgDRS>30?C.orange:C.green],["🐛","Avg Pest",`${avgPest}%`,avgPest>60?C.red:avgPest>40?C.orange:C.green],["📦","Produce",allProduce.length,C.blue],["✅","Sold",sold,C.green],["🌱","Rest. Uplift",`₹${(totalRB/1000).toFixed(1)}K`,C.green]].map(([icon,l,v,c])=>(
               <Card key={l} style={{padding:12,textAlign:"center"}}><div style={{fontSize:18}}>{icon}</div><div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div><div style={{fontSize:10,color:C.muted,lineHeight:1.3}}>{l}</div></Card>
             ))}
@@ -1819,7 +1847,7 @@ function Reports({ farmers, rentals, onBack }) {
 }
 
 // ─── MACHINERY HUB ───────────────────────────────────────────────
-function MachineryHub({ rentals, onBack, onAddRental, farmers }) {
+function MachineryHub({ isMobile, rentals, onBack, onAddRental, farmers }) {
   const [booking, setBooking]=useState(null);
   const [form, setForm]=useState({farmerId:"",startDate:"",endDate:"",hours:""});
   const set=k=>v=>setForm(f=>({...f,[k]:v}));
@@ -1836,7 +1864,7 @@ function MachineryHub({ rentals, onBack, onAddRental, farmers }) {
         <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:22,color:C.muted}}>←</button>
         <div><div style={{fontWeight:800,fontSize:20,color:C.charcoal}}>Machinery Rental Hub</div><div style={{fontSize:13,color:C.muted}}>Squire Outlet — Jhansi Cluster</div></div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:20}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr 1fr",gap:12,marginBottom:20}}>
         <Card style={{textAlign:"center",padding:14}}><div style={{fontSize:22,fontWeight:800,color:C.green}}>₹{rentals.filter(r=>r.status==="Completed").reduce((a,r)=>a+r.totalCost,0)}</div><div style={{fontSize:11,color:C.muted}}>Revenue Collected</div></Card>
         <Card style={{textAlign:"center",padding:14}}><div style={{fontSize:22,fontWeight:800,color:C.blue}}>{rentals.filter(r=>r.status==="Confirmed").length}</div><div style={{fontSize:11,color:C.muted}}>Active Bookings</div></Card>
         <Card style={{textAlign:"center",padding:14}}><div style={{fontSize:22,fontWeight:800,color:C.maroon}}>{EQUIPMENT_LIST.filter(e=>e.available).length}</div><div style={{fontSize:11,color:C.muted}}>Available Now</div></Card>
@@ -1848,7 +1876,7 @@ function MachineryHub({ rentals, onBack, onAddRental, farmers }) {
             <button onClick={()=>setBooking(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:C.muted}}>✕</button>
           </div>
           <Inp label="Select Farmer" value={form.farmerId} onChange={set("farmerId")} options={farmers.map(f=>f.id)} required hint={sf?sf.name:"Choose farmer"}/>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr 1fr",gap:10}}>
             <Inp label="Start Date" value={form.startDate} onChange={set("startDate")} type="date" required/>
             <Inp label="End Date" value={form.endDate} onChange={set("endDate")} type="date" required/>
             <Inp label="Hours" value={form.hours} onChange={set("hours")} type="number" required/>
@@ -1858,7 +1886,7 @@ function MachineryHub({ rentals, onBack, onAddRental, farmers }) {
         </Card>
       )}
       <div style={{fontWeight:700,color:C.charcoal,fontSize:14,marginBottom:12}}>Available Equipment</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr",gap:12,marginBottom:20}}>
         {EQUIPMENT_LIST.map(eq=>(
           <Card key={eq.name} style={{padding:14,opacity:eq.available?1:0.55}}>
             <div style={{fontSize:26,marginBottom:6}}>{eq.icon}</div>
@@ -1966,15 +1994,58 @@ const getFallbackSpeculation = (crop, season) => {
 };
 
 // ─── DASHBOARD TERMINAL MODULE ───────────────────────────────────
-function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onViewMachinery }) {
+function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewReports, onViewMachinery, rentals = [], onAddRental }) {
   const [mandiRange, setMandiRange] = useState("7D");
   const [searchQ, setSearchQ] = useState("");
+
+  // Search, sort, and lazy-loading pagination for 148+ crops
+  const [invSearch, setInvSearch] = useState("");
+  const [invSort, setInvSort] = useState("name");
+  const [invItemsToShow, setInvItemsToShow] = useState(15);
+  const [seedMandiSeason, setSeedMandiSeason] = useState("All");
+  const [seedMandiCategory, setSeedMandiCategory] = useState("All");
+
+  // Search, category filters, and form states for the Sales & Growth terminal
+  const [salesSearch, setSalesSearch] = useState("");
+  const [salesFilterCategory, setSalesFilterCategory] = useState("All");
+  const [salesFilterPayment, setSalesFilterPayment] = useState("All");
+  const [directSaleForm, setDirectSaleForm] = useState({ farmerId: "", itemId: "", quantity: "", paymentMode: "Direct Cash Settlement" });
+  const [directSaleSuccess, setDirectSaleSuccess] = useState(false);
+  const [directSaleSuccessDetail, setDirectSaleSuccessDetail] = useState(null);
+  const [salesLedger, setSalesLedger] = useState(MOCK_DAILY_SALES.transactionsList);
+  const [salesSort, setSalesSort] = useState("date-desc");
+  const [salesPage, setSalesPage] = useState(1);
+  
+  // Squire Outlets Sub-tabs state
+  const [outletsSubTab, setOutletsSubTab] = useState("machinery"); // 'machinery', 'coldstorage', 'footfall'
+  
+  // Cold Storage state
+  const [coldStorageDeposits, setColdStorageDeposits] = useState([
+    { id: "CS-101", farmerName: "Ramesh Yadav", crop: "Mustard", bags: 45, weight: "22.5 Qtl", temp: "3.8°C", date: "2026-03-12", duration: 4, feePaid: 1800, status: "Active" },
+    { id: "CS-102", farmerName: "Mohan Patel", crop: "Potatoes", bags: 120, weight: "60.0 Qtl", temp: "4.0°C", date: "2026-04-05", duration: 3, feePaid: 3600, status: "Active" }
+  ]);
+  const [coldStorageForm, setColdStorageForm] = useState({ farmerId: "", cropName: "Potatoes", bags: "", duration: "3" });
+  const [depositSuccess, setDepositSuccess] = useState(false);
+  const [depositSuccessDetail, setDepositSuccessDetail] = useState(null);
+
+  // Daily Visitor Registry state
+  const [visitorLogs, setVisitorLogs] = useState([
+    { id: "REG-301", name: "Sita Devi", time: "09:15 AM", purpose: "Input Purchase", officer: "Harshit V", notes: "Supplied 2 bags of Wheat HD-3086 seed under KCC limit", status: "Resolved" },
+    { id: "REG-302", name: "Ramesh Yadav", time: "10:30 AM", purpose: "Machinery Rental", officer: "Harshit V", notes: "Enquired about Rotavator booking slot for next week", status: "Resolved" },
+    { id: "REG-303", name: "Karan Singh", time: "11:45 AM", purpose: "Soil Advice", officer: "Harshit V", notes: "Collected sandy soil sample; sent to lab for NPK profiling", status: "Pending" }
+  ]);
+  const [visitorForm, setVisitorForm] = useState({ name: "", purpose: "Input Purchase", notes: "", status: "Resolved" });
+
+  // Outlets Machinery Booking Form state
+  const [selectedMachine, setSelectedMachine] = useState(null);
+  const [machineForm, setMachineForm] = useState({ farmerId: "", startDate: "", endDate: "", hours: "" });
   
   // Mandi Interactive Matrix & Speculation State
   const [mandiSeason, setMandiSeason] = useState("Kharif");
   const [mandiCategory, setMandiCategory] = useState("Cereals");
   const [mandiCrop, setMandiCrop] = useState("Paddy");
   const [targetMandi, setTargetMandi] = useState(null);
+  const [activeMandiFold, setActiveMandiFold] = useState("crop"); // 'season', 'category', 'crop' or null
   
   const [aiSpeculation, setAiSpeculation] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -1989,6 +2060,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
     const crops = SEASON_CROPS_MAP[season][firstCategory];
     setMandiCrop(crops[0]);
     setTargetMandi(null);
+    setActiveMandiFold("category"); // Auto cascade to Category step
   };
 
   const handleCategoryChange = (category) => {
@@ -1996,6 +2068,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
     const crops = SEASON_CROPS_MAP[mandiSeason][category];
     setMandiCrop(crops[0]);
     setTargetMandi(null);
+    setActiveMandiFold("crop"); // Auto cascade to Commodity step
   };
 
   useEffect(() => {
@@ -2079,29 +2152,56 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
     { id: "seed", icon: "🌱", label: "Seed & Inputs" },
     { id: "farmers", icon: "👥", label: "Farmer Network" },
     { id: "brain", icon: "🧠", label: "Digital Brain" },
-    { id: "outlets", icon: "🏪", label: "Squire Outlets" }
+    { id: "outlets", icon: "🏪", label: "Squire Outlets" },
+    { id: "sales", icon: "📊", label: "Sales & Growth" }
   ];
 
-  const TXN = [
+  // Stateful Seed & Input Inventory
+  const [seedInventory, setSeedInventory] = useState(ALL_INVENTORY_ITEMS);
+
+  // Sub-tab navigation inside the Seeds and Inputs section
+  const [seedSubTab, setSeedSubTab] = useState("inventory"); // "inventory" | "planner" | "dispense" | "logs"
+
+  // Filter category for inventory
+  const [invFilterCategory, setInvFilterCategory] = useState("All");
+
+  // Dispensation Form State
+  const [dispenseForm, setDispenseForm] = useState({
+    farmerId: "",
+    itemId: "",
+    quantity: "",
+    paymentMode: "KCC Credit Limit"
+  });
+
+  // Stateful transactions list
+  const [transactions, setTransactions] = useState([
     { name: "Ramesh Tiwari", crop: "Wheat", qty: "12 Qtl", price: "₹2,340", mandi: "Jhansi", status: "sold" },
     { name: "Meera Devi", crop: "Mustard", qty: "6 Qtl", price: "₹5,800", mandi: "Jhansi", status: "sold" },
     { name: "Vijay Kushwaha", crop: "Gram", qty: "9 Qtl", price: "₹5,050", mandi: "Banda", status: "transit" },
     { name: "Anita Rajput", crop: "Wheat", qty: "15 Qtl", price: "₹2,310", mandi: "Mahoba", status: "sold" },
     { name: "Mahendra Singh", crop: "Mustard", qty: "4 Qtl", price: "₹5,650", mandi: "Jhansi", status: "pending" },
     { name: "Suresh Yadav", crop: "Gram", qty: "7 Qtl", price: "₹4,980", mandi: "Banda", status: "sold" }
-  ];
+  ]);
 
-  const SEED_INV = [
-    { name: "Wheat HD-3086", stock: 38, threshold: 25, max: 40, status: "healthy" },
-    { name: "Gram Pusa-256", stock: 14, threshold: 15, max: 24, status: "low" },
-    { name: "Mustard Pusa Bold", stock: 9, threshold: 12, max: 24, status: "critical" },
-    { name: "Bajra HHB-67", stock: 22, threshold: 10, max: 24, status: "healthy" },
-    { name: "Moong Pusa Vishal", stock: 11, threshold: 10, max: 15, status: "healthy" }
-  ];
+  // Dispensation Logs State
+  const [dispenseLogs, setDispenseLogs] = useState([
+    { id: "DL1", farmerName: "Ramesh Yadav", itemName: "Wheat HD-3086", quantity: 4, unit: "Qtl", totalCost: 9400, date: "2026-06-26", status: "Dispensed" },
+    { id: "DL2", farmerName: "Mohan Patel", itemName: "Organic Compost / FYM", quantity: 10, unit: "Bags", totalCost: 4500, date: "2026-06-25", status: "Dispensed" },
+    { id: "DL3", farmerName: "Sita Devi", itemName: "Bio-NPK Liquid Consortia", quantity: 2, unit: "Litre", totalCost: 560, date: "2026-06-24", status: "Dispensed" }
+  ]);
+
+  const [dispenseSuccess, setDispenseSuccess] = useState(false);
+  const [dispenseSuccessDetail, setDispenseSuccessDetail] = useState(null);
+
+  // Bulk Procurement Planner Slider Multiplier
+  const [coopScaler, setCoopScaler] = useState(1); // 1 = only digitized, 10 = small cooperative, 50 = block cooperative
+
+  // Reorder Order Placed simulation
+  const [plannerOrderPlaced, setPlannerOrderPlaced] = useState(false);
 
   const INV_C = { healthy: "#4A7C59", low: "#C8963E", critical: "#B2402F" };
   const SB_C = { sold: { bg: "#DCEEE1", color: "#2F6B45", label: "Sold" }, transit: { bg: "#DCEAF2", color: "#3B6E91", label: "In Transit" }, pending: { bg: "#F7E8C9", color: "#8A5A12", label: "Pending" } };
-  const filteredTxn = TXN.filter(r => !searchQ || Object.values(r).join(" ").toLowerCase().includes(searchQ.toLowerCase()));
+  const filteredTxn = transactions.filter(r => !searchQ || Object.values(r).join(" ").toLowerCase().includes(searchQ.toLowerCase()));
   const filteredFarmers = farmers.filter(f => !searchQ || `${f.name} ${f.village} ${f.district} ${f.cropHistory}`.toLowerCase().includes(searchQ.toLowerCase()));
 
   const scrollTo = (id) => { setActiveSection(id); };
@@ -2141,23 +2241,38 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
             </div>
 
             {/* Live Warning Action Banner */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: 500 }}>
-              <span>⚠️ <strong>2 seed varieties</strong> below reorder threshold • <strong>1 Mandi price alert</strong> needs optimization review</span>
-            </div>
+            {(() => {
+              const lowStockItems = seedInventory.filter(item => item.stock <= item.threshold);
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: 500 }}>
+                  <span>⚠️ <strong>{lowStockItems.length} items</strong> below reorder threshold • <strong>1 Mandi price alert</strong> needs optimization review</span>
+                </div>
+              );
+            })()}
 
             {/* Primary Metric Summary Cards Row */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-              {[{ label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true }, { label: "Outlet Revenue • MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true }, { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true }, { label: "Seed Stock Health", value: "82%", delta: "⚠️ 2 items low", up: false }].map((k, i) => (
-                <div key={i} style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
-                  <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 600, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11.5, fontWeight: 600, marginTop: 2, color: k.up ? "#2F6B45" : "#8A5A12" }}>{k.delta}</div>
-                </div>
-              ))}
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 16 }}>
+              {(() => {
+                const lowItemsCount = seedInventory.filter(item => item.stock <= item.threshold).length;
+                const totalItems = seedInventory.length;
+                const healthyPct = Math.round(((totalItems - lowItemsCount) / totalItems) * 100);
+                return [
+                  { label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true },
+                  { label: "Outlet Revenue • MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true },
+                  { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true },
+                  { label: "Seed Stock Health", value: `${healthyPct}%`, delta: lowItemsCount > 0 ? `⚠️ ${lowItemsCount} items low` : "✓ All items healthy", up: lowItemsCount === 0 }
+                ].map((k, i) => (
+                  <div key={i} style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: "18px 20px" }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
+                    <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 600, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11.5, fontWeight: 600, marginTop: 2, color: k.up ? "#2F6B45" : "#8A5A12" }}>{k.delta}</div>
+                  </div>
+                ));
+              })()}
             </div>
 
             {/* COMPREHENSIVE BALANCED GRID: Added Suggestion 2 & 3 Reactively */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.4fr 1.2fr 1.6fr", gap: 18, alignItems: "stretch", width: "100%" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1.4fr 1.2fr 1.6fr", gap: 18, alignItems: "stretch", width: "100%" }}>
 
               {/* BOX A — Village Cluster Snapshot */}
               <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", height: "100%", minHeight: 420 }}>
@@ -2237,7 +2352,7 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
               {/* BOX D — Recent Transactions */}
               <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display:"flex", flexDirection:"column", height:"100%", minHeight:420 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>🧾 Recent Transactions</div>
-                {TXN.slice(0, 8).map((r, i) => (
+                {transactions.slice(0, 8).map((r, i) => (
                   <div key={i} style={{ padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 11.5 }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span style={{ color: "#2B211B", fontWeight: 600 }}>{r.name}</span>
@@ -2301,88 +2416,203 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
                   <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>Select season, crop category, and commodity to search wholesale markets and trace future projections</div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr 2.5fr", gap: 18, alignItems: "start" }}>
-                  
-                  {/* Step 1: Select Season */}
-                  <div style={{ borderRight: `1px solid ${C.border}`, paddingRight: 18 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Step 1: Select Crop Season</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {["Kharif", "Rabi", "Perennial"].map(season => {
-                        const isActive = mandiSeason === season;
-                        return (
-                          <button
-                            key={season}
-                            onClick={() => handleSeasonChange(season)}
-                            style={{
-                              padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", border: isActive ? `1.5px solid ${C.maroon}` : `1px solid ${C.border}`,
-                              background: isActive ? C.cream : "#fff",
-                              color: isActive ? C.maroon : C.charcoal,
-                              transition: "all 0.15s ease", display: "flex", justifyContent: "space-between", alignItems: "center"
-                            }}
-                          >
-                            <span>{season}</span>
-                            <span style={{ fontSize: 11, color: isActive ? C.gold : C.muted }}>{season === "Kharif" ? "🌧 Monsoon" : season === "Rabi" ? "❄ Winter" : "🔄 Annual"}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Step 2: Select Crop Category */}
-                  <div style={{ borderRight: `1px solid ${C.border}`, paddingRight: 18 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Step 2: Crop Category</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
-                      {categories.map(category => {
-                        const isActive = mandiCategory === category;
-                        return (
-                          <button
-                            key={category}
-                            onClick={() => handleCategoryChange(category)}
-                            style={{
-                              padding: "9px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: isActive ? 700 : 500, textAlign: "left", cursor: "pointer", border: isActive ? `1.5px solid ${C.maroon}` : `1px solid ${C.border}`,
-                              background: isActive ? C.cream : "transparent",
-                              color: isActive ? C.maroon : C.muted,
-                              transition: "all 0.15s ease", display: "flex", justifyContent: "space-between", alignItems: "center"
-                            }}
-                          >
-                            <span>{category}</span>
-                            <span style={{ fontSize: 10, opacity: 0.7 }}>{SEASON_CROPS_MAP[mandiSeason][category]?.length || 0} items</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Step 3: Select Crop */}
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Step 3: Select Commodity</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 220, overflowY: "auto", alignContent: "flex-start", paddingRight: 4 }}>
-                      {crops.map(crop => {
-                        const isActive = mandiCrop === crop;
-                        return (
-                          <button
-                            key={crop}
-                            onClick={() => { setMandiCrop(crop); setTargetMandi(null); }}
-                            style={{
-                              padding: "8px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                              border: isActive ? `1.5px solid ${C.maroon}` : `1px solid ${C.border}`,
-                              background: isActive ? C.maroon : "#fff",
-                              color: isActive ? C.white : C.charcoal,
-                              transition: "all 0.15s ease"
-                            }}
-                          >
-                            {crop}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                </div>
+                 <div style={{ overflowX: isMobile ? "visible" : "auto", marginTop: 8 }}>
+                   <table style={{ width: "100%", borderCollapse: "collapse", border: isMobile ? "none" : `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden", background: "#fff", display: isMobile ? "block" : "table" }}>
+                     {!isMobile && (
+                       <thead>
+                         <tr style={{ background: "#FDFCF7", borderBottom: `1.5px solid ${C.border}` }}>
+                           <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.06em" }}>Configuration Step</th>
+                           <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.06em" }}>Active Selection</th>
+                           <th style={{ padding: "12px 16px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.06em", width: 120 }}>Action</th>
+                         </tr>
+                       </thead>
+                     )}
+                     <tbody style={{ display: isMobile ? "flex" : "table-row-group", flexDirection: isMobile ? "column" : undefined, gap: isMobile ? 12 : undefined }}>
+                       {/* Step 1: Crop Season */}
+                       <tr 
+                         onClick={() => setActiveMandiFold(prev => prev === "season" ? null : "season")}
+                         style={{ 
+                           cursor: "pointer", 
+                           border: isMobile ? `1px solid ${C.border}` : undefined,
+                           borderRadius: isMobile ? 10 : undefined,
+                           borderBottom: `1px solid ${C.border}`, 
+                           background: activeMandiFold === "season" ? "#FCFAF2" : "transparent", 
+                           transition: "background 0.15s ease",
+                           display: isMobile ? "flex" : "table-row",
+                           flexDirection: isMobile ? "column" : undefined,
+                           padding: isMobile ? "12px 16px" : undefined
+                         }}
+                       >
+                         <td style={{ padding: isMobile ? "0 0 6px 0" : "14px 16px", display: isMobile ? "block" : "table-cell", verticalAlign: "middle" }}>
+                           <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>Step 1: Crop Season</div>
+                           <div style={{ fontSize: 11, color: C.muted }}>Select monsoon, winter, or annual cycle</div>
+                         </td>
+                         <td style={{ padding: isMobile ? "6px 0" : "14px 16px", display: isMobile ? "block" : "table-cell", verticalAlign: "middle" }}>
+                           <span style={{ fontSize: 13, fontWeight: 700, color: C.maroon, background: C.cream, padding: "4px 10px", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                             {mandiSeason === "Kharif" ? "🌧 Kharif (Monsoon)" : mandiSeason === "Rabi" ? "❄ Rabi (Winter)" : "🔄 Perennial (Annual)"}
+                           </span>
+                         </td>
+                         <td style={{ padding: isMobile ? "6px 0 0 0" : "14px 16px", display: isMobile ? "block" : "table-cell", textAlign: isMobile ? "left" : "right", verticalAlign: "middle" }}>
+                           <button style={{ background: "none", border: "none", color: C.maroon, fontWeight: 700, fontSize: 12.5, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                             {activeMandiFold === "season" ? "Collapse ▲" : "Modify ▼"}
+                           </button>
+                         </td>
+                       </tr>
+                       {activeMandiFold === "season" && (
+                         <tr style={{ display: isMobile ? "block" : "table-row" }}>
+                           <td colSpan={isMobile ? undefined : 3} style={{ padding: "16px 20px", background: "#FCFAF6", borderBottom: `1px solid ${C.border}`, display: isMobile ? "block" : "table-cell", border: isMobile ? `1px solid ${C.border}` : undefined, borderRadius: isMobile ? 10 : undefined, marginTop: isMobile ? -8 : undefined }}>
+                             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                               {["Kharif", "Rabi", "Perennial"].map(season => {
+                                 const isActive = mandiSeason === season;
+                                 return (
+                                   <button
+                                     key={season}
+                                     onClick={(e) => { e.stopPropagation(); handleSeasonChange(season); }}
+                                     style={{
+                                       padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, textAlign: "left", cursor: "pointer", border: isActive ? `1.5px solid ${C.maroon}` : `1px solid ${C.border}`,
+                                       background: isActive ? C.maroon : "#fff",
+                                       color: isActive ? C.white : C.charcoal,
+                                       boxShadow: isActive ? "0 2px 4px rgba(107,30,63,0.15)" : "none",
+                                       transition: "all 0.15s ease", display: "flex", alignItems: "center", gap: 8
+                                     }}
+                                   >
+                                     <span>{season}</span>
+                                     <span style={{ fontSize: 11, color: isActive ? "#FFEBB2" : C.muted }}>
+                                       {season === "Kharif" ? "🌧 Monsoon" : season === "Rabi" ? "❄ Winter" : "🔄 Annual"}
+                                     </span>
+                                   </button>
+                                 );
+                               })}
+                             </div>
+                           </td>
+                         </tr>
+                       )}
+ 
+                       {/* Step 2: Crop Category */}
+                       <tr 
+                         onClick={() => setActiveMandiFold(prev => prev === "category" ? null : "category")}
+                         style={{ 
+                           cursor: "pointer", 
+                           border: isMobile ? `1px solid ${C.border}` : undefined,
+                           borderRadius: isMobile ? 10 : undefined,
+                           borderBottom: `1px solid ${C.border}`, 
+                           background: activeMandiFold === "category" ? "#FCFAF2" : "transparent", 
+                           transition: "background 0.15s ease",
+                           display: isMobile ? "flex" : "table-row",
+                           flexDirection: isMobile ? "column" : undefined,
+                           padding: isMobile ? "12px 16px" : undefined
+                         }}
+                       >
+                         <td style={{ padding: isMobile ? "0 0 6px 0" : "14px 16px", display: isMobile ? "block" : "table-cell", verticalAlign: "middle" }}>
+                           <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>Step 2: Crop Category</div>
+                           <div style={{ fontSize: 11, color: C.muted }}>Select produce or commodity classification</div>
+                         </td>
+                         <td style={{ padding: isMobile ? "6px 0" : "14px 16px", display: isMobile ? "block" : "table-cell", verticalAlign: "middle" }}>
+                           <span style={{ fontSize: 13, fontWeight: 700, color: C.maroon, background: C.cream, padding: "4px 10px", borderRadius: 6 }}>
+                             📂 {mandiCategory}
+                           </span>
+                         </td>
+                         <td style={{ padding: isMobile ? "6px 0 0 0" : "14px 16px", display: isMobile ? "block" : "table-cell", textAlign: isMobile ? "left" : "right", verticalAlign: "middle" }}>
+                           <button style={{ background: "none", border: "none", color: C.maroon, fontWeight: 700, fontSize: 12.5, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                             {activeMandiFold === "category" ? "Collapse ▲" : "Modify ▼"}
+                           </button>
+                         </td>
+                       </tr>
+                       {activeMandiFold === "category" && (
+                         <tr style={{ display: isMobile ? "block" : "table-row" }}>
+                           <td colSpan={isMobile ? undefined : 3} style={{ padding: "16px 20px", background: "#FCFAF6", borderBottom: `1px solid ${C.border}`, display: isMobile ? "block" : "table-cell", border: isMobile ? `1px solid ${C.border}` : undefined, borderRadius: isMobile ? 10 : undefined, marginTop: isMobile ? -8 : undefined }}>
+                             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                               {categories.map(category => {
+                                 const isActive = mandiCategory === category;
+                                 return (
+                                   <button
+                                     key={category}
+                                     onClick={(e) => { e.stopPropagation(); handleCategoryChange(category); }}
+                                     style={{
+                                       padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: isActive ? `1.5px solid ${C.maroon}` : `1px solid ${C.border}`,
+                                       background: isActive ? C.maroon : "#fff",
+                                       color: isActive ? C.white : C.charcoal,
+                                       boxShadow: isActive ? "0 2px 4px rgba(107,30,63,0.15)" : "none",
+                                       transition: "all 0.15s ease", display: "flex", gap: 8, alignItems: "center"
+                                     }}
+                                   >
+                                     <span>{category}</span>
+                                     <span style={{ fontSize: 10.5, color: isActive ? "#FFEBB2" : C.muted }}>
+                                       ({SEASON_CROPS_MAP[mandiSeason][category]?.length || 0} commodities)
+                                     </span>
+                                   </button>
+                                 );
+                               })}
+                             </div>
+                           </td>
+                         </tr>
+                       )}
+ 
+                       {/* Step 3: Commodity */}
+                       <tr 
+                         onClick={() => setActiveMandiFold(prev => prev === "crop" ? null : "crop")}
+                         style={{ 
+                           cursor: "pointer", 
+                           border: isMobile ? `1px solid ${C.border}` : undefined,
+                           borderRadius: isMobile ? 10 : undefined,
+                           borderBottom: `1px solid ${C.border}`, 
+                           background: activeMandiFold === "crop" ? "#FCFAF2" : "transparent", 
+                           transition: "background 0.15s ease",
+                           display: isMobile ? "flex" : "table-row",
+                           flexDirection: isMobile ? "column" : undefined,
+                           padding: isMobile ? "12px 16px" : undefined
+                         }}
+                       >
+                         <td style={{ padding: isMobile ? "0 0 6px 0" : "14px 16px", display: isMobile ? "block" : "table-cell", verticalAlign: "middle" }}>
+                           <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>Step 3: Selected Commodity</div>
+                           <div style={{ fontSize: 11, color: C.muted }}>Pick the specific variety for prediction</div>
+                         </td>
+                         <td style={{ padding: isMobile ? "6px 0" : "14px 16px", display: isMobile ? "block" : "table-cell", verticalAlign: "middle" }}>
+                           <span style={{ fontSize: 13, fontWeight: 700, color: C.white, background: C.maroon, padding: "4px 12px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                             🌾 {mandiCrop}
+                           </span>
+                         </td>
+                         <td style={{ padding: isMobile ? "6px 0 0 0" : "14px 16px", display: isMobile ? "block" : "table-cell", textAlign: isMobile ? "left" : "right", verticalAlign: "middle" }}>
+                           <button style={{ background: "none", border: "none", color: C.maroon, fontWeight: 700, fontSize: 12.5, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                             {activeMandiFold === "crop" ? "Collapse ▲" : "Modify ▼"}
+                           </button>
+                         </td>
+                       </tr>
+                       {activeMandiFold === "crop" && (
+                         <tr style={{ display: isMobile ? "block" : "table-row" }}>
+                           <td colSpan={isMobile ? undefined : 3} style={{ padding: "16px 20px", background: "#FCFAF6", borderBottom: `1px solid ${C.border}`, display: isMobile ? "block" : "table-cell", border: isMobile ? `1px solid ${C.border}` : undefined, borderRadius: isMobile ? 10 : undefined, marginTop: isMobile ? -8 : undefined }}>
+                             <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Select crop variety:</div>
+                             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                               {crops.map(crop => {
+                                 const isActive = mandiCrop === crop;
+                                 return (
+                                   <button
+                                     key={crop}
+                                     onClick={(e) => { e.stopPropagation(); setMandiCrop(crop); setTargetMandi(null); }}
+                                     style={{
+                                       padding: "8px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                                       border: isActive ? `1.5px solid ${C.maroon}` : `1px solid ${C.border}`,
+                                       background: isActive ? C.maroon : "#fff",
+                                       color: isActive ? C.white : C.charcoal,
+                                       transition: "all 0.15s ease",
+                                       boxShadow: isActive ? "0 2px 4px rgba(107,30,63,0.15)" : "none"
+                                     }}
+                                   >
+                                     {crop}
+                                   </button>
+                                 );
+                               })}
+                             </div>
+                           </td>
+                         </tr>
+                       )}
+                     </tbody>
+                   </table>
+                 </div>
               </div>
 
               {/* Live Price Statistics Block */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16 }}>
                 <Card style={{ padding: 14 }}>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase" }}>Benchmark Price (Kanpur)</div>
                   <div style={{ fontSize: 24, fontWeight: 800, color: C.charcoal, marginTop: 4, fontFamily: "monospace" }}>₹{Math.round(basePricePerQtl * 1.01).toLocaleString()}<span style={{ fontSize: 12, fontWeight: 500, color: C.muted }}>/Qtl</span></div>
@@ -2408,7 +2638,7 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
               </div>
 
               {/* Two Column Board: Left (Mandi Comparison), Right (AI Speculation Engine) */}
-              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18, alignItems: "start" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr", gap: 18, alignItems: "start" }}>
                 
                 {/* Left Column: National Mandi Price & Logistics Comparison Table */}
                 <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 22px" }}>
@@ -2615,19 +2845,836 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
         })()}
 
         {/* 3. SEED & INPUTS PAGE VIEWPORT */}
-        {activeSection === "seed" && (
-          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
-            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Outlet Supply Inventory Ratios</h3>
-            {SEED_INV.map(m => (
-              <div key={m.name} style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-                  <span>{m.name}</span><strong>{m.stock} Qtl MTD</strong>
+        {activeSection === "seed" && (() => {
+          // Dynamic procurement calculations based on farmer database and cooperative scaling
+          const seedRates = {
+            "Wheat HD-3086": { crop: "Wheat", rate: 0.4, unit: "Qtl" },
+            "Gram Pusa-256": { crop: "Gram", rate: 0.3, unit: "Qtl" },
+            "Mustard Pusa Bold": { crop: "Mustard", rate: 0.03, unit: "Qtl" },
+            "Bajra HHB-67": { crop: "Bajra", rate: 0.1, unit: "Qtl" },
+            "Moong Pusa Vishal": { crop: "Moong", rate: 0.1, unit: "Qtl" }
+          };
+
+          const plannerRequirements = seedInventory.map(item => {
+            let targetAcres = 0;
+            let calculatedQty = 0;
+
+            farmers.forEach(f => {
+              const landAcres = f.land * 2.47; // Ha to Acres
+              const currentCrop = f.plan?.year1?.season1?.crop || f.cropHistory?.split(",").map(x => x.trim()).pop() || "Wheat";
+
+              if (item.category === "Seed") {
+                const match = seedRates[item.name];
+                if (match && currentCrop.toLowerCase().includes(match.crop.toLowerCase())) {
+                  targetAcres += landAcres;
+                  calculatedQty += landAcres * match.rate;
+                }
+              } else if (item.name === "Organic Compost / FYM") {
+                targetAcres += landAcres;
+                calculatedQty += landAcres * 5; // 5 Bags/acre
+              } else if (item.name === "Bio-NPK Liquid Consortia") {
+                targetAcres += landAcres;
+                calculatedQty += landAcres * 1; // 1 Litre/acre
+              } else if (item.name === "Neem Cake Fertilizer") {
+                if (["mustard", "gram", "moong", "chickpea"].some(c => currentCrop.toLowerCase().includes(c))) {
+                  targetAcres += landAcres;
+                  calculatedQty += landAcres * 2.5; // 2.5 bags/acre
+                }
+              } else if (item.name === "Mycorrhizal Biofertilizer") {
+                if (["wheat", "bajra", "paddy"].some(c => currentCrop.toLowerCase().includes(c))) {
+                  targetAcres += landAcres;
+                  calculatedQty += landAcres * 1; // 1 kg/acre
+                }
+              }
+            });
+
+            // Apply FPO Cooperative Scale multiplier
+            targetAcres = targetAcres * coopScaler;
+            calculatedQty = calculatedQty * coopScaler;
+
+            targetAcres = Math.round(targetAcres * 10) / 10;
+            calculatedQty = Math.round(calculatedQty * 10) / 10;
+
+            const retailCost = calculatedQty * item.pricePerUnit;
+            const wholesaleCost = retailCost * 0.85; // 15% wholesale discount
+            const savings = retailCost - wholesaleCost;
+
+            return {
+              ...item,
+              targetAcres,
+              requiredQty: calculatedQty,
+              retailCost: Math.round(retailCost),
+              wholesaleCost: Math.round(wholesaleCost),
+              savings: Math.round(savings)
+            };
+          });
+
+          const totalProcurementCost = plannerRequirements.reduce((a, r) => a + r.wholesaleCost, 0);
+          const totalProcurementSavings = plannerRequirements.reduce((a, r) => a + r.savings, 0);
+
+          const handleTopUp = (itemId) => {
+            setSeedInventory(prev => prev.map(item => {
+              if (item.id === itemId) {
+                return { ...item, stock: item.max, status: "healthy" };
+              }
+              return item;
+            }));
+          };
+
+          const handleDispenseSubmit = (e) => {
+            e.preventDefault();
+            const { farmerId, itemId, quantity, paymentMode } = dispenseForm;
+            if (!farmerId || !itemId || !quantity) return;
+
+            const qtyVal = parseFloat(quantity);
+            if (isNaN(qtyVal) || qtyVal <= 0) return;
+
+            const selectedItem = seedInventory.find(item => item.id === itemId);
+            const selectedFarmer = farmers.find(f => f.id === farmerId);
+
+            if (!selectedItem || !selectedFarmer) return;
+
+            if (selectedItem.stock < qtyVal) {
+              alert("Error: Quantity requested is larger than current outlet stock.");
+              return;
+            }
+
+            const totalCost = Math.round(selectedItem.pricePerUnit * qtyVal);
+
+            // 1. Deduct Stock
+            setSeedInventory(prev => prev.map(item => {
+              if (item.id === itemId) {
+                const newStock = Math.round((item.stock - qtyVal) * 10) / 10;
+                const low = newStock <= item.threshold;
+                const critical = newStock <= item.threshold / 2;
+                const status = critical ? "critical" : low ? "low" : "healthy";
+                return { ...item, stock: newStock, status };
+              }
+              return item;
+            }));
+
+            // 2. Append Dispensation Log
+            const dispenseId = "DL-" + Date.now().toString().slice(-4);
+            const newLog = {
+              id: dispenseId,
+              farmerName: selectedFarmer.name,
+              itemName: selectedItem.name,
+              quantity: qtyVal,
+              unit: selectedItem.unit,
+              totalCost,
+              date: new Date().toISOString().split('T')[0],
+              status: "Dispensed"
+            };
+            setDispenseLogs(prev => [newLog, ...prev]);
+
+            // 3. Append to Transactions Feed
+            const newTxn = {
+              name: selectedFarmer.name,
+              crop: `Input: ${selectedItem.name}`,
+              qty: `${qtyVal} ${selectedItem.unit}`,
+              price: `₹${totalCost.toLocaleString()}`,
+              mandi: "FPO Outlet",
+              status: "sold"
+            };
+            setTransactions(prev => [newTxn, ...prev]);
+
+            // 4. Show Receipt Modal View
+            setDispenseSuccessDetail({
+              id: dispenseId,
+              farmerName: selectedFarmer.name,
+              itemName: selectedItem.name,
+              quantity: qtyVal,
+              unit: selectedItem.unit,
+              totalCost,
+              paymentMode,
+              date: newLog.date
+            });
+            setDispenseSuccess(true);
+
+            // Reset Form
+            setDispenseForm({
+              farmerId: "",
+              itemId: "",
+              quantity: "",
+              paymentMode: "KCC Credit Limit"
+            });
+          };
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              
+              {/* Header card with metrics and page summary */}
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 22px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                  <div>
+                    <h2 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 20, color: C.charcoal, margin: 0 }}>🌱 Seed & Inputs Supply Chain Terminal</h2>
+                    <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>Manage local agricultural inputs, compile cluster demand forecasts, and handle farmer allocations.</div>
+                  </div>
+                  <div style={{ background: C.cream, border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 14px", display: "flex", gap: 16 }}>
+                    <div>
+                      <div style={{ fontSize: 9.5, color: C.muted, fontWeight: 700, textTransform: "uppercase" }}>Critical Items</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: C.red, fontFamily: "monospace" }}>
+                        {seedInventory.filter(item => item.stock <= item.threshold / 2).length}
+                      </div>
+                    </div>
+                    <div style={{ borderRight: `1px solid ${C.border}` }} />
+                    <div>
+                      <div style={{ fontSize: 9.5, color: C.muted, fontWeight: 700, textTransform: "uppercase" }}>Low Stock</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: C.orange, fontFamily: "monospace" }}>
+                        {seedInventory.filter(item => item.stock <= item.threshold && item.stock > item.threshold / 2).length}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ height: 6, background: "#FAF6EF", borderRadius: 4, overflow: "hidden" }}><div style={{ width: `${(m.stock / m.max) * 100}%`, height: "100%", background: INV_C[m.status] }} /></div>
+
+                {/* Sub-routing buttons inside view */}
+                <div style={{ display: "flex", gap: 2, borderBottom: `2px solid ${C.border}`, marginTop: 20, overflowX: "auto" }}>
+                  {[
+                    { id: "inventory", label: "🌱 Outlet Inventory", desc: "View & refill stock" },
+                    { id: "planner", label: "📊 Bulk Demand Planner", desc: "FPO cooperative purchasing" },
+                    { id: "dispense", label: "🤝 Dispense to Farmer", desc: "Record allocation" },
+                    { id: "logs", label: "📜 Dispensation Ledger", desc: "Supply histories" }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => { setSeedSubTab(tab.id); setDispenseSuccess(false); }}
+                      style={{
+                        padding: "10px 14px", background: "none", border: "none", cursor: "pointer",
+                        fontWeight: seedSubTab === tab.id ? 700 : 400,
+                        color: seedSubTab === tab.id ? C.maroon : C.muted,
+                        borderBottom: seedSubTab === tab.id ? `2px solid ${C.maroon}` : "2px solid transparent",
+                        marginBottom: -2, fontSize: 13, whiteSpace: "nowrap"
+                      }}
+                      title={tab.desc}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+
+              {/* OUTLET INVENTORY SUBVIEW */}
+              {seedSubTab === "inventory" && (() => {
+                const filteredInventory = seedInventory
+                  .filter(item => {
+                    if (invFilterCategory !== "All" && item.category !== invFilterCategory) return false;
+                    if (invFilterCategory === "Seed") {
+                      if (seedMandiSeason !== "All" && item.mandiSeason !== seedMandiSeason) return false;
+                      if (seedMandiCategory !== "All" && item.mandiCategory !== seedMandiCategory) return false;
+                    }
+                    if (invSearch && !item.name.toLowerCase().includes(invSearch.toLowerCase())) return false;
+                    return true;
+                  })
+                  .sort((a, b) => {
+                    if (invSort === "name") return a.name.localeCompare(b.name);
+                    if (invSort === "price-asc") return a.pricePerUnit - b.pricePerUnit;
+                    if (invSort === "price-desc") return b.pricePerUnit - a.pricePerUnit;
+                    if (invSort === "stock-asc") return a.stock - b.stock;
+                    return 0;
+                  });
+
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    
+                    {/* Filter and Search controls bar */}
+                    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.charcoal }}>Squire Local Outlet Stock Levels ({filteredInventory.length} items found)</div>
+                        
+                        {/* Main Categories Row */}
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {["All", "Seed", "Fertilizer", "Bio-Inputs", "Crop Protection", "Farm Tools"].map(cat => (
+                            <button
+                              key={cat}
+                              onClick={() => {
+                                setInvFilterCategory(cat);
+                                setSeedMandiSeason("All");
+                                setSeedMandiCategory("All");
+                                setInvItemsToShow(15);    // Reset pagination
+                              }}
+                              style={{
+                                padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                                border: `1px solid ${invFilterCategory === cat ? C.maroon : C.border}`,
+                                background: invFilterCategory === cat ? C.maroon : "#fff",
+                                color: invFilterCategory === cat ? C.white : C.muted,
+                                transition: "all 0.15s ease"
+                              }}
+                            >
+                              {cat === "Seed" ? "🌾 Seeds" : cat === "Fertilizer" ? "🧪 Fertilizers" : cat === "Bio-Inputs" ? "🌱 Bio-Inputs" : cat === "Crop Protection" ? "🛡️ Crop Protection" : cat === "Farm Tools" ? "⚙️ Tools" : "📁 Show All"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Optional Seed subcategories filter */}
+                      {invFilterCategory === "Seed" && (
+                        <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+                          {/* Season selection row */}
+                          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", width: 110 }}>Mandi Season:</span>
+                            {[
+                              { id: "All", label: "📅 All Seasons" },
+                              { id: "Kharif", label: "☀️ Kharif" },
+                              { id: "Rabi", label: "❄️ Rabi" },
+                              { id: "Perennial", label: "🔄 Perennial" }
+                            ].map(sub => (
+                              <button
+                                key={sub.id}
+                                onClick={() => { setSeedMandiSeason(sub.id); setInvItemsToShow(15); }}
+                                style={{
+                                  padding: "3px 8px", borderRadius: 6, fontSize: 10.5, fontWeight: 600, cursor: "pointer",
+                                  border: `1px solid ${seedMandiSeason === sub.id ? C.maroon : C.border}`,
+                                  background: seedMandiSeason === sub.id ? C.maroon : C.cream,
+                                  color: seedMandiSeason === sub.id ? C.white : C.charcoal,
+                                  transition: "all 0.15s ease"
+                                }}
+                              >
+                                {sub.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Category selection row */}
+                          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", width: 110 }}>Mandi Category:</span>
+                            {[
+                              { id: "All", label: "📂 All Categories" },
+                              { id: "Cereals", label: "🌾 Cereals" },
+                              { id: "Pulses", label: "🫘 Pulses" },
+                              { id: "Oilseeds", label: "🌻 Oilseeds" },
+                              { id: "Commercial", label: "💰 Commercial" },
+                              { id: "Vegetables", label: "🥕 Vegetables" },
+                              { id: "Fruits", label: "🍎 Fruits" },
+                              { id: "Medicinal & Aromatic", label: "🌿 Medicinal" },
+                              { id: "Floriculture", label: "🌸 Floriculture" },
+                              { id: "Spices", label: "🌶️ Spices" }
+                            ].map(sub => (
+                              <button
+                                key={sub.id}
+                                onClick={() => { setSeedMandiCategory(sub.id); setInvItemsToShow(15); }}
+                                style={{
+                                  padding: "3px 8px", borderRadius: 6, fontSize: 10.5, fontWeight: 600, cursor: "pointer",
+                                  border: `1px solid ${seedMandiCategory === sub.id ? C.gold : C.border}`,
+                                  background: seedMandiCategory === sub.id ? C.goldLight : C.cream,
+                                  color: seedMandiCategory === sub.id ? C.white : C.charcoal,
+                                  transition: "all 0.15s ease"
+                                }}
+                              >
+                                {sub.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Search and Sort controls */}
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#FAF6EF", border: `1px solid ${C.border}`, borderRadius: 8, padding: "4px 10px", flex: 1, minWidth: 200 }}>
+                          <span style={{ fontSize: 12 }}>🔍</span>
+                          <input
+                            type="text"
+                            value={invSearch}
+                            onChange={e => { setInvSearch(e.target.value); setInvItemsToShow(15); }}
+                            placeholder="Search in Squire Outlet catalog..."
+                            style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, width: "100%", color: C.charcoal }}
+                          />
+                          {invSearch && (
+                            <button onClick={() => setInvSearch("")} style={{ border: "none", background: "none", color: C.muted, cursor: "pointer", fontSize: 11, fontWeight: 700 }}>✕</button>
+                          )}
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase" }}>Sort:</span>
+                          <select
+                            value={invSort}
+                            onChange={e => setInvSort(e.target.value)}
+                            style={{ padding: "5px 10px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 11.5, background: "#fff", outline: "none", color: C.charcoal, cursor: "pointer" }}
+                          >
+                            <option value="name">Alphabetical (A-Z)</option>
+                            <option value="price-asc">Price: Low to High</option>
+                            <option value="price-desc">Price: High to Low</option>
+                            <option value="stock-asc">Stock Level: Low First</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stock levels catalog grid */}
+                    {filteredInventory.length === 0 ? (
+                      <Card style={{ padding: "40px 20px", textAlign: "center", color: C.muted }}>
+                        <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>
+                        <strong style={{ fontSize: 14, color: C.charcoal }}>No matching items found</strong>
+                        <div style={{ fontSize: 12, marginTop: 4 }}>Try adjusting your keywords or category filters to locate the item.</div>
+                      </Card>
+                    ) : (
+                      <>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+                          {filteredInventory.slice(0, invItemsToShow).map(item => {
+                            const isLow = item.stock <= item.threshold;
+                            const isCritical = item.stock <= item.threshold / 2;
+                            const barColor = isCritical ? C.red : isLow ? C.orange : C.green;
+                            const pct = Math.min(100, Math.round((item.stock / item.max) * 100));
+
+                            return (
+                              <div
+                                key={item.id}
+                                style={{
+                                  background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14,
+                                  display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 160,
+                                  boxShadow: "0 2px 4px rgba(0,0,0,0.01)", transition: "all 0.2s ease"
+                                }}
+                              >
+                                <div>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                                    <span style={{ fontSize: 8.5, fontWeight: 700, textTransform: "uppercase", background: C.cream, color: C.soil, padding: "2px 6px", borderRadius: 4, letterSpacing: 0.2 }}>
+                                      {item.category === "Seed" ? `${item.mandiSeason} · ${item.mandiCategory}` : item.category}
+                                    </span>
+                                    <Badge color={item.status === "critical" ? "maroon" : item.status === "low" ? "orange" : "green"}>
+                                      {item.status.toUpperCase()}
+                                    </Badge>
+                                  </div>
+                                  <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal, marginBottom: 3, minHeight: 38, display: "flex", alignItems: "center" }}>{item.name}</div>
+                                  <div style={{ fontSize: 11, color: C.muted }}>
+                                    Unit Price: <strong style={{ color: C.charcoal }}>₹{item.pricePerUnit.toLocaleString()} / {item.unit}</strong>
+                                  </div>
+                                </div>
+
+                                <div style={{ marginTop: 14 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 4, fontFamily: "monospace" }}>
+                                    <span style={{ color: C.charcoal, fontWeight: 600 }}>{item.stock} {item.unit}</span>
+                                    <span style={{ color: C.muted }}>Max: {item.max} {item.unit}</span>
+                                  </div>
+                                  <div style={{ height: 6, background: "#FAF6EF", borderRadius: 4, overflow: "hidden", marginBottom: 10 }}>
+                                    <div style={{ width: `${pct}%`, height: "100%", background: barColor }} />
+                                  </div>
+
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
+                                    <span style={{ color: C.muted, fontSize: 10 }}>Threshold: {item.threshold} {item.unit}</span>
+                                    <div style={{ display: "flex", gap: 4 }}>
+                                      {item.stock < item.max && (
+                                        <button
+                                          onClick={() => handleTopUp(item.id)}
+                                          style={{
+                                            padding: "3px 8px", background: "#EBF5FB", color: C.blue, border: "none",
+                                            borderRadius: 4, fontSize: 9.5, fontWeight: 700, cursor: "pointer", outline: "none"
+                                          }}
+                                          title="Replenish stock level to maximum threshold"
+                                        >
+                                          Refill ⟳
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => {
+                                          setDispenseForm(prev => ({ ...prev, itemId: item.id }));
+                                          setSeedSubTab("dispense");
+                                        }}
+                                        style={{
+                                          padding: "3px 8px", background: C.greenPale, color: C.green, border: "none",
+                                          borderRadius: 4, fontSize: 9.5, fontWeight: 700, cursor: "pointer", outline: "none"
+                                        }}
+                                        title="Allocate input directly to a farmer"
+                                      >
+                                        Sell 🤝
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Pagination Load More Button */}
+                        {filteredInventory.length > invItemsToShow && (
+                          <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+                            <button
+                              onClick={() => setInvItemsToShow(prev => prev + 15)}
+                              style={{
+                                padding: "8px 24px", background: C.white, border: `1.5px solid ${C.border}`,
+                                borderRadius: 20, fontSize: 12, fontWeight: 700, color: C.maroon, cursor: "pointer",
+                                transition: "all 0.15s ease", outline: "none", boxShadow: "0 2px 4px rgba(0,0,0,0.02)"
+                              }}
+                              onMouseOver={e => e.currentTarget.style.background = C.cream}
+                              onMouseOut={e => e.currentTarget.style.background = C.white}
+                            >
+                              Show More Items (+{filteredInventory.length - invItemsToShow})
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* BULK PROCUREMENT PLANNER SUBVIEW */}
+              {seedSubTab === "planner" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  
+                  <div style={{ background: "#EEF6F0", border: `1px solid ${C.green}33`, borderRadius: 12, padding: "14px 18px", color: C.green }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <span style={{ fontSize: 20 }}>📊</span>
+                      <div>
+                        <strong style={{ fontSize: 13, color: C.green }}>FPO Bulk Direct Procurement Model</strong>
+                        <div style={{ fontSize: 11.5, color: C.charcoal, marginTop: 2, lineHeight: 1.4 }}>
+                          The FPO consolidates inputs orders across individual farmer case files to negotiate wholesale rates directly with manufacturers (IFFCO, KRIBHCO, National Seeds Corporation). Saving up to 15% in procurement costs and cutting transit waste.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* FPO scale simulation selector */}
+                  <Card style={{ padding: 14, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>Scale Cooperative Order Size:</div>
+                      <div style={{ fontSize: 11.5, color: C.muted, marginTop: 1 }}>Simulate unified procurement for larger clusters</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {[
+                        { val: 1, label: "Digitized Only", desc: "3 farmers" },
+                        { val: 10, label: "Cluster Coop", desc: "30 farmers" },
+                        { val: 50, label: "Fatehpur Block FPO", desc: "150 farmers" }
+                      ].map(sc => (
+                        <button
+                          key={sc.val}
+                          onClick={() => { setCoopScaler(sc.val); setPlannerOrderPlaced(false); }}
+                          style={{
+                            padding: "8px 12px", borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                            border: `1.5px solid ${coopScaler === sc.val ? C.maroon : C.border}`,
+                            background: coopScaler === sc.val ? C.maroon : C.white,
+                            color: coopScaler === sc.val ? C.white : C.charcoal,
+                            transition: "all 0.15s ease", textAlign: "left"
+                          }}
+                        >
+                          <div style={{ fontWeight: 700 }}>{sc.label}</div>
+                          <div style={{ fontSize: 9.5, opacity: 0.75 }}>{sc.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </Card>
+
+                  {/* Procurement order sheet matrix */}
+                  <Card style={{ padding: 16 }}>
+                    <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13.5, marginBottom: 12 }}>📋 Cluster Unified Order Sheet</div>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: C.cream, borderBottom: `1.5px solid ${C.border}` }}>
+                            <th style={{ padding: "8px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Input Name</th>
+                            <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Acreage</th>
+                            <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Aggregated Demand</th>
+                            <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Standard Retail Cost</th>
+                            <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>FPO Wholesale Cost</th>
+                            <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Net Savings (15%)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {plannerRequirements.map(req => {
+                            if (req.requiredQty === 0) return null;
+                            return (
+                              <tr key={req.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                                <td style={{ padding: "9px 8px", fontWeight: 700, color: C.charcoal }}>{req.name}</td>
+                                <td style={{ padding: "9px 8px", textAlign: "right", fontFamily: "monospace" }}>{req.targetAcres} ac</td>
+                                <td style={{ padding: "9px 8px", textAlign: "right", fontFamily: "monospace", color: C.maroon, fontWeight: 700 }}>{req.requiredQty} {req.unit}</td>
+                                <td style={{ padding: "9px 8px", textAlign: "right", fontFamily: "monospace", textDecoration: "line-through", color: C.muted }}>₹{req.retailCost.toLocaleString()}</td>
+                                <td style={{ padding: "9px 8px", textAlign: "right", fontFamily: "monospace", color: C.green, fontWeight: 700 }}>₹{req.wholesaleCost.toLocaleString()}</td>
+                                <td style={{ padding: "9px 8px", textAlign: "right", fontFamily: "monospace", color: C.gold, fontWeight: 700 }}>₹{req.savings.toLocaleString()}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", padding: "12px 0", borderTop: `2px solid ${C.border}`, marginTop: 8 }}>
+                      <div style={{ textAlign: "right", fontSize: 13 }}>
+                        <div>Cumulative Wholesale Cost: <strong style={{ color: C.green, fontSize: 15, fontFamily: "monospace" }}>₹{totalProcurementCost.toLocaleString()}</strong></div>
+                        <div style={{ color: C.gold, fontWeight: 600, marginTop: 2 }}>Unified Bargaining Savings: ₹{totalProcurementSavings.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Order placing interaction button card */}
+                  <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>Place FPO Wholesale Order</div>
+                        <div style={{ fontSize: 11.5, color: C.muted, marginTop: 1 }}>Submit request directly to national manufacturers with wholesale credit lines</div>
+                      </div>
+                      <div>
+                        {plannerOrderPlaced ? (
+                          <span style={{ background: C.greenPale, color: C.green, fontWeight: 700, fontSize: 12.5, padding: "6px 14px", borderRadius: 8, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            ✓ Order Transmitted & Confirmed by NSC
+                          </span>
+                        ) : (
+                          <Btn variant="green" small onClick={() => setPlannerOrderPlaced(true)}>
+                            Transmit FPO Wholesale Purchase Order
+                          </Btn>
+                        )}
+                      </div>
+                    </div>
+
+                    {plannerOrderPlaced && (
+                      <div style={{ background: "#F4FAF6", border: `1px solid ${C.green}22`, borderRadius: 10, padding: 12, marginTop: 12, fontSize: 11.5, color: C.charcoal, lineHeight: 1.5 }}>
+                        <strong>📝 Order Manifest:</strong> PO ID: <strong style={{ fontFamily: "monospace" }}>FPO-NSC-2026-8942</strong><br/>
+                        Successfully placed wholesale order with National Seeds Corporation for ₹{totalProcurementCost.toLocaleString()}.<br/>
+                        15% bulk discount of <strong>₹{totalProcurementSavings.toLocaleString()}</strong> applied dynamically on credit account.<br/>
+                        Transit dispatch is assigned to National Freight Corridor. Delivery expected at Squire Outlet, Jhansi in 48 hours.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* DISPENSE INPUTS TO FARMER SUBVIEW */}
+              {seedSubTab === "dispense" && (
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: 20 }}>
+                  
+                  {/* Form Card */}
+                  <Card>
+                    <div style={{ fontWeight: 700, color: C.maroon, fontSize: 14, marginBottom: 14 }}>🤝 Register Farmer Input Dispensation</div>
+                    
+                    {dispenseSuccess ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "center", padding: "14px 10px" }}>
+                        <div style={{ width: 44, height: 44, borderRadius: "50%", background: C.green, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, margin: "0 auto" }}>✓</div>
+                        <div>
+                          <strong style={{ fontSize: 14, color: C.charcoal }}>Allocation Processed Successfully</strong>
+                          <div style={{ fontSize: 11.5, color: C.muted, marginTop: 4 }}>Deducted from outlet stock. Record added to transactions.</div>
+                        </div>
+
+                        {dispenseSuccessDetail && (
+                          <div style={{ background: C.cream, border: `1px dashed ${C.border}`, borderRadius: 10, padding: 12, fontSize: 11.5, textAlign: "left" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                              <span style={{ color: C.muted }}>Receipt ID:</span>
+                              <strong style={{ fontFamily: "monospace" }}>{dispenseSuccessDetail.id}</strong>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                              <span style={{ color: C.muted }}>Farmer Name:</span>
+                              <strong>{dispenseSuccessDetail.farmerName}</strong>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                              <span style={{ color: C.muted }}>Item:</span>
+                              <strong>{dispenseSuccessDetail.itemName}</strong>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                              <span style={{ color: C.muted }}>Qty:</span>
+                              <strong>{dispenseSuccessDetail.quantity} {dispenseSuccessDetail.unit}</strong>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                              <span style={{ color: C.muted }}>Total Amount:</span>
+                              <strong style={{ color: C.green }}>₹{dispenseSuccessDetail.totalCost.toLocaleString()}</strong>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ color: C.muted }}>Payment Mode:</span>
+                              <span style={{ fontSize: 10, background: "#EBF5FB", color: C.blue, padding: "1px 6px", borderRadius: 4, fontWeight: 700 }}>{dispenseSuccessDetail.paymentMode}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 6 }}>
+                          <button
+                            onClick={() => {
+                              alert("SMS alert triggered: 'Dear farmer, ₹" + dispenseSuccessDetail?.totalCost?.toLocaleString() + " has been debited under FPO KCC sub-limit for " + dispenseSuccessDetail?.quantity + " " + dispenseSuccessDetail?.unit + " of " + dispenseSuccessDetail?.itemName + ".'");
+                            }}
+                            style={{ padding: "6px 12px", background: "#fff", border: `1.5px solid ${C.border}`, color: C.charcoal, borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                          >
+                            💬 Send Receipt SMS
+                          </button>
+                          <Btn variant="primary" small onClick={() => setDispenseSuccess(false)}>
+                            Dispense Another Item
+                          </Btn>
+                        </div>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleDispenseSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div>
+                          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Select Farmer Champion *</label>
+                          <select
+                            value={dispenseForm.farmerId}
+                            onChange={e => setDispenseForm(prev => ({ ...prev, farmerId: e.target.value }))}
+                            required
+                            style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.border}`, outline: "none", fontSize: 13, background: "#fff" }}
+                          >
+                            <option value="">-- Choose Onboarded Farmer --</option>
+                            {farmers.map(f => (
+                              <option key={f.id} value={f.id}>{f.name} ({f.village}, {f.district})</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Select Input Stock Item *</label>
+                          <select
+                            value={dispenseForm.itemId}
+                            onChange={e => setDispenseForm(prev => ({ ...prev, itemId: e.target.value }))}
+                            required
+                            style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.border}`, outline: "none", fontSize: 13, background: "#fff" }}
+                          >
+                            <option value="">-- Choose Inventory Item --</option>
+                            {["Seed", "Fertilizer", "Bio-Inputs", "Crop Protection", "Farm Tools"].map(cat => {
+                              const items = seedInventory.filter(item => item.category === cat);
+                              if (items.length === 0) return null;
+                              return (
+                                <optgroup key={cat} label={cat === "Seed" ? "🌾 Crop Seeds (148+ Crops)" : cat === "Fertilizer" ? "🧪 Fertilizers & Nutrients" : cat === "Bio-Inputs" ? "🌱 Bio-Inputs" : cat === "Crop Protection" ? "🛡️ Crop Protection" : "⚙️ Farm Tools & Equipment"}>
+                                  {items.map(item => (
+                                    <option key={item.id} value={item.id}>
+                                      {item.name} (Stock: {item.stock} {item.unit} · ₹{item.pricePerUnit.toLocaleString()}/{item.unit})
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Quantity to Dispense *</label>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input
+                              type="number"
+                              step="any"
+                              min="0.1"
+                              value={dispenseForm.quantity}
+                              onChange={e => setDispenseForm(prev => ({ ...prev, quantity: e.target.value }))}
+                              required
+                              placeholder="e.g. 5"
+                              style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.border}`, outline: "none", fontSize: 13 }}
+                            />
+                            <span style={{ fontSize: 12, fontWeight: 700, color: C.muted }}>
+                              {seedInventory.find(item => item.id === dispenseForm.itemId)?.unit || "-"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Payment / Credit Mode *</label>
+                          <select
+                            value={dispenseForm.paymentMode}
+                            onChange={e => setDispenseForm(prev => ({ ...prev, paymentMode: e.target.value }))}
+                            required
+                            style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.border}`, outline: "none", fontSize: 13, background: "#fff" }}
+                          >
+                            <option value="KCC Credit Limit">KCC Agri Bank Credit Limit</option>
+                            <option value="FPO Wallet Subsidy">FPO Unified Wallet (Subsidy-offset)</option>
+                            <option value="Direct Cash Settlement">Direct Cash Settlement (Spot)</option>
+                          </select>
+                        </div>
+
+                        <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginTop: 6 }}>
+                          <Btn variant="maroon" type="submit" disabled={!dispenseForm.farmerId || !dispenseForm.itemId || !dispenseForm.quantity}>
+                            Record Allocation & Process Invoice
+                          </Btn>
+                        </div>
+                      </form>
+                    )}
+                  </Card>
+
+                  {/* Dynamic calculation live helper card */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <Card style={{ padding: 16 }}>
+                      <h4 style={{ margin: 0, fontWeight: 700, fontSize: 13, color: C.charcoal, borderBottom: `1px solid ${C.border}`, paddingBottom: 8, marginBottom: 12 }}>🧾 Live Billing Summary</h4>
+                      
+                      {(() => {
+                        const selectedItem = seedInventory.find(item => item.id === dispenseForm.itemId);
+                        const selectedFarmer = farmers.find(f => f.id === dispenseForm.farmerId);
+                        const qtyVal = parseFloat(dispenseForm.quantity);
+                        const hasQty = !isNaN(qtyVal) && qtyVal > 0;
+
+                        if (!selectedItem) {
+                          return (
+                            <div style={{ fontSize: 12.5, color: C.muted, fontStyle: "italic", textAlign: "center", padding: "20px 0" }}>
+                              Select an input stock item to view live billing calculations.
+                            </div>
+                          );
+                        }
+
+                        const totalCost = hasQty ? Math.round(selectedItem.pricePerUnit * qtyVal) : 0;
+                        const outOfStock = hasQty && selectedItem.stock < qtyVal;
+
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontSize: 12, color: C.muted }}>Stock Item:</span>
+                              <strong style={{ fontSize: 12.5, color: C.charcoal }}>{selectedItem.name}</strong>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontSize: 12, color: C.muted }}>Unit Price:</span>
+                              <span style={{ fontFamily: "monospace", fontSize: 12.5, color: C.charcoal }}>₹{selectedItem.pricePerUnit.toLocaleString()} / {selectedItem.unit}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontSize: 12, color: C.muted }}>Current Outlet Stock:</span>
+                              <span style={{ fontFamily: "monospace", fontSize: 12.5, color: outOfStock ? C.red : C.green, fontWeight: 700 }}>{selectedItem.stock} {selectedItem.unit}</span>
+                            </div>
+                            
+                            {selectedFarmer && (
+                              <div style={{ borderTop: `1px dashed ${C.border}`, borderBottom: `1px dashed ${C.border}`, padding: "8px 0", margin: "4px 0" }}>
+                                <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>Farmer Account:</div>
+                                <strong style={{ fontSize: 12.5, color: C.maroon }}>{selectedFarmer.name}</strong>
+                                <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{selectedFarmer.land} ha land • {selectedFarmer.economicProfile}</div>
+                              </div>
+                            )}
+
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: C.charcoal }}>Estimated Bill:</span>
+                              <strong style={{ fontFamily: "monospace", fontSize: 18, color: outOfStock ? C.red : C.green }}>₹{totalCost.toLocaleString()}</strong>
+                            </div>
+
+                            {outOfStock && (
+                              <div style={{ background: "#FDF0ED", border: `1px solid ${C.red}22`, borderRadius: 8, padding: "8px 10px", fontSize: 11, color: C.red, fontWeight: 600, marginTop: 4 }}>
+                                ⚠️ Error: Insufficient stock. Dispensation requested exceeds the current outlet inventory. Click 'Refill stock' in the Outlet tab to increase levels.
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </Card>
+                  </div>
+                </div>
+              )}
+
+              {/* DISPENSATION LEDGER HISTORIES SUBVIEW */}
+              {seedSubTab === "logs" && (
+                <Card style={{ padding: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13.5 }}>📜 SUPPLY DISPENSATION LEDGER LOGS</div>
+                    <span style={{ fontSize: 11, color: C.muted }}>Showing local FPO outlet supply tracks</span>
+                  </div>
+
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: C.cream, borderBottom: `1.5px solid ${C.border}` }}>
+                          <th style={{ padding: "8px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Date</th>
+                          <th style={{ padding: "8px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Receipt ID</th>
+                          <th style={{ padding: "8px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Farmer Name</th>
+                          <th style={{ padding: "8px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Item Allocated</th>
+                          <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Quantity</th>
+                          <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Charged Value</th>
+                          <th style={{ padding: "8px", textAlign: "right", color: C.muted, fontWeight: 700, fontSize: 10.5 }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dispenseLogs.map(log => (
+                          <tr key={log.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                            <td style={{ padding: "9px 8px", color: C.muted }}>{log.date}</td>
+                            <td style={{ padding: "9px 8px", fontFamily: "monospace", fontWeight: 600 }}>{log.id}</td>
+                            <td style={{ padding: "9px 8px", fontWeight: 700, color: C.charcoal }}>{log.farmerName}</td>
+                            <td style={{ padding: "9px 8px", color: C.charcoal }}>{log.itemName}</td>
+                            <td style={{ padding: "9px 8px", textAlign: "right", fontFamily: "monospace", fontWeight: 600 }}>{log.quantity} {log.unit}</td>
+                            <td style={{ padding: "9px 8px", textAlign: "right", fontFamily: "monospace", color: C.green, fontWeight: 700 }}>₹{log.totalCost.toLocaleString()}</td>
+                            <td style={{ padding: "9px 8px", textAlign: "right" }}>
+                              <Badge color="green">{log.status}</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
+            </div>
+          );
+        })()}
 
         {/* 4. FARMER NETWORK PAGE VIEWPORT */}
         {activeSection === "farmers" && (
@@ -2658,18 +3705,1205 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
 
         {/* 6. SQUIRE OUTLETS PAGE VIEWPORT */}
         {activeSection === "outlets" && (
-          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 24 }}>
-            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Squire Shared Logistics Infrastructure</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18, fontSize: 13 }}>
-              { [["Machinery Custom Hiring Bay", "2 of 2 deployed"], ["Cold Storage Occupancy matrix", "64% utilized occupancy"], ["Daily Outlet Active Footfall register", "37 champions registered today"]].map(([l, v]) => (
-                <div key={l} style={{ padding: "10px 0", borderBottom: "1px dashed #E8DFD2" }}>
-                  <div style={{ fontSize: 12, color: "#8A7C6C", marginBottom: 4 }}>{l}</div>
-                  <strong style={{ fontFamily: "monospace", fontSize: 15 }}>{v}</strong>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            
+            {/* Outlets Overview Stats Dashboard */}
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 14 }}>
+              <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 24 }}>🚜</span>
+                <div>
+                  <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase", fontWeight: 700 }}>Hiring Fleet Status</div>
+                  <strong style={{ fontSize: 15, color: C.charcoal }}>{EQUIPMENT_LIST.filter(e => e.available).length} of {EQUIPMENT_LIST.length} Available</strong>
                 </div>
-              )) }
+              </div>
+              <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 24 }}>❄️</span>
+                <div>
+                  <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase", fontWeight: 700 }}>Cold Vault Capacity</div>
+                  <strong style={{ fontSize: 15, color: C.charcoal }}>
+                    {Math.round((coldStorageDeposits.reduce((acc, curr) => acc + parseInt(curr.bags || 0), 0) / 1000) * 100)}% Utilized
+                  </strong>
+                </div>
+              </div>
+              <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 24 }}>👣</span>
+                <div>
+                  <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase", fontWeight: 700 }}>Intake Walk-Ins (Today)</div>
+                  <strong style={{ fontSize: 15, color: C.charcoal }}>{visitorLogs.length} Registered</strong>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: isMobile ? 16 : 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 18, color: C.charcoal, margin: 0 }}>Squire Shared Logistics Infrastructure</h3>
+                  <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>Manage machinery hiring bay, cold storage deposits, and daily walk-in services.</div>
+                </div>
+              </div>
+
+              {/* Tab Selector Buttons */}
+              <div style={{ display: "flex", borderBottom: `2px solid ${C.border}`, marginBottom: 20, overflowX: "auto", gap: 4 }}>
+                {[
+                  { id: "machinery", label: "🚜 Custom Hiring Bay" },
+                  { id: "coldstorage", label: "❄️ Cold Storage Vault" },
+                  { id: "footfall", label: "👣 Visitor Registry" }
+                ].map(tab => {
+                  const isActive = outletsSubTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => { setOutletsSubTab(tab.id); setDepositSuccess(false); }}
+                      style={{
+                        padding: "10px 16px", background: "none", border: "none", cursor: "pointer",
+                        fontWeight: isActive ? 700 : 500,
+                        color: isActive ? C.maroon : C.muted,
+                        borderBottom: isActive ? `2.5px solid ${C.maroon}` : "2.5px solid transparent",
+                        marginBottom: -2, fontSize: 13, whiteSpace: "nowrap", transition: "all 0.15s ease"
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* TAB CONTENT: MACHINERY CUSTOM HIRING BAY */}
+              {outletsSubTab === "machinery" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                  <div style={{ background: "#EEF6F0", border: `1px solid ${C.green}33`, borderRadius: 10, padding: 12, fontSize: 12.5, color: C.green }}>
+                    <strong>🚜 Cooperative Machinery Sharing Model:</strong> Rent digital-NPK field test kits, heavy-tillage rotavators, and laser land-levelers. Subsidized rental prices are offset by your FPO membership.
+                  </div>
+
+                  {/* Machinery Booking Sub-form */}
+                  {selectedMachine && (
+                    <div style={{ background: C.cream, border: `1.5px solid ${C.gold}`, borderRadius: 12, padding: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <div>
+                          <strong style={{ fontSize: 14, color: C.maroon }}>Book Machinery: {selectedMachine.icon} {selectedMachine.name}</strong>
+                          <div style={{ fontSize: 11, color: C.muted }}>Subsidized Rate: <strong>₹{selectedMachine.ratePerHour}/hr</strong></div>
+                        </div>
+                        <button onClick={() => setSelectedMachine(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.muted }}>✕</button>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 12, marginBottom: 12 }}>
+                        <div>
+                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Select Farmer *</label>
+                          <select
+                            value={machineForm.farmerId}
+                            onChange={e => setMachineForm(prev => ({ ...prev, farmerId: e.target.value }))}
+                            style={{ width: "100%", padding: "8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff" }}
+                          >
+                            <option value="">-- Choose Farmer --</option>
+                            {farmers.map(f => (
+                              <option key={f.id} value={f.id}>{f.name} ({f.village})</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Start Date *</label>
+                          <input
+                            type="date"
+                            value={machineForm.startDate}
+                            onChange={e => setMachineForm(prev => ({ ...prev, startDate: e.target.value }))}
+                            style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5 }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Duration (Hours) *</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={machineForm.hours}
+                            onChange={e => setMachineForm(prev => ({ ...prev, hours: e.target.value }))}
+                            placeholder="e.g. 6"
+                            style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5 }}
+                          />
+                        </div>
+                      </div>
+
+                      {machineForm.hours && parseInt(machineForm.hours) > 0 && (
+                        <div style={{ background: C.greenPale, border: `1px solid ${C.green}22`, borderRadius: 8, padding: "10px 12px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 12.5, color: C.green, fontWeight: 600 }}>Estimated Bill Calculation:</span>
+                          <strong style={{ fontSize: 14, color: C.green, fontFamily: "monospace" }}>₹{(parseInt(machineForm.hours) * selectedMachine.ratePerHour).toLocaleString()}</strong>
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        <button onClick={() => setSelectedMachine(null)} style={{ padding: "6px 12px", background: "#fff", border: `1.5px solid ${C.border}`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", color: C.charcoal }}>Cancel</button>
+                        <button
+                          disabled={!machineForm.farmerId || !machineForm.startDate || !machineForm.hours}
+                          onClick={() => {
+                            const sf = farmers.find(f => f.id === machineForm.farmerId);
+                            const hoursVal = parseInt(machineForm.hours);
+                            const cost = hoursVal * selectedMachine.ratePerHour;
+                            const today = new Date().toISOString().split("T")[0];
+                            
+                            onAddRental({
+                              id: "R" + Date.now(),
+                              farmerId: machineForm.farmerId,
+                              farmerName: sf ? sf.name : "Walk-in Farmer",
+                              equipment: selectedMachine.name,
+                              startDate: machineForm.startDate,
+                              endDate: machineForm.startDate, // simplified end date
+                              hours: hoursVal,
+                              ratePerHour: selectedMachine.ratePerHour,
+                              totalCost: cost,
+                              status: "Confirmed"
+                            });
+                            
+                            alert(`Success: Booking confirmed! Registered ${selectedMachine.name} for ${sf ? sf.name : "Farmer"} for ${hoursVal} hours.`);
+                            setSelectedMachine(null);
+                            setMachineForm({ farmerId: "", startDate: "", endDate: "", hours: "" });
+                          }}
+                          style={{ padding: "6px 14px", background: C.maroon, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: (!machineForm.farmerId || !machineForm.startDate || !machineForm.hours) ? 0.5 : 1 }}
+                        >
+                          Confirm & Transmit Booking
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Machinery Selection Fleet Grid */}
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Select Squire Equipment from Hub Fleet:</div>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 12 }}>
+                      {EQUIPMENT_LIST.map(eq => {
+                        const isAvailable = eq.available;
+                        return (
+                          <div
+                            key={eq.name}
+                            style={{
+                              background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: 12,
+                              display: "flex", flexDirection: "column", justifyContent: "space-between",
+                              opacity: isAvailable ? 1 : 0.7, transition: "transform 0.15s ease"
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                                <span style={{ fontSize: 20 }}>{eq.icon}</span>
+                                <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", padding: "2px 6px", borderRadius: 4, background: isAvailable ? "#DCEEE1" : "#FCE4E4", color: isAvailable ? "#2F6B45" : "#C0392B" }}>
+                                  {isAvailable ? "Available" : "In Use"}
+                                </span>
+                              </div>
+                              <div style={{ fontWeight: 700, fontSize: 12.5, color: C.charcoal, marginBottom: 2 }}>{eq.name}</div>
+                              <p style={{ fontSize: 11, color: C.muted, margin: 0, lineHeight: 1.3, height: 34, overflow: "hidden" }}>{eq.desc}</p>
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${C.border}`, paddingTop: 8, marginTop: 8 }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>₹{eq.ratePerHour}/hr</span>
+                              {isAvailable ? (
+                                <button
+                                  onClick={() => { setSelectedMachine(eq); }}
+                                  style={{ padding: "3px 8px", background: C.maroon, color: "#fff", border: "none", borderRadius: 4, fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
+                                >
+                                  Book ⚡
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: 10.5, color: C.muted, fontStyle: "italic" }}>Booked</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* rentals log */}
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10, display: "flex", justifyContent: "space-between" }}>
+                      <span>Active Hire Ledger Track:</span>
+                      <span style={{ color: C.maroon, fontSize: 11 }}>Connected to Central Database</span>
+                    </div>
+                    {rentals.length === 0 ? (
+                      <div style={{ background: C.cream, padding: 14, textAlign: "center", borderRadius: 8, fontSize: 12, color: C.muted }}>No active machinery hire records found.</div>
+                    ) : (
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                          <thead>
+                            <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
+                              <th style={{ padding: "8px", textAlign: "left", color: C.muted }}>Renting Farmer</th>
+                              <th style={{ padding: "8px", textAlign: "left", color: C.muted }}>Equipment Type</th>
+                              <th style={{ padding: "8px", textAlign: "left", color: C.muted }}>Start Date</th>
+                              <th style={{ padding: "8px", textAlign: "right", color: C.muted }}>Usage Hours</th>
+                              <th style={{ padding: "8px", textAlign: "right", color: C.muted }}>Rental Value</th>
+                              <th style={{ padding: "8px", textAlign: "right", color: C.muted }}>Booking Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rentals.map(r => (
+                              <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                                <td style={{ padding: "8px", fontWeight: 600, color: C.charcoal }}>{r.farmerName}</td>
+                                <td style={{ padding: "8px", color: C.charcoal }}>{r.equipment}</td>
+                                <td style={{ padding: "8px", color: C.muted }}>{r.startDate}</td>
+                                <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace" }}>{r.hours} hrs</td>
+                                <td style={{ padding: "8px", textAlign: "right", fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{r.totalCost.toLocaleString()}</td>
+                                <td style={{ padding: "8px", textAlign: "right" }}>
+                                  <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: r.status === "Completed" ? "#DCEEE1" : "#DCEAF2", color: r.status === "Completed" ? "#2F6B45" : "#3B6E91" }}>
+                                    {r.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB CONTENT: COLD STORAGE VAULT */}
+              {outletsSubTab === "coldstorage" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                  <div style={{ background: "#EBF5FB", border: `1px solid ${C.blue}33`, borderRadius: 10, padding: 12, fontSize: 12.5, color: C.blue }}>
+                    <strong>❄️ Squire Cold Storage Network:</strong> Prevent post-harvest distress sales. Store potatoes, pulses, and mustard seeds in climate-controlled lockers to capture late-season high pricing arbitrage.
+                  </div>
+
+                  {/* Chamber Occupancy Status Bar */}
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 12 }}>
+                    {[
+                      { name: "Chamber A: Potato & Tubers", temp: "3.8°C", humidity: "90%", occupied: 320, max: 400, color: C.maroon },
+                      { name: "Chamber B: Seed Stocks", temp: "4.2°C", humidity: "85%", occupied: 180, max: 300, color: C.green },
+                      { name: "Chamber C: Pulses & Spices", temp: "11.5°C", humidity: "65%", occupied: 220, max: 300, color: C.gold }
+                    ].map(ch => {
+                      const pct = Math.round((ch.occupied / ch.max) * 100);
+                      return (
+                        <div key={ch.name} style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
+                          <div style={{ fontWeight: 700, fontSize: 12.5, color: C.charcoal, marginBottom: 4 }}>{ch.name}</div>
+                          <div style={{ display: "flex", gap: 10, marginBottom: 10, fontSize: 11 }}>
+                            <span style={{ color: C.blue, background: "#EBF5FB", padding: "1px 6px", borderRadius: 4 }}>🌡️ {ch.temp}</span>
+                            <span style={{ color: C.soil, background: C.soilLight, padding: "1px 6px", borderRadius: 4 }}>💧 {ch.humidity} RH</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
+                            <span style={{ color: C.muted }}>Storage: <strong>{ch.occupied} bags</strong></span>
+                            <span style={{ color: C.muted }}>Max: {ch.max} bags</span>
+                          </div>
+                          <div style={{ height: 6, background: C.cream, borderRadius: 3, overflow: "hidden" }}>
+                            <div style={{ width: `${pct}%`, height: "100%", background: ch.color }} />
+                          </div>
+                          <div style={{ fontSize: 9.5, color: C.muted, marginTop: 4, textAlign: "right" }}>{pct}% Rack Capacity Occupied</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* New Deposit form and Tracker */}
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.2fr", gap: 18 }}>
+                    
+                    {/* Deposit Form */}
+                    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+                      <strong style={{ fontSize: 13.5, color: C.maroon, display: "block", marginBottom: 12 }}>📋 Deposit Perishables to Cold Vault</strong>
+                      
+                      {depositSuccess ? (
+                        <div style={{ textAlign: "center", padding: "12px 0" }}>
+                          <div style={{ width: 40, height: 40, background: C.green, color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, margin: "0 auto 10px" }}>✓</div>
+                          <strong style={{ fontSize: 13.5, color: C.charcoal }}>Deposit Registered Successfully</strong>
+                          <p style={{ fontSize: 11.5, color: C.muted, margin: "4px 0 12px" }}>Assigned Locker receipt under FPO storage guidelines.</p>
+                          
+                          {depositSuccessDetail && (
+                            <div style={{ background: C.cream, border: `1px dashed ${C.border}`, borderRadius: 8, padding: 10, fontSize: 11, textAlign: "left", marginBottom: 12 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ color: C.muted }}>Locker ID:</span>
+                                <strong style={{ fontFamily: "monospace" }}>{depositSuccessDetail.id}</strong>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ color: C.muted }}>Farmer:</span>
+                                <strong>{depositSuccessDetail.farmerName}</strong>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ color: C.muted }}>Crop:</span>
+                                <strong>{depositSuccessDetail.crop}</strong>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ color: C.muted }}>Quantity:</span>
+                                <strong>{depositSuccessDetail.bags} bags ({depositSuccessDetail.weight})</strong>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                <span style={{ color: C.muted }}>Locker Fee:</span>
+                                <strong style={{ color: C.green }}>₹{depositSuccessDetail.feePaid}</strong>
+                              </div>
+                            </div>
+                          )}
+                          <button onClick={() => setDepositSuccess(false)} style={{ padding: "5px 12px", background: C.maroon, color: "#fff", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Register Another Deposit</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div>
+                            <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Select Farmer *</label>
+                            <select
+                              value={coldStorageForm.farmerId}
+                              onChange={e => setColdStorageForm(prev => ({ ...prev, farmerId: e.target.value }))}
+                              style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff" }}
+                            >
+                              <option value="">-- Choose Depositor --</option>
+                              {farmers.map(f => (
+                                <option key={f.id} value={f.id}>{f.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Select Crop Commodity *</label>
+                            <select
+                              value={coldStorageForm.cropName}
+                              onChange={e => setColdStorageForm(prev => ({ ...prev, cropName: e.target.value }))}
+                              style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff" }}
+                            >
+                              <option value="Potatoes">🥔 Potatoes (Tubers Vault)</option>
+                              <option value="Mustard Seeds">🌾 Mustard Seeds (Oilseed Vault)</option>
+                              <option value="Chickpeas / Gram">🫘 Chickpeas / Gram (Pulses Vault)</option>
+                              <option value="Onions">🧅 Onions (Vegetable Coldroom)</option>
+                            </select>
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                            <div>
+                              <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Bags (50kg each) *</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={coldStorageForm.bags}
+                                onChange={e => setColdStorageForm(prev => ({ ...prev, bags: e.target.value }))}
+                                placeholder="e.g. 50"
+                                style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5 }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Months to Store *</label>
+                              <select
+                                value={coldStorageForm.duration}
+                                onChange={e => setColdStorageForm(prev => ({ ...prev, duration: e.target.value }))}
+                                style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff" }}
+                              >
+                                <option value="1">1 Month</option>
+                                <option value="2">2 Months</option>
+                                <option value="3">3 Months</option>
+                                <option value="4">4 Months</option>
+                                <option value="5">5 Months</option>
+                                <option value="6">6 Months</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {coldStorageForm.bags && parseInt(coldStorageForm.bags) > 0 && (
+                            <div style={{ background: "#F4FAF6", border: "1px dashed #2F6B4533", borderRadius: 8, padding: 8, fontSize: 11.5, color: C.charcoal }}>
+                              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                <span style={{ color: C.muted }}>Calculated Weight:</span>
+                                <strong>{(parseInt(coldStorageForm.bags) * 0.5).toFixed(1)} Qtl</strong>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                                <span style={{ color: C.muted }}>Standard Rental Rate:</span>
+                                <span>₹10 / bag / month</span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, borderTop: `1px solid ${C.border}`, paddingTop: 4, fontWeight: 700 }}>
+                                <span style={{ color: C.charcoal }}>Locker Storage Fee:</span>
+                                <span style={{ color: C.green }}>₹{(parseInt(coldStorageForm.bags) * parseInt(coldStorageForm.duration) * 10).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          <button
+                            disabled={!coldStorageForm.farmerId || !coldStorageForm.bags}
+                            onClick={() => {
+                              const sf = farmers.find(f => f.id === coldStorageForm.farmerId);
+                              const bCount = parseInt(coldStorageForm.bags);
+                              const mDuration = parseInt(coldStorageForm.duration);
+                              const totalFee = bCount * mDuration * 10;
+                              const weightQ = (bCount * 0.5).toFixed(1) + " Qtl";
+                              const today = new Date().toISOString().split("T")[0];
+                              
+                              const newDeposit = {
+                                id: "CS-" + Math.floor(103 + Math.random() * 90),
+                                farmerName: sf ? sf.name : "Farmer Depositor",
+                                crop: coldStorageForm.cropName,
+                                bags: bCount,
+                                weight: weightQ,
+                                temp: "4.0°C",
+                                date: today,
+                                duration: mDuration,
+                                feePaid: totalFee,
+                                status: "Active"
+                              };
+                              
+                              setColdStorageDeposits(prev => [...prev, newDeposit]);
+                              setDepositSuccessDetail(newDeposit);
+                              setDepositSuccess(true);
+                              setColdStorageForm({ farmerId: "", cropName: "Potatoes", bags: "", duration: "3" });
+                            }}
+                            style={{ padding: "8px", background: C.maroon, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", marginTop: 6, opacity: (!coldStorageForm.farmerId || !coldStorageForm.bags) ? 0.5 : 1 }}
+                          >
+                            Generate Storage Locker Receipt
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Deposit Ledger List */}
+                    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+                      <strong style={{ fontSize: 13.5, color: C.maroon, display: "block", marginBottom: 12 }}>❄️ Active Cold Storage Depositors</strong>
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
+                          <thead>
+                            <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
+                              <th style={{ padding: "6px", textAlign: "left", color: C.muted }}>Deposit ID</th>
+                              <th style={{ padding: "6px", textAlign: "left", color: C.muted }}>Farmer</th>
+                              <th style={{ padding: "6px", textAlign: "left", color: C.muted }}>Commodity</th>
+                              <th style={{ padding: "6px", textAlign: "right", color: C.muted }}>Bags</th>
+                              <th style={{ padding: "6px", textAlign: "right", color: C.muted }}>Duration</th>
+                              <th style={{ padding: "6px", textAlign: "right", color: C.muted }}>Locker Fee</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {coldStorageDeposits.map(dep => (
+                              <tr key={dep.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                                <td style={{ padding: "7px 6px", fontFamily: "monospace", fontWeight: 700 }}>{dep.id}</td>
+                                <td style={{ padding: "7px 6px", fontWeight: 600 }}>{dep.farmerName}</td>
+                                <td style={{ padding: "7px 6px" }}>{dep.crop}</td>
+                                <td style={{ padding: "7px 6px", textAlign: "right", fontWeight: 600 }}>{dep.bags} bags</td>
+                                <td style={{ padding: "7px 6px", textAlign: "right" }}>{dep.duration} mo</td>
+                                <td style={{ padding: "7px 6px", textAlign: "right", fontWeight: 700, color: C.green }}>₹{dep.feePaid.toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB CONTENT: DAILY VISITOR REGISTRY */}
+              {outletsSubTab === "footfall" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                  <div style={{ background: "#FEF3D0", border: `1px solid ${C.gold}33`, borderRadius: 10, padding: 12, fontSize: 12.5, color: C.soil }}>
+                    <strong>👣 Squire Daily Visitor Intake:</strong> Maintain dynamic logs of incoming FPO farmer walk-ins. Register seed collections, tillage hiring scheduling, or general agronomic advice queries.
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.2fr", gap: 18 }}>
+                    
+                    {/* Record New Visitor Form */}
+                    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+                      <strong style={{ fontSize: 13.5, color: C.maroon, display: "block", marginBottom: 12 }}>👣 Log New Farmer Visit</strong>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div>
+                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Farmer Name *</label>
+                          <input
+                            type="text"
+                            value={visitorForm.name}
+                            onChange={e => setVisitorForm(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="e.g. Santosh Shinde"
+                            style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5 }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Purpose of Visit *</label>
+                          <select
+                            value={visitorForm.purpose}
+                            onChange={e => setVisitorForm(prev => ({ ...prev, purpose: e.target.value }))}
+                            style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff" }}
+                          >
+                            <option value="Input Purchase">🌱 Input / Fertilizer Purchase</option>
+                            <option value="Machinery Rental">🚜 Machinery Rental Enquiry</option>
+                            <option value="Soil Advice">🧠 Soil Testing & Advisory</option>
+                            <option value="Cold Storage Deposit">❄️ Cold Storage Deposit</option>
+                            <option value="General Query">💬 General FPO Inquiry</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Visit Description / Notes</label>
+                          <textarea
+                            value={visitorForm.notes}
+                            onChange={e => setVisitorForm(prev => ({ ...prev, notes: e.target.value }))}
+                            placeholder="Specify details, e.g. Collected 2 bags of urea; asked about tractor slots"
+                            style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12, height: 60, fontFamily: "sans-serif", resize: "none" }}
+                          />
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          <div>
+                            <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Officer in Charge</label>
+                            <select
+                              value={visitorForm.officer}
+                              onChange={e => setVisitorForm(prev => ({ ...prev, officer: e.target.value }))}
+                              style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff" }}
+                            >
+                              <option value="Harshit V">Harshit V.</option>
+                              <option value="Vimal S">Vimal S.</option>
+                              <option value="Squire Digital Assistant">Squire AI</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Status</label>
+                            <select
+                              value={visitorForm.status}
+                              onChange={e => setVisitorForm(prev => ({ ...prev, status: e.target.value }))}
+                              style={{ width: "100%", padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff" }}
+                            >
+                              <option value="Resolved">Resolved</option>
+                              <option value="Pending">Pending Action</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <button
+                          disabled={!visitorForm.name}
+                          onClick={() => {
+                            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            const newV = {
+                              id: "REG-" + Math.floor(304 + Math.random() * 100),
+                              name: visitorForm.name,
+                              time: timeStr,
+                              purpose: visitorForm.purpose,
+                              officer: visitorForm.officer || "Harshit V",
+                              notes: visitorForm.notes || "No additional comments",
+                              status: visitorForm.status
+                            };
+                            setVisitorLogs(prev => [newV, ...prev]);
+                            setVisitorForm({ name: "", purpose: "Input Purchase", notes: "", status: "Resolved" });
+                          }}
+                          style={{ padding: "8px", background: C.maroon, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer", marginTop: 6, opacity: !visitorForm.name ? 0.5 : 1 }}
+                        >
+                          Record Walk-In Visitor
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Daily Walk-In Log Timeline list */}
+                    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+                      <strong style={{ fontSize: 13.5, color: C.maroon, display: "block", marginBottom: 12 }}>👣 Daily Intake Walk-In Registry</strong>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {visitorLogs.map(v => {
+                          const isPending = v.status === "Pending";
+                          return (
+                            <div key={v.id} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: 10, background: isPending ? "#FDF8F0" : "#fff" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span style={{ fontSize: 11, color: C.muted }}>Time: {v.time} • Receipt ID: <strong>{v.id}</strong></span>
+                                <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 9.5, fontWeight: 700, background: isPending ? "#FEF3D0" : "#DCEEE1", color: isPending ? "#8A5A12" : "#2F6B45" }}>
+                                  {v.status}
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                                <div>
+                                  <strong style={{ fontSize: 13, color: C.charcoal }}>{v.name}</strong>
+                                  <span style={{ fontSize: 11, color: C.maroon, marginLeft: 8, fontWeight: 600 }}>({v.purpose})</span>
+                                </div>
+                                {isPending && (
+                                  <button
+                                    onClick={() => {
+                                      setVisitorLogs(prev => prev.map(item => item.id === v.id ? { ...item, status: "Resolved" } : item));
+                                    }}
+                                    style={{ padding: "2px 6px", border: "none", background: C.green, color: "#fff", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer" }}
+                                  >
+                                    Resolve ✓
+                                  </button>
+                                )}
+                              </div>
+                              <p style={{ fontSize: 11, color: C.muted, margin: "6px 0 0", fontStyle: "italic" }}>Notes: {v.notes}</p>
+                              <div style={{ fontSize: 9.5, color: C.muted, marginTop: 4, textAlign: "right" }}>Officer: {v.officer}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
+
+        {/* 7. SALES & GROWTH TERMINAL VIEWPORT */}
+        {activeSection === "sales" && (() => {
+          // Dynamic aggregate revenue from local state
+          const totalRevenue = salesLedger.reduce((sum, item) => sum + item.amount, 0);
+          const totalTxCount = salesLedger.length;
+          const avgTicket = totalTxCount > 0 ? Math.round(totalRevenue / totalTxCount) : 0;
+
+          // Category distribution math
+          const categoriesList = ["Seed", "Fertilizer", "Bio-Inputs", "Crop Protection", "Farm Tools"];
+          const categorySums = categoriesList.reduce((acc, cat) => {
+            acc[cat] = salesLedger.filter(item => item.category === cat).reduce((sum, item) => sum + item.amount, 0);
+            return acc;
+          }, {});
+          const totalCategoryRevenue = Object.values(categorySums).reduce((a, b) => a + b, 0) || 1;
+
+          // 30-Day Revenue Trend Line Chart calculations
+          const dates = MOCK_DAILY_SALES.dates;
+          const baseSales = MOCK_DAILY_SALES.totalSales;
+          const chartWidth = 640;
+          const chartHeight = 220;
+          const pad = { l: 56, r: 16, t: 25, b: 35 };
+          const w = chartWidth - pad.l - pad.r;
+          const h = chartHeight - pad.t - pad.b;
+          const maxV = Math.max(...baseSales) * 1.08;
+          const minV = Math.min(...baseSales) * 0.92;
+          const xFor = i => pad.l + (i / (dates.length - 1)) * w;
+          const yFor = v => pad.t + h - ((v - minV) / (maxV - minV)) * h;
+
+          const trendPath = baseSales.map((val, i) => `${i === 0 ? "M" : "L"}${xFor(i)},${yFor(val)}`).join(" ");
+          const trendArea = `${trendPath} L${xFor(dates.length - 1)},${yFor(minV)} L${xFor(0)},${yFor(minV)} Z`;
+
+          // Local state hook workaround inside self-executing functional component
+          // Since this is evaluated dynamically, we read selected point safely from window or local component state
+          // To make it fully stable without complex hook routing, we use a simple active index indicator
+          const [selectedIndex, setSelectedIndex] = useState(dates.length - 1);
+
+          // Filtering for the Sales Ledger
+          const filteredSalesLedger = salesLedger
+            .filter(item => {
+              if (salesFilterCategory !== "All" && item.category !== salesFilterCategory) return false;
+              if (salesFilterPayment !== "All" && item.paymentMode !== salesFilterPayment) return false;
+              if (salesSearch) {
+                const q = salesSearch.toLowerCase();
+                return item.farmerName.toLowerCase().includes(q) || item.itemName.toLowerCase().includes(q) || item.id.toLowerCase().includes(q);
+              }
+              return true;
+            })
+            .sort((a, b) => {
+              if (salesSort === "date-desc") return b.date.localeCompare(a.date) || b.id.localeCompare(a.id);
+              if (salesSort === "amount-desc") return b.amount - a.amount;
+              if (salesSort === "amount-asc") return a.amount - b.amount;
+              return 0;
+            });
+
+          // Pagination limits
+          const pageSize = 10;
+          const totalPages = Math.max(1, Math.ceil(filteredSalesLedger.length / pageSize));
+          const paginatedSales = filteredSalesLedger.slice((salesPage - 1) * pageSize, salesPage * pageSize);
+
+          const handleDirectSaleSubmit = (e) => {
+            e.preventDefault();
+            const { farmerId, itemId, quantity, paymentMode } = directSaleForm;
+            if (!farmerId || !itemId || !quantity) return;
+
+            const qtyVal = parseFloat(quantity);
+            if (isNaN(qtyVal) || qtyVal <= 0) return;
+
+            const selectedItem = seedInventory.find(item => item.id === itemId);
+            const selectedFarmer = farmers.find(f => f.id === farmerId);
+
+            if (!selectedItem || !selectedFarmer) return;
+
+            if (selectedItem.stock < qtyVal) {
+              alert(`Error: Requested quantity is larger than Squire Outlet's current stock (${selectedItem.stock} ${selectedItem.unit} remaining).`);
+              return;
+            }
+
+            const totalCost = Math.round(selectedItem.pricePerUnit * qtyVal);
+
+            // 1. Deduct Stock level
+            setSeedInventory(prev => prev.map(item => {
+              if (item.id === itemId) {
+                const newStock = Math.round((item.stock - qtyVal) * 10) / 10;
+                const low = newStock <= item.threshold;
+                const critical = newStock <= item.threshold / 2;
+                const status = critical ? "critical" : low ? "low" : "healthy";
+                return { ...item, stock: newStock, status };
+              }
+              return item;
+            }));
+
+            // 2. Add to Sales Ledger state
+            const newTxnId = "TXN-" + Date.now().toString().slice(-4);
+            const todayStr = new Date().toISOString().split("T")[0];
+            const newTxn = {
+              id: newTxnId,
+              date: todayStr,
+              farmerName: selectedFarmer.name,
+              itemName: selectedItem.name,
+              category: selectedItem.category,
+              quantity: qtyVal,
+              unit: selectedItem.unit,
+              amount: totalCost,
+              paymentMode,
+              status: "Completed"
+            };
+            setSalesLedger(prev => [newTxn, ...prev]);
+
+            // 3. Add to general transactions list for overview & mandi charts
+            const generalTxn = {
+              name: selectedFarmer.name,
+              crop: `${selectedItem.category}: ${selectedItem.name}`,
+              qty: `${qtyVal} ${selectedItem.unit}`,
+              price: `₹${totalCost.toLocaleString()}`,
+              mandi: "Squire POS",
+              status: "sold"
+            };
+            setTransactions(prev => [generalTxn, ...prev]);
+
+            // 4. Add to Dispensation Logs
+            const logId = "DL-" + Date.now().toString().slice(-4);
+            const newLog = {
+              id: logId,
+              farmerName: selectedFarmer.name,
+              itemName: selectedItem.name,
+              quantity: qtyVal,
+              unit: selectedItem.unit,
+              totalCost,
+              date: todayStr,
+              status: "Dispensed"
+            };
+            setDispenseLogs(prev => [newLog, ...prev]);
+
+            // Show Success Form state
+            setDirectSaleSuccessDetail(newTxn);
+            setDirectSaleSuccess(true);
+            setDirectSaleForm({ farmerId: "", itemId: "", quantity: "", paymentMode: "Direct Cash Settlement" });
+            setSalesPage(1); // Go back to first page to see the new item
+          };
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              
+              {/* Header card */}
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 22px" }}>
+                <h2 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 20, color: C.charcoal, margin: 0 }}>📊 Squire FPO Sales & Growth Terminal</h2>
+                <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>
+                  Monitor cumulative agricultural revenues, track sales velocity across 148+ crops, and invoice farmers directly.
+                </div>
+              </div>
+
+              {/* FPO Cumulative Metrics row */}
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14 }}>
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>FPO Gross Revenue</div>
+                  <strong style={{ fontSize: 21, color: C.green, display: "block", marginTop: 4, fontFamily: "monospace" }}>
+                    ₹{totalRevenue.toLocaleString()}
+                  </strong>
+                  <span style={{ fontSize: 11, color: C.green, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3, marginTop: 4 }}>
+                    ▲ 14.8% MoM growth
+                  </span>
+                </div>
+
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>Transactions Logged</div>
+                  <strong style={{ fontSize: 21, color: C.charcoal, display: "block", marginTop: 4, fontFamily: "monospace" }}>
+                    {totalTxCount}
+                  </strong>
+                  <span style={{ fontSize: 11, color: C.muted, display: "block", marginTop: 4 }}>
+                    Walk-ins & credit checks
+                  </span>
+                </div>
+
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>Average Order Ticket</div>
+                  <strong style={{ fontSize: 21, color: C.maroon, display: "block", marginTop: 4, fontFamily: "monospace" }}>
+                    ₹{avgTicket.toLocaleString()}
+                  </strong>
+                  <span style={{ fontSize: 11, color: C.muted, display: "block", marginTop: 4 }}>
+                    FPO member purchasing ticket
+                  </span>
+                </div>
+
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>Sales Growth Rate</div>
+                  <strong style={{ fontSize: 21, color: C.gold, display: "block", marginTop: 4, fontFamily: "monospace" }}>
+                    +18.4%
+                  </strong>
+                  <span style={{ fontSize: 11, color: C.green, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3, marginTop: 4 }}>
+                    ▲ Beats regional target
+                  </span>
+                </div>
+              </div>
+
+              {/* Graphical Analysis Dashboard */}
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.3fr 1fr", gap: 18 }}>
+                
+                {/* 30-Day Revenue Trend Line Chart */}
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <div>
+                      <strong style={{ fontSize: 13.5, color: C.charcoal, display: "block" }}>📈 30-Day Outlet Sales Trend</strong>
+                      <span style={{ fontSize: 11, color: C.muted }}>Interact with the dots to analyze individual daily outputs</span>
+                    </div>
+                    {selectedIndex !== null && (
+                      <div style={{ background: C.cream, border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 8px", fontSize: 11, textAlign: "right" }}>
+                        <span style={{ color: C.muted }}>{dates[selectedIndex]}:</span> <strong style={{ color: C.green }}>₹{baseSales[selectedIndex].toLocaleString()}</strong>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ position: "relative" }}>
+                    <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={{ width: "100%", height: "auto", display: "block" }}>
+                      {/* Grid Lines */}
+                      {[0, 1, 2, 3, 4].map(i => {
+                        const val = minV + ((maxV - minV) / 4) * i;
+                        const y = yFor(val);
+                        return (
+                          <g key={i}>
+                            <line x1={pad.l} y1={y} x2={chartWidth - pad.r} y2={y} stroke="#F0EAE1" strokeWidth={1} />
+                            <text x={pad.l - 8} y={y + 3} fontSize="9" fill={C.muted} textAnchor="end" fontFamily="monospace">
+                              ₹{Math.round(val / 1000)}K
+                            </text>
+                          </g>
+                        );
+                      })}
+
+                      {/* X-Axis Dates */}
+                      {[0, 7, 14, 21, 29].map(i => {
+                        if (i >= dates.length) return null;
+                        return (
+                          <text key={i} x={xFor(i)} y={chartHeight - pad.b + 18} fontSize="8.5" fill={C.muted} textAnchor="middle" fontFamily="sans-serif">
+                            {dates[i]}
+                          </text>
+                        );
+                      })}
+
+                      {/* Gradient Fill under path */}
+                      <path d={trendArea} fill={C.green} fillOpacity={0.06} stroke="none" />
+
+                      {/* Trend Line */}
+                      <path d={trendPath} fill="none" stroke={C.green} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+
+                      {/* Interactive dots */}
+                      {baseSales.map((val, i) => {
+                        const isSelected = selectedIndex === i;
+                        // Subsample for aesthetics on small viewports
+                        const showNode = isMobile ? (i % 3 === 0 || i === baseSales.length - 1) : true;
+                        if (!showNode) return null;
+
+                        return (
+                          <g key={i} style={{ cursor: "pointer" }} onClick={() => setSelectedIndex(i)}>
+                            <circle cx={xFor(i)} cy={yFor(val)} r={isSelected ? 6 : 4} fill={isSelected ? C.green : C.white} stroke={C.green} strokeWidth={1.5} />
+                            {isSelected && (
+                              <circle cx={xFor(i)} cy={yFor(val)} r={10} fill={C.green} fillOpacity={0.15} />
+                            )}
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Category Sales Share Bar Chart */}
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                  <div>
+                    <strong style={{ fontSize: 13.5, color: C.charcoal, display: "block", marginBottom: 2 }}>📦 Category Sales Distribution</strong>
+                    <span style={{ fontSize: 11, color: C.muted }}>Dynamic breakdown of FPO member sales</span>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14, flex: 1, justifyContent: "center" }}>
+                    {categoriesList.map(cat => {
+                      const value = categorySums[cat];
+                      const pct = Math.max(2, Math.round((value / totalCategoryRevenue) * 100));
+                      const barIcon = cat === "Seed" ? "🌾" : cat === "Fertilizer" ? "🧪" : cat === "Bio-Inputs" ? "🌱" : cat === "Crop Protection" ? "🛡️" : "⚙️";
+                      const barThemeColor = cat === "Seed" ? C.maroon : cat === "Fertilizer" ? C.blue : cat === "Bio-Inputs" ? C.green : cat === "Crop Protection" ? C.orange : C.gold;
+
+                      return (
+                        <div key={cat} style={{ fontSize: 12 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                            <span style={{ fontWeight: 600, color: C.charcoal }}>{barIcon} {cat}</span>
+                            <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.muted }}>
+                              ₹{value.toLocaleString()} <span style={{ fontSize: 10, color: barThemeColor, fontWeight: 800 }}>({pct}%)</span>
+                            </span>
+                          </div>
+                          <div style={{ height: 8, background: "#FAF6EF", borderRadius: 4, overflow: "hidden" }}>
+                            <div style={{ width: `${pct}%`, height: "100%", background: barThemeColor, borderRadius: 4 }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Point of Sale billing form and Live sales logs */}
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.1fr 1.5fr", gap: 18 }}>
+                
+                {/* Desk POS Cashier billing invoice form */}
+                <Card style={{ padding: 16 }}>
+                  <strong style={{ fontSize: 13.5, color: C.maroon, display: "block", marginBottom: 12 }}>🛒 FPO Billing Invoice Generator (POS)</strong>
+                  
+                  {directSaleSuccess ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "center", padding: "14px 10px" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: C.green, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, margin: "0 auto" }}>✓</div>
+                      <div>
+                        <strong style={{ fontSize: 14, color: C.charcoal }}>Invoice Processed Successfully</strong>
+                        <div style={{ fontSize: 11.5, color: C.muted, marginTop: 4 }}>Deducted from local outlet. Sales ledger updated.</div>
+                      </div>
+
+                      {directSaleSuccessDetail && (
+                        <div style={{ background: C.cream, border: `1px dashed ${C.border}`, borderRadius: 10, padding: 12, fontSize: 11.5, textAlign: "left", fontFamily: "sans-serif" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                            <span style={{ color: C.muted }}>Invoice ID:</span>
+                            <strong style={{ fontFamily: "monospace" }}>{directSaleSuccessDetail.id}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                            <span style={{ color: C.muted }}>Farmer Customer:</span>
+                            <strong>{directSaleSuccessDetail.farmerName}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                            <span style={{ color: C.muted }}>Item Sold:</span>
+                            <strong>{directSaleSuccessDetail.itemName}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                            <span style={{ color: C.muted }}>Amount Invoiced:</span>
+                            <strong style={{ color: C.green }}>₹{directSaleSuccessDetail.amount.toLocaleString()}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: C.muted }}>Settlement Mode:</span>
+                            <span style={{ fontSize: 9.5, background: "#EBF5FB", color: C.blue, padding: "1px 6px", borderRadius: 4, fontWeight: 700 }}>{directSaleSuccessDetail.paymentMode}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 6 }}>
+                        <button
+                          onClick={() => {
+                            alert(`FPO Invoice Receipt dispatched via SMS to member: 'Invoice ${directSaleSuccessDetail?.id} raised. Total ₹${directSaleSuccessDetail?.amount?.toLocaleString()} settled via ${directSaleSuccessDetail?.paymentMode}. Thank you for cooperative trading.'`);
+                          }}
+                          style={{ padding: "6px 12px", background: "#fff", border: `1.5px solid ${C.border}`, color: C.charcoal, borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                        >
+                          💬 Send Receipt SMS
+                        </button>
+                        <Btn variant="primary" small onClick={() => setDirectSaleSuccess(false)}>
+                          Generate Next Invoice
+                        </Btn>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleDirectSaleSubmit} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                      <div>
+                        <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Farmer Member *</label>
+                        <select
+                          value={directSaleForm.farmerId}
+                          onChange={e => setDirectSaleForm(prev => ({ ...prev, farmerId: e.target.value }))}
+                          required
+                          style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff", outline: "none" }}
+                        >
+                          <option value="">-- Choose Member Farmer --</option>
+                          {farmers.map(f => (
+                            <option key={f.id} value={f.id}>{f.name} ({f.village})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Product Item *</label>
+                        <select
+                          value={directSaleForm.itemId}
+                          onChange={e => setDirectSaleForm(prev => ({ ...prev, itemId: e.target.value }))}
+                          required
+                          style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff", outline: "none" }}
+                        >
+                          <option value="">-- Choose Agricultural Input --</option>
+                          {["Seed", "Fertilizer", "Bio-Inputs", "Crop Protection", "Farm Tools"].map(cat => {
+                            const items = seedInventory.filter(item => item.category === cat);
+                            if (items.length === 0) return null;
+                            return (
+                              <optgroup key={cat} label={cat === "Seed" ? "🌾 Crop Seeds (148 Crops)" : cat === "Fertilizer" ? "🧪 Fertilizers & Nutrients" : cat === "Bio-Inputs" ? "🌱 Bio-Inputs" : cat === "Crop Protection" ? "🛡️ Crop Protection" : "⚙️ Farm Tools & Equipment"}>
+                                {items.map(item => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.name} (Stock: {item.stock} {item.unit} · ₹{item.pricePerUnit}/{item.unit})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: 10 }}>
+                        <div>
+                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Quantity *</label>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <input
+                              type="number"
+                              step="any"
+                              min="0.1"
+                              value={directSaleForm.quantity}
+                              onChange={e => setDirectSaleForm(prev => ({ ...prev, quantity: e.target.value }))}
+                              required
+                              placeholder="e.g. 5"
+                              style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12.5, outline: "none" }}
+                            />
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, whiteSpace: "nowrap" }}>
+                              {seedInventory.find(item => item.id === directSaleForm.itemId)?.unit || "-"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 4 }}>Settlement *</label>
+                          <select
+                            value={directSaleForm.paymentMode}
+                            onChange={e => setDirectSaleForm(prev => ({ ...prev, paymentMode: e.target.value }))}
+                            required
+                            style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12.5, background: "#fff", outline: "none" }}
+                          >
+                            <option value="Direct Cash Settlement">Cash Settlement (Spot)</option>
+                            <option value="UPI / Online Transfer">UPI / Online Transfer</option>
+                            <option value="KCC Credit Limit">KCC Agri Bank Limit</option>
+                            <option value="FPO Wallet Subsidy">FPO Unified Wallet</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {directSaleForm.itemId && directSaleForm.quantity && (
+                        (() => {
+                          const item = seedInventory.find(i => i.id === directSaleForm.itemId);
+                          const qty = parseFloat(directSaleForm.quantity);
+                          if (!item || isNaN(qty) || qty <= 0) return null;
+                          const total = Math.round(item.pricePerUnit * qty);
+                          const isShort = item.stock < qty;
+
+                          return (
+                            <div style={{ background: isShort ? "#FDEDEC" : "#F4FAF6", border: `1px dashed ${isShort ? C.red : C.green}44`, borderRadius: 8, padding: 8, fontSize: 11, marginTop: 4 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                <span style={{ color: C.muted }}>Calculated Invoice value:</span>
+                                <strong style={{ color: isShort ? C.red : C.green }}>₹{total.toLocaleString()}</strong>
+                              </div>
+                              {isShort && (
+                                <div style={{ color: C.red, fontWeight: 600, marginTop: 4 }}>
+                                  ⚠️ Stock deficit! Outlet has only {item.stock} {item.unit} available.
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={!directSaleForm.farmerId || !directSaleForm.itemId || !directSaleForm.quantity || (seedInventory.find(i => i.id === directSaleForm.itemId)?.stock < parseFloat(directSaleForm.quantity))}
+                        style={{
+                          padding: "8px 12px", background: C.maroon, color: "#fff", border: "none", borderRadius: 8,
+                          fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.15s ease", marginTop: 4,
+                          opacity: (!directSaleForm.farmerId || !directSaleForm.itemId || !directSaleForm.quantity || (seedInventory.find(i => i.id === directSaleForm.itemId)?.stock < parseFloat(directSaleForm.quantity))) ? 0.5 : 1
+                        }}
+                      >
+                        Authorize Sale & Print Invoice
+                      </button>
+                    </form>
+                  )}
+                </Card>
+
+                {/* Searchable Transaction Ledger logs */}
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                    <strong>📜 Squire FPO Sales Ledger ({filteredSalesLedger.length})</strong>
+                    
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <select
+                        value={salesSort}
+                        onChange={e => { setSalesSort(e.target.value); setSalesPage(1); }}
+                        style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 10.5, outline: "none", background: "#fff", color: C.charcoal, cursor: "pointer" }}
+                      >
+                        <option value="date-desc">Newest First</option>
+                        <option value="amount-desc">Amount: High-to-Low</option>
+                        <option value="amount-asc">Amount: Low-to-High</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Subfilters bar */}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                    <div style={{ background: "#FAF6EF", border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 8px", display: "flex", alignItems: "center", gap: 4, flex: 1, minWidth: 140 }}>
+                      <span style={{ fontSize: 11 }}>🔍</span>
+                      <input
+                        type="text"
+                        value={salesSearch}
+                        onChange={e => { setSalesSearch(e.target.value); setSalesPage(1); }}
+                        placeholder="Search ledger..."
+                        style={{ border: "none", outline: "none", background: "transparent", fontSize: 11, width: "100%", color: C.charcoal }}
+                      />
+                    </div>
+
+                    <select
+                      value={salesFilterCategory}
+                      onChange={e => { setSalesFilterCategory(e.target.value); setSalesPage(1); }}
+                      style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 10.5, outline: "none", background: "#fff", color: C.charcoal, cursor: "pointer" }}
+                    >
+                      <option value="All">All Categories</option>
+                      {categoriesList.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+
+                    <select
+                      value={salesFilterPayment}
+                      onChange={e => { setSalesFilterPayment(e.target.value); setSalesPage(1); }}
+                      style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 10.5, outline: "none", background: "#fff", color: C.charcoal, cursor: "pointer" }}
+                    >
+                      <option value="All">All Payments</option>
+                      <option value="Direct Cash Settlement">Cash (Spot)</option>
+                      <option value="UPI / Online Transfer">UPI / Online</option>
+                      <option value="KCC Credit Limit">KCC Limit</option>
+                      <option value="FPO Wallet Subsidy">FPO Wallet</option>
+                    </select>
+                  </div>
+
+                  {/* Ledger Table */}
+                  <div style={{ overflowX: "auto", flex: 1 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                      <thead>
+                        <tr style={{ background: C.cream, borderBottom: `1px solid ${C.border}` }}>
+                          <th style={{ padding: "6px", textAlign: "left", color: C.muted }}>TXN ID</th>
+                          <th style={{ padding: "6px", textAlign: "left", color: C.muted }}>Date</th>
+                          <th style={{ padding: "6px", textAlign: "left", color: C.muted }}>Farmer</th>
+                          <th style={{ padding: "6px", textAlign: "left", color: C.muted }}>Product</th>
+                          <th style={{ padding: "6px", textAlign: "right", color: C.muted }}>Qty</th>
+                          <th style={{ padding: "6px", textAlign: "right", color: C.muted }}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedSales.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} style={{ padding: "20px 0", textAlign: "center", color: C.muted, fontStyle: "italic" }}>
+                              No transactions match the filter criteria.
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedSales.map(item => (
+                            <tr key={item.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                              <td style={{ padding: "7px 6px", fontFamily: "monospace", fontWeight: 700 }}>{item.id}</td>
+                              <td style={{ padding: "7px 6px", color: C.muted }}>{item.date}</td>
+                              <td style={{ padding: "7px 6px", fontWeight: 600 }}>{item.farmerName}</td>
+                              <td style={{ padding: "7px 6px" }}>
+                                <span style={{ fontSize: 9.5, color: C.muted, display: "block" }}>{item.category}</span>
+                                {item.itemName}
+                              </td>
+                              <td style={{ padding: "7px 6px", textAlign: "right", fontWeight: 600 }}>{item.quantity} {item.unit}</td>
+                              <td style={{ padding: "7px 6px", textAlign: "right", fontWeight: 700, color: C.green }}>₹{item.amount.toLocaleString()}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination control footer */}
+                  {totalPages > 1 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${C.border}`, paddingTop: 10, fontSize: 11 }}>
+                      <span style={{ color: C.muted }}>Page <strong>{salesPage}</strong> of <strong>{totalPages}</strong></span>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          disabled={salesPage === 1}
+                          onClick={() => setSalesPage(prev => Math.max(1, prev - 1))}
+                          style={{ padding: "3px 8px", background: "#fff", border: `1px solid ${C.border}`, borderRadius: 4, cursor: "pointer", opacity: salesPage === 1 ? 0.4 : 1, outline: "none" }}
+                        >
+                          ◀ Previous
+                        </button>
+                        <button
+                          disabled={salesPage === totalPages}
+                          onClick={() => setSalesPage(prev => Math.min(totalPages, prev + 1))}
+                          style={{ padding: "3px 8px", background: "#fff", border: `1px solid ${C.border}`, borderRadius: 4, cursor: "pointer", opacity: salesPage === totalPages ? 0.4 : 1, outline: "none" }}
+                        >
+                          Next ▶
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+            </div>
+          );
+        })()}
       </div>
   );
 }
@@ -3014,6 +5248,8 @@ function EconometricProjectionTerminal({ farmer, plan, actualSeason }) {
 
 // ─── MAIN APP SYSTEM CORE WRAPPER LAYOUT ─────────────────────────
 export default function App() {
+  const { width, isMobile } = useWindowSize();
+
   const [view, setView] = useState("dashboard"); 
   const [dashboardTab, setDashboardTab] = useState("overview"); // Handles main menu state changes cleanly
   const [farmers, setFarmers] = useState(INITIAL_FARMERS);
@@ -3021,7 +5257,16 @@ export default function App() {
   const [rentals, setRentals] = useState(INITIAL_RENTALS);
   
   // Sidebar persistent toggle state configuration matrix
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+
+  // Automatically adjust drawer when resizing or rotating screen
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    } else {
+      setSidebarOpen(true);
+    }
+  }, [isMobile]);
 
   const handleSaveFarmer = f => { setFarmers(prev => [...prev, f]); setView("dashboard"); setDashboardTab("farmers"); };
   const handleUpdateFarmer = u => { setFarmers(prev => prev.map(f => f.id === u.id ? u : f)); setSelected(u); };
@@ -3031,16 +5276,29 @@ export default function App() {
 
   const NAV_ITEMS = [
     { id: "overview", icon: "▦", label: "Dashboard" },
-    { id: "market", icon: "↗", label: "Mandi Sales" },
+    { id: "market", icon: "↗", label: "Mandi" },
     { id: "seed", icon: "🌱", label: "Seed & Inputs" },
     { id: "farmers", icon: "👥", label: "Farmer Network" },
     { id: "brain", icon: "🧠", label: "Digital Brain" },
-    { id: "outlets", icon: "🏪", label: "Squire Outlets" }
+    { id: "outlets", icon: "🏪", label: "Squire Outlets" },
+    { id: "sales", icon: "📊", label: "Sales & Growth" }
   ];
 
   return (
-    <div style={{ fontFamily: "'Inter',system-ui,sans-serif", background: C.cream, minHeight: "100vh", display: "flex" }}>
+    <div style={{ fontFamily: "'Inter',system-ui,sans-serif", background: C.cream, minHeight: "100vh", display: "flex", position: "relative" }}>
       
+      {/* Mobile Drawer Backdrop Overlay */}
+      {isMobile && sidebarOpen && (
+        <div 
+          onClick={() => setSidebarOpen(false)} 
+          style={{ 
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0, 
+            background: "rgba(0,0,0,0.5)", zIndex: 85,
+            transition: "opacity 0.22s ease-in-out"
+          }} 
+        />
+      )}
+
       {/* Global Application Navigation Sidebar Panel (Locked persistently across view transitions) */}
       <aside style={{ 
         width: sidebarOpen ? 248 : 0, 
@@ -3059,16 +5317,16 @@ export default function App() {
         </div>
         <nav style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 212 }}>
           {NAV_ITEMS.map(n => (
-            <button key={n.id} onClick={() => { setView("dashboard"); setDashboardTab(n.id); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: (view === "dashboard" && dashboardTab === n.id) ? "rgba(200,150,62,.16)" : "transparent", color: (view === "dashboard" && dashboardTab === n.id) ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
+            <button key={n.id} onClick={() => { setView("dashboard"); setDashboardTab(n.id); if (isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: (view === "dashboard" && dashboardTab === n.id) ? "rgba(200,150,62,.16)" : "transparent", color: (view === "dashboard" && dashboardTab === n.id) ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
               <span style={{ fontSize: 14 }}>{n.icon}</span>{n.label}
               {view === "dashboard" && dashboardTab === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
             </button>
           ))}
         </nav>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0", minWidth: 212 }}>
-          <button onClick={() => setView("onboard")} style={{ background: C.maroon, color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
-          <button onClick={() => setView("reports")} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
-          <button onClick={() => setView("machinery")} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
+          <button onClick={() => { setView("onboard"); if (isMobile) setSidebarOpen(false); }} style={{ background: C.maroon, color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
+          <button onClick={() => { setView("reports"); if (isMobile) setSidebarOpen(false); }} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
+          <button onClick={() => { setView("machinery"); if (isMobile) setSidebarOpen(false); }} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Machinery Hub</button>
         </div>
         <div style={{ marginTop: "auto", paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10, minWidth: 212 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#6B1E3B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#fff" }}>HV</div>
@@ -3077,7 +5335,7 @@ export default function App() {
       </aside>
 
       {/* Main Framework Layout Container Panel Workspace */}
-      <div style={{ flex: 1, marginLeft: sidebarOpen ? 248 : 0, transition: "margin-left 0.22s ease-in-out", display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div style={{ flex: 1, marginLeft: (sidebarOpen && !isMobile) ? 248 : 0, transition: "margin-left 0.22s ease-in-out", display: "flex", flexDirection: "column", minWidth: 0 }}>
         
         {/* Persistent Workspace Top Header Bar — Houses the Open/Close sidebar layout action cleanly */}
         <header style={{ height: 56, background: "#241509", padding: "0 24px", display: "flex", alignItems: "center", gap: 16, color: C.white, zIndex: 40, borderBottom: `1px solid ${C.border}` }}>
@@ -3088,25 +5346,25 @@ export default function App() {
           >
             ☰
           </button>
-          <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}>Squire System Pilot Control Dashboard</div>
+          <div style={{ fontSize: isMobile ? 12 : 14, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}>{isMobile ? "Squire Pilot Control" : "Squire System Pilot Control Dashboard"}</div>
         </header>
 
         {/* Render Engine Content Outlet */}
-        <main style={{ padding: "30px 38px 60px", width: "100%", boxSizing: "border-box" }}>
+        <main style={{ padding: isMobile ? "16px 16px 60px" : "30px 38px 60px", width: "100%", boxSizing: "border-box" }}>
           {view === "dashboard" && (
-            <Dashboard farmers={farmers} activeSection={dashboardTab} onSelect={handleSelectFarmer} onNew={() => setView("onboard")} onViewReports={() => setView("reports")} onViewMachinery={() => setView("machinery")} />
+            <Dashboard isMobile={isMobile} farmers={farmers} activeSection={dashboardTab} onSelect={handleSelectFarmer} onNew={() => setView("onboard")} onViewReports={() => setView("reports")} onViewMachinery={() => setView("machinery")} rentals={rentals} onAddRental={handleAddRental} />
           )}
           {view === "onboard" && (
-            <><div style={{ fontWeight: 800, fontSize: 20, color: C.charcoal, marginBottom: 20 }}>Onboard New Farmer Champion</div><OnboardForm onSave={handleSaveFarmer} onCancel={() => setView("dashboard")} /></>
+            <><div style={{ fontWeight: 800, fontSize: 20, color: C.charcoal, marginBottom: 20 }}>Onboard New Farmer Champion</div><OnboardForm isMobile={isMobile} onSave={handleSaveFarmer} onCancel={() => setView("dashboard")} /></>
           )}
           {view === "detail" && liveSelected && (
-            <FarmerDetail farmer={liveSelected} onBack={() => setView("dashboard")} onUpdateFarmer={handleUpdateFarmer} rentals={rentals} onAddRental={handleAddRental} />
+            <FarmerDetail isMobile={isMobile} farmer={liveSelected} onBack={() => setView("dashboard")} onUpdateFarmer={handleUpdateFarmer} rentals={rentals} onAddRental={handleAddRental} />
           )}
           {view === "reports" && (
-            <Reports farmers={farmers} rentals={rentals} onBack={() => setView("dashboard")} />
+            <Reports isMobile={isMobile} farmers={farmers} rentals={rentals} onBack={() => setView("dashboard")} />
           )}
           {view === "machinery" && (
-            <MachineryHub rentals={rentals} onBack={() => setView("dashboard")} onAddRental={handleAddRental} farmers={farmers} />
+            <MachineryHub isMobile={isMobile} rentals={rentals} onBack={() => setView("dashboard")} onAddRental={handleAddRental} farmers={farmers} />
           )}
         </main>
       </div>
