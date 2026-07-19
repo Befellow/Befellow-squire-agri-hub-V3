@@ -2073,65 +2073,16 @@ function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewRe
 
   useEffect(() => {
     if (activeSection === "market" && mandiCrop) {
-      let isCancelled = false;
       setAiLoading(true);
       setAiError(null);
-      setAiSpeculation(null);
-
-      const prompt = `You are the Squire Digital Brain. Analyze the commodity market outlook for the crop "${mandiCrop}" during the upcoming "${mandiSeason}" season for a farmer located in Fatehpur, Bundelkhand, Uttar Pradesh.
-
-Consider the following agricultural and macro-economic factors:
-1. Macro-Economics: Current food inflation at 5.4%, RBI repo rate (6.5%), KCC agri credits.
-2. Production Costs: Diesel price at ₹94.5/litre (affects tillage and irrigation pumping), rising DAP/Potash fertilizer index.
-3. Weather Outlook: Semi-arid Bundelkhand moisture patterns, temperature anomalies, monsoon progression.
-4. Supply-Demand dynamics for this crop across Indian terminal markets (Azadpur, Kanpur, Vashi).
-
-Write a highly expert, clinical, 3-paragraph market speculation and risk advisory report for the farmer:
-- Paragraph 1: Price Outlook & Driving Forces (How fuel, weather, and macro inflation are pushing or capping prices).
-- Paragraph 2: Risk and Volatility Assessment (Pest indices, weather spikes, moisture stress during critical growth stages).
-- Paragraph 3: Actionable Storage and Liquidation Strategy (Should they sell spot at harvest, store in Squire cold storage for 3-5 months to arbitrage off-season premiums, or forward contract with FPOs).
-
-Return ONLY a valid, raw JSON object matching this schema. Do not include markdown code fences, backticks, or any leading/trailing commentary. It must parse directly:
-{
-  "speculativeSummary": "Your expert 3-paragraph analysis here with double newlines (\\\\n\\\\n) separating paragraphs.",
-  "riskRating": "Low" | "Medium" | "High",
-  "recommendedAction": "e.g., Hold in Cold Storage for 90 days",
-  "confidenceScore": 85
-}`;
-
-      fetch("/api/gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error("Server error " + res.status);
-          return res.json();
-        })
-        .then((data) => {
-          if (isCancelled) return;
-          if (!data.text) throw new Error("Empty response from server");
-          
-          const jsonMatch = data.text.match(/\\{[\\s\\S]*\\}/);
-          if (!jsonMatch) throw new Error("No JSON found in response");
-          
-          const parsed = JSON.parse(jsonMatch[0]);
-          setAiSpeculation(parsed);
-          setAiLoading(false);
-        })
-        .catch((err) => {
-          if (isCancelled) return;
-          console.warn("Speculation API error (e.g. rate limits), activating offline expert model:", err);
-          const fallback = getFallbackSpeculation(mandiCrop, mandiSeason);
-          setAiSpeculation(fallback);
-          setAiLoading(false);
-        });
-
-      return () => {
-        isCancelled = true;
-      };
+      
+      // Instantly generate the local, offline fallback speculation report.
+      // This runs locally, consumes zero API credits, and executes instantaneously.
+      const fallback = getFallbackSpeculation(mandiCrop, mandiSeason);
+      setAiSpeculation(fallback);
+      setAiLoading(false);
     }
-  }, [mandiCrop, mandiSeason, activeSection, refetchTrigger]);
+  }, [mandiCrop, mandiSeason, activeSection]);
   
   // Isolated state configuration to control sidebar visibility transitions smoothly on the front page
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -2791,13 +2742,7 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
                       </div>
                       {aiSpeculation && aiSpeculation.isLocalModel && (
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 9.5, fontWeight: 700, color: C.gold, background: "#FFF9E6", border: `1px solid ${C.gold}44`, padding: "2px 6px", borderRadius: 4 }}>Offline Mode</span>
-                          <button
-                            onClick={() => setRefetchTrigger(prev => prev + 1)}
-                            style={{ background: "none", border: "none", color: C.blue, fontSize: 10.5, fontWeight: 700, textDecoration: "underline", cursor: "pointer", padding: 0 }}
-                          >
-                            Sync Live AI
-                          </button>
+                          <span style={{ fontSize: 9.5, fontWeight: 700, color: C.green, background: "#EEF6F0", border: `1px solid ${C.green}44`, padding: "2px 6px", borderRadius: 4 }}>Local Engine (Free)</span>
                         </div>
                       )}
                     </div>
