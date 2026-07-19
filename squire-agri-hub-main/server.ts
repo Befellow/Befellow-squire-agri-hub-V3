@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
-
-
+import { createServer as createViteServer } from "vite";
+import { GoogleGenAI } from "@google/genai";
 
 const app = express();
 const PORT = 3000;
@@ -15,11 +15,9 @@ app.get("/api/health", (req, res) => {
 });
 
 app.post("/api/gemini", async (req, res) => {
-  console.log("[API] Received request to /api/gemini");
   const API_KEY = process.env.GEMINI_API_KEY;
 
   if (!API_KEY) {
-    console.error("[API] GEMINI_API_KEY environment variable not set!");
     return res.status(500).json({
       error: "GEMINI_API_KEY environment variable not set. Please configure it in AI Studio settings.",
     });
@@ -27,59 +25,35 @@ app.post("/api/gemini", async (req, res) => {
 
   const { prompt } = req.body;
   if (!prompt) {
-    console.error("[API] No prompt provided in request body.");
     return res.status(400).json({ error: "No prompt provided in request body." });
   }
 
   try {
-    console.log("[API] Sending fetch request to Gemini API...");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${API_KEY}`;
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-    const optimizedPrompt =
-      prompt +
-      "\n\nIMPORTANT: Return ONLY a valid, clean raw JSON object string. Do not wrap it in markdown code blocks like ```json ... ```. Start directly with { and end with }.";
+    // Call the Antigravity Agent via Interactions API
+    const interaction = await ai.interactions.create({
+      agent: "antigravity-preview-05-2026",
+      input: prompt,
+      environment: "remote",
+    }, { timeout: 300000 });
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.warn("[API] Gemini API request timed out (15s), aborting...");
-      controller.abort();
-    }, 15000);
-
-    const geminiRes = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: optimizedPrompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 8192,
-        },
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    console.log("[API] Gemini API response status:", geminiRes.status);
-    const data = await geminiRes.json() as any;
-    console.log("[API] Parsed Gemini response JSON");
-
-    if (!geminiRes.ok) {
-      console.error("[API] Gemini API returned error:", data.error || data);
-      return res.status(geminiRes.status).json({
-        error: data.error?.message || JSON.stringify(data),
-      });
-    }
-
-    // Extract text from response
+    // Extract all output text parts from the model_output steps (agent may respond in multiple steps)
     let text = "";
-    const parts = data?.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      if (part.text) text += part.text;
+    if (interaction.steps) {
+      for (const step of interaction.steps) {
+        if (step.type === "model_output") {
+          const textContent = step.content?.find((c: any) => c.type === "text");
+          if (textContent && textContent.text) {
+            text += textContent.text;
+          }
+        }
+      }
     }
 
-    // Fallback extraction
-    if (!text && data?.candidates?.[0]?.content?.text) {
-      text = data.candidates[0].content.text;
+    // Fallback if no steps had text
+    if (!text) {
+      text = interaction.output_text || "";
     }
 
     // Strip markdown code fences if model added them
@@ -91,8 +65,8 @@ app.post("/api/gemini", async (req, res) => {
 
     if (!text) {
       return res.status(500).json({
-        error: "Empty response from Gemini",
-        diagnostic: JSON.stringify(data).slice(0, 500),
+        error: "Empty response from Antigravity Agent",
+        diagnostic: JSON.stringify(interaction).slice(0, 500),
       });
     }
 
@@ -106,8 +80,8 @@ app.post("/api/gemini", async (req, res) => {
 export default app;
 
 async function startServer() {
+  // Vite middleware for development
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
-    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

@@ -324,13 +324,27 @@ export const generateDailySalesHistory = () => {
     totalSales.push(seedVal + fertVal + protVal + otherVal);
   }
   
+  const transactionsList = [
+    { id: "TXN-9021", date: "2026-07-19", farmerName: "Ramesh Yadav", itemName: "Wheat (Wheat HD-3086 Seed)", category: "Seed", quantity: 4, unit: "Qtl", amount: 9800, paymentMode: "Direct Cash Settlement", status: "Completed" },
+    { id: "TXN-9020", date: "2026-07-19", farmerName: "Sita Devi", itemName: "IFFCO DAP (18:46:0)", category: "Fertilizer", quantity: 6, unit: "Bags", amount: 8100, paymentMode: "UPI / Online Transfer", status: "Completed" },
+    { id: "TXN-9019", date: "2026-07-18", farmerName: "Mohan Patel", itemName: "Cold-Pressed Pure Neem Oil (10000 ppm)", category: "Crop Protection", quantity: 2, unit: "Litre", amount: 840, paymentMode: "KCC Credit Limit", status: "Completed" },
+    { id: "TXN-9018", date: "2026-07-18", farmerName: "Ramesh Yadav", itemName: "Manual Knapsack Sprayer (16L)", category: "Farm Tools", quantity: 1, unit: "Units", amount: 1100, paymentMode: "Direct Cash Settlement", status: "Completed" },
+    { id: "TXN-9017", date: "2026-07-17", farmerName: "Sita Devi", itemName: "Bio-NPK Liquid Consortia", category: "Bio-Inputs", quantity: 5, unit: "Litre", amount: 1400, paymentMode: "Cooperative Wallet Subsidy", status: "Completed" },
+    { id: "TXN-9016", date: "2026-07-17", farmerName: "Mohan Patel", itemName: "Paddy (Pusa Basmati Seed)", category: "Seed", quantity: 8, unit: "Qtl", amount: 25600, paymentMode: "KCC Credit Limit", status: "Completed" },
+    { id: "TXN-9015", date: "2026-07-16", farmerName: "Ramesh Yadav", itemName: "IFFCO Urea (N 46%)", category: "Fertilizer", quantity: 10, unit: "Bags", amount: 2660, paymentMode: "Direct Cash Settlement", status: "Completed" },
+    { id: "TXN-9014", date: "2026-07-15", farmerName: "Sita Devi", itemName: "Tomato (Hybrid Seed)", category: "Seed", quantity: 2, unit: "kg", amount: 480, paymentMode: "UPI / Online Transfer", status: "Completed" },
+    { id: "TXN-9013", date: "2026-07-14", farmerName: "Mohan Patel", itemName: "Heavy Duty Tarpaulin Sheet (24x18 ft)", category: "Farm Tools", quantity: 2, unit: "Units", amount: 3300, paymentMode: "Direct Cash Settlement", status: "Completed" },
+    { id: "TXN-9012", date: "2026-07-14", farmerName: "Ramesh Yadav", itemName: "Trichoderma Viride Bio-fungicide", category: "Bio-Inputs", quantity: 3, unit: "kg", amount: 420, paymentMode: "Cooperative Wallet Subsidy", status: "Completed" }
+  ];
+
   return {
     dates,
     seedSales,
     fertilizerSales,
     protectionSales,
     otherSales,
-    totalSales
+    totalSales,
+    transactionsList
   };
 };
 
