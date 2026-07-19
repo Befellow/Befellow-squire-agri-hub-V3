@@ -2031,10 +2031,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
 >
 
               {/* BOX A — Village Cluster Snapshot */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex",
-flexDirection: "column",
-height: "100%",
-minHeight: 420 }}>
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", height: "100%", minHeight: 420 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>👥 Village Cluster Snapshot</div>
                 {Object.entries(farmers.reduce((acc, f) => { acc[f.village] = (acc[f.village] || 0) + 1; return acc; }, {})).slice(0, 4).map(([village, count]) => (
                   <div key={village} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
