@@ -2088,7 +2088,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
               </div>
 
               {/* BOX D — Recent Transactions */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display:"flex", flexDirection:"column", height:"100%", minHeight:420 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>🧾 Recent Transactions</div>
                 {TXN.slice(0, 4).map((r, i) => (
                   <div key={i} style={{ padding: "7px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 11.5 }}>
