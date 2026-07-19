@@ -1904,7 +1904,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
   const md = MANDI_DATA[mandiRange];
 
   const NAV = [
-    { id: "overview", icon: "▦", label: "Dashboard" }, // Synchronized navigation title layer
+    { id: "overview", icon: "▦", label: "Overview" },
     { id: "market", icon: "↗", label: "Market Sales" },
     { id: "seed", icon: "🌱", label: "Seed & Inputs" },
     { id: "farmers", icon: "👥", label: "Farmer Network" },
@@ -1934,7 +1934,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
   const filteredTxn = TXN.filter(r => !searchQ || Object.values(r).join(" ").toLowerCase().includes(searchQ.toLowerCase()));
   const filteredFarmers = farmers.filter(f => !searchQ || `${f.name} ${f.village} ${f.district} ${f.cropHistory}`.toLowerCase().includes(searchQ.toLowerCase()));
 
-  const scrollTo = (id) => { scrollTo(id); };
+  const scrollTo = (id) => { setActiveSection(id); };
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter',sans-serif" }}>
@@ -1946,7 +1946,7 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
         </div>
         <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {NAV.map(n => (
-            <button key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: activeSection === n.id ? "rgba(200,150,62,.16)" : "transparent", color: activeSection === n.id ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", pointerEvents: "none", textAlign: "left", position: "relative" }}>
+            <button key={n.id} onClick={() => scrollTo(n.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 9, background: activeSection === n.id ? "rgba(200,150,62,.16)" : "transparent", color: activeSection === n.id ? "#E8C77E" : "#C9B8A8", fontSize: 13.5, fontWeight: 500, border: "none", cursor: "pointer", textAlign: "left", position: "relative" }}>
               <span style={{ fontSize: 14 }}>{n.icon}</span>{n.label}
               {activeSection === n.id && <span style={{ position: "absolute", left: -18, top: "50%", transform: "translateY(-50%)", width: 3, height: 18, background: "#C8963E", borderRadius: "0 3px 3px 0" }} />}
             </button>
@@ -1976,15 +1976,13 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
           </div>
         </div>
 
-        {/* 1. DASHBOARD PAGE VIEWPORT */}
+        {/* 1. OVERVIEW PAGE VIEWPORT */}
         {activeSection === "overview" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-            
-            {/* Crop Season Timeline Progress Bar */}
             <div style={{ display: "flex", alignItems: "center", background: "#fff", border: "1px solid #E8DFD2", borderRadius: 12, padding: "14px 20px" }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#8A7C6C", letterSpacing: "0.05em", textTransform: "uppercase", marginRight: 18, whiteSpace: "nowrap" }}>Crop Season</div>
               <div style={{ flex: 1, display: "flex", gap: 6, paddingTop: 22 }}>
-                {[{ label: "Kharif • Jun–Oct", flex: 0.42, active: true }, { label: "Rabi • Oct–Mar", flex: 0.42, active: false }, { label: "Zaid • Mar–Jun", flex: 0.16, active: false }].map((seg, i) => (
+                {[{ label: "Kharif · Jun–Oct", flex: 0.42, active: true }, { label: "Rabi · Oct–Mar", flex: 0.42, active: false }, { label: "Zaid · Mar–Jun", flex: 0.16, active: false }].map((seg, i) => (
                   <div key={i} style={{ flex: seg.flex, height: 8, borderRadius: 5, background: seg.active ? "linear-gradient(90deg,#C8963E 0%,#4A7C59 100%)" : "#E8DFD2", position: "relative" }}>
                     <span style={{ position: "absolute", top: -18, left: 0, fontSize: 10.5, fontWeight: 600, color: seg.active ? "#6B1E3B" : "#8A7C6C", whiteSpace: "nowrap" }}>{seg.label}</span>
                     {seg.active && <div style={{ position: "absolute", top: -4, left: "6%", width: 14, height: 14, borderRadius: "50%", background: "#6B1E3B", border: "2.5px solid #fff", boxShadow: "0 0 0 2px #6B1E3B" }} />}
@@ -1992,125 +1990,17 @@ function Dashboard({ activeSection, farmers, onSelect, onNew, onViewReports, onV
                 ))}
               </div>
             </div>
-
-            {/* Live Warning Action Banner */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7E8C9", color: "#8A5A12", border: "1px solid #EBD49C", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: 500 }}>
-              <span>⚠️ <strong>2 seed varieties</strong> below reorder threshold • <strong>1 Mandi price alert</strong> needs optimization review</span>
+              ⚠️ <span><strong>2 seed varieties</strong> below reorder threshold · <strong>1 Mandi price alert</strong> needs review</span>
             </div>
-
-            {/* Primary Metric Summary Cards Row */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-              {[{ label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true }, { label: "Outlet Revenue • MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true }, { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true }, { label: "Seed Stock Health", value: "82%", delta: "⚠️ 2 items low", up: false }].map((k, i) => (
+              {[{ label: "Active Farmers", value: `${farmers.length + 309}`, delta: "▲ 18 this month", up: true }, { label: "Outlet Revenue · MTD", value: "₹4.82L", delta: "▲ 12% vs last month", up: true }, { label: "Soil Health Index", value: "68/100", delta: "▲ 6 pts vs baseline", up: true }, { label: "Seed Stock Health", value: "82%", delta: "⚠ 2 items low", up: false }].map((k, i) => (
                 <div key={i} style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: "18px 20px" }}>
                   <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8A7C6C", textTransform: "uppercase" }}>{k.label}</div>
                   <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 600, color: "#2B211B", marginTop: 2 }}>{k.value}</div>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11.5, fontWeight: 600, marginTop: 2, color: k.up ? "#2F6B45" : "#8A5A12" }}>{k.delta}</div>
                 </div>
               ))}
-            </div>
-
-            {/* Cohesive 4-Column Operations Grid Layout */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.1fr 1.4fr 1.2fr", gap: 16, alignItems: "stretch" }}>
-
-              {/* COLUMN 1 — Village Cluster Snapshot */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>👥 Village Cluster Snapshot</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {Object.entries(farmers.reduce((acc, f) => { acc[f.village] = (acc[f.village] || 0) + 1; return acc; }, {})).reduce((acc, [v, c]) => {
-                    acc.push(
-                      <div key={v} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
-                        <span style={{ color: "#2B211B" }}>{v}</span>
-                        <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.maroon }}>{c} farmer{c > 1 ? "s" : ""}</span>
-                      </div>
-                    );
-                    return acc;
-                  }, [])}
-                </div>
-              </div>
-
-              {/* COLUMN 2 — Live Mandi Ticker */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>📈 Live Mandi Ticker</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {Object.entries(md).filter(([k]) => k !== "labels").map(([crop, priceArr]) => (
-                    <div key={crop} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px dashed ${C.border}`, fontSize: 12.5 }}>
-                      <span style={{ textTransform: "capitalize", color: "#2B211B" }}>{crop}</span>
-                      <span style={{ fontFamily: "monospace", fontWeight: 700, color: C.green }}>₹{priceArr[priceArr.length - 1].toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* COLUMN 3 — ACTIONABLE ALERTS BOX (UNIFIED TO REMOVE EMPTY WHITEPAGES) */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-
-                {/* Sub-Card 1: Soil Stress Threshold Map */}
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flexShrink: 0 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>⚠️ Critical Soil Risk Tracker</div>
-                  {farmers.filter(f => f.soc < 0.4).slice(0, 2).map(f => {
-                    const d = calcDRS(f);
-                    return (
-                      <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", background: "#FDEDEC", borderRadius: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "#2B211B" }}>{f.name}</span>
-                        <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 12, color: C.red }}>DRS {d.drs}/100</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Sub-Card 2: Village Champion Log Ledger */}
-                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, flex: 1, display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>👤 Champion Activity Log</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 90, overflowY: "auto", flex: 1 }}>
-                    <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4, paddingBottom: 6, borderBottom: `1px dashed ${C.border}` }}>
-                      <strong style={{ color: C.maroon }}>[Cluster 4]</strong> Champion Sonkar initialized soil diagnostic test vectors for Farmer Devi in Mauranipur, Jhansi.
-                    </div>
-                    <div style={{ fontSize: 11.5, color: "#2B211B", lineHeight: 1.4 }}>
-                      <strong style={{ color: C.maroon }}>[Cluster 1]</strong> Live Onboarding: 12 smallholder registry slots logged this morning.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sub-Card 3: Present Week Model Weather Trigger Advisory */}
-                {(() => {
-                  const sampleFarmer = farmers[0] || INITIAL_FARMERS[0];
-                  const weatherArray = calcWeather(sampleFarmer);
-                  const currentMonthName = MONTHS[new Date().getMonth()]; 
-                  const activeWeather = weatherArray.find(m => m.month === currentMonthName) || weatherArray[6];
-                  
-                  return (
-                    <div style={{ background: "#FFFBF2", border: `1px solid ${C.gold}55`, borderRadius: 14, padding: 14, flexShrink: 0 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: C.soil, textTransform: "uppercase", letterSpacing: "0.05em" }}>🌦 Present Month Weather Call</span>
-                        <span style={{ fontSize: 10, background: "#FEF3D0", color: C.soil, padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>{activeWeather.month} 2026</span>
-                      </div>
-                      <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 4 }}>
-                        Calculated Matrix Lean: <strong>{activeWeather.wetWeeks}W / {activeWeather.dryWeeks}D</strong>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#2B211B", lineHeight: 1.5, fontWeight: 500 }}>
-                        <strong>Agronomic Directive:</strong> Hold nitrogen field top-dressing to prevent leaching losses on sandy loam boundaries today.
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* COLUMN 4 — Recent Transactions */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#8A7C6C", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>🧾 Recent Transactions</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {TXN.slice(0, 5).map((r, i) => (
-                    <div key={i} style={{ padding: "8px 0", borderBottom: i < 4 ? `1px dashed ${C.border}` : "none", fontSize: 11.5 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "#2B211B", fontWeight: 600 }}>{r.name}</span>
-                        <span style={{ fontFamily: "monospace", color: C.green, fontWeight: 700 }}>{r.price}</span>
-                      </div>
-                      <div style={{ color: "#8A7C6C", fontSize: 10.5 }}>{r.crop} · {r.qty}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
             </div>
           </div>
         )}
