@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { ALL_INVENTORY_ITEMS, MOCK_DAILY_SALES } from "./inventoryData";
 
 // Custom hook to detect mobile viewport width dynamically with media query fallback
@@ -765,6 +765,35 @@ function getMandiPricePerQtl(crop) {
   return (resolved ? MANDI_PER_KG[resolved] : 30.00) * 100;
 }
 
+// Typical crop yield projection in kg per acre
+function getProjectedYieldPerAcre(cropName) {
+  const norm = String(cropName).toLowerCase();
+  if (norm.includes("wheat")) return 1800;
+  if (norm.includes("berseem") || norm.includes("fodder")) return 12000;
+  if (norm.includes("gram") || norm.includes("chickpea") || norm.includes("lentil")) return 800;
+  if (norm.includes("dhaincha") || norm.includes("sesbania")) return 8000;
+  if (norm.includes("soybean")) return 1000;
+  if (norm.includes("potato")) return 8000;
+  if (norm.includes("mustard")) return 900;
+  if (norm.includes("paddy") || norm.includes("rice")) return 2200;
+  if (norm.includes("maize") || norm.includes("corn")) return 2400;
+  if (norm.includes("cowpea") || norm.includes("lobia")) return 1100;
+  if (norm.includes("pomegranate")) return 6000;
+  if (norm.includes("ginger")) return 5000;
+  if (norm.includes("dragon")) return 4000;
+  if (norm.includes("banana")) return 15000;
+  if (norm.includes("strawberry")) return 7000;
+  if (norm.includes("moringa")) return 4500;
+  if (norm.includes("garlic")) return 3500;
+  if (norm.includes("turmeric")) return 4500;
+  if (norm.includes("papaya")) return 12000;
+  if (norm.includes("capsicum")) return 9000;
+  if (norm.includes("mushroom")) return 3000;
+  if (norm.includes("sesame")) return 450;
+  if (norm.includes("groundnut")) return 1200;
+  return 1500; // default fallback
+}
+
 // Calibrated baseline yields (quintals/hectare) for Bundelkhand/Fatehpur clusters
 function getBaseYield(rawCrop) {
   const crop = resolveCropKey(rawCrop) || rawCrop; // align to the same resolved identity as price lookup
@@ -1194,11 +1223,21 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
   // ADD THIS LINE — Declares sub-routing state for the Economics Terminal toggle
   const [ecoSubTab, setEcoSubTab] = useState("terminal");
   
-  const [plan, setPlan] = useState(farmer.plan || null);
+  const [rawPlan, setRawPlan] = useState(farmer.plan || null);
 
   useEffect(() => {
-    setPlan(farmer.plan || null);
+    setRawPlan(farmer.plan || null);
   }, [farmer.id, farmer.plan]);
+
+  // Dynamic customization controls for strategic planning and optimization
+  const [horizon, setHorizon] = useState(5); // 1, 3, or 5 years
+  const [strategy, setStrategy] = useState("both"); // "profit", "soil", "both"
+  const [activeInputYear, setActiveInputYear] = useState(1); // 1, 2, 3, 5
+  
+  // Interactive parameters for tillage-to-spoon cost ledger
+  const [laborRate, setLaborRate] = useState(350); // ₹/day
+  const [tractorRate, setTractorRate] = useState(1000); // ₹/hour
+  const [transportDistance, setTransportDistance] = useState(15); // km
   
   const [loading, setLoading] = useState(false);  
   const [error, setError] = useState(null);
@@ -1207,13 +1246,880 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
 
   const farmerRentals=rentals.filter(r=>r.farmerId===farmer.id);
 
-  const inputItems=(plan?.inputShoppingList||[]).map(item=>{
+  // Computes customized multi-year crop plans and seasonal chemical-biological inputs dynamically
+  const adaptedPlan = useMemo(() => {
+    if (!rawPlan) return null;
+
+    // 1. Dynamic Score Adjustments based on Strategy
+    let soilHealthScore = rawPlan.soilHealthScore;
+    let planScore = rawPlan.planScore;
+    let degradationRisk = rawPlan.degradationRisk;
+    let profitabilityIndex = rawPlan.profitabilityIndex;
+
+    if (strategy === "soil") {
+      soilHealthScore = Math.min(100, rawPlan.soilHealthScore + 12);
+      planScore = Math.max(40, rawPlan.planScore - 8);
+      degradationRisk = "Very Low";
+      profitabilityIndex = "Soil Restorative Focus";
+    } else if (strategy === "profit") {
+      soilHealthScore = Math.max(30, rawPlan.soilHealthScore - 10);
+      planScore = Math.min(100, rawPlan.planScore + 14);
+      degradationRisk = "Moderate to High";
+      profitabilityIndex = "Premium High-Yield Cash Crop Focus";
+    } else {
+      soilHealthScore = rawPlan.soilHealthScore;
+      planScore = rawPlan.planScore;
+      degradationRisk = rawPlan.degradationRisk;
+      profitabilityIndex = rawPlan.profitabilityIndex;
+    }
+
+    // 2. Clinical Advisory Summary Customizations
+    let executiveSummary = rawPlan.executiveSummary;
+    const strategyPrefix = 
+      strategy === "soil"
+        ? `🧪 [STRATEGIC CONFIGURATION: SOIL BETTERMENT OPTIMIZED]\nThis customized blueprint prioritizes biological soil rehabilitation, organic carbon accumulation, and intensive nitrogen fixation over immediate cash capitalization. Recommended crops focus heavily on biomass producers, bio-inoculants, and pulse rotations, reducing chemical input dependencies by up to 45%.\n\n`
+        : strategy === "profit"
+        ? `💰 [STRATEGIC CONFIGURATION: MAX PROFITABILITY OPTIMIZED]\nThis customized blueprint is calibrated to maximize immediate cash realizations, high-yield crop vigor, and premium direct-to-retail or contract market arbitrage. Rotation patterns are optimized for cash-engine vegetables and high-index crops, with targeted macro-nutrient support.\n\n`
+        : `⚖️ [STRATEGIC CONFIGURATION: BALANCED RESTORATIVE MODE]\nThis blueprint maintains a balanced equilibrium. It implements a guaranteed staple floor crop for cash-flow safety, while dedicating 35% of land to biological pulse rotations to rebuild baseline soil health systematically over a ${horizon}-year horizon.\n\n`;
+    
+    executiveSummary = strategyPrefix + executiveSummary;
+
+    // 3. Dynamic Crop Alignments based on Water constraints and strategy
+    const constrainedWater = ["Rainfed only","Borewell (seasonal)"].includes(farmer.waterAvail);
+    
+    let floorCropName = rawPlan.partC?.floorCrop?.crop || "Wheat";
+    let legumeCropName = rawPlan.partC?.legumeCrop?.crop || "Green Gram";
+    let growthCropName = rawPlan.partC?.growthCrop?.crop || "Mustard";
+
+    if (strategy === "soil") {
+      floorCropName = constrainedWater ? "Chickpea" : "Berseem (Fodder)";
+      legumeCropName = "Sesbania (Dhaincha)";
+      growthCropName = constrainedWater ? "Arhar (Pigeon Pea)" : "Moringa";
+    } else if (strategy === "profit") {
+      floorCropName = constrainedWater ? "Mustard" : "Potato";
+      legumeCropName = "Soybean";
+      growthCropName = constrainedWater ? "Garlic" : "Cherry Tomato";
+    }
+
+    // 4. Custom Future Year rotation mix
+    let year3Crops = rawPlan.year3Target?.crops || [];
+    let year5Crops = rawPlan.year5Target?.crops || [];
+    if (strategy === "soil") {
+      year3Crops = ["Cowpea", "Sesbania (Dhaincha)", "Berseem"];
+      year5Crops = ["Moringa", "Alfalfa (Lucerne)", "Neem Agroforestry"];
+    } else if (strategy === "profit") {
+      year3Crops = ["Dragon Fruit", "Banana", "Garlic"];
+      year5Crops = ["Strawberry", "Coloured Capsicum", "Button Mushroom"];
+    } else {
+      if (!year3Crops.length) {
+        year3Crops = ["Soybean", "Wheat", "Summer Moong Pulse"];
+      }
+      if (!year5Crops.length) {
+        year5Crops = ["Pigeon Pea (Arhar) + Maize Intercrop", "Premium Wheat + Mustard Intercrop", "Summer Cowpea"];
+      }
+    }
+
+    // Resolve Year 1 Crops
+    const year1S1Crop = strategy === "both" 
+      ? (rawPlan.year1?.season1?.crop || "Paddy") 
+      : (strategy === "soil" ? "Sesbania (Dhaincha)" : (constrainedWater ? "Groundnut" : "Baby Corn"));
+
+    const year1S2Crop = strategy === "both" 
+      ? (rawPlan.year1?.season2?.crop || "Wheat") 
+      : (strategy === "soil" ? (constrainedWater ? "Chickpea" : "Berseem (Fodder)") : (constrainedWater ? "Mustard" : "Potato"));
+
+    const year1S3Crop = strategy === "profit" ? "Summer Sesame" : "Summer Moong (Green Gram)";
+
+    // Resolve Year 2 Crops
+    const year2S1Crop = strategy === "soil" ? "Sesbania (Dhaincha)" : strategy === "profit" ? "Pomegranate Agroforestry" : "Maize";
+    const year2S2Crop = strategy === "soil" ? "Lentil Pulse" : strategy === "profit" ? "Ginger Cash Crop" : "Mustard";
+    const year2S3Crop = "Summer Cowpea";
+
+    // Resolve Year 3 Crops
+    const year3S1Crop = year3Crops[0] || "Soybean";
+    const year3S2Crop = year3Crops[1] || "Wheat";
+    const year3S3Crop = year3Crops[2] || "Summer Moong Pulse";
+
+    // Resolve Year 5 Crops
+    const year5S1Crop = year5Crops[0] || "Pigeon Pea (Arhar) + Maize Intercrop";
+    const year5S2Crop = year5Crops[1] || "Premium Wheat + Mustard Intercrop";
+    const year5S3Crop = year5Crops[2] || "Summer Cowpea";
+
+    // 5. Build Dynamic 10-Part Input shopping lists across Year 1, 2, 3, and 5
+    const landAcres = farmer.land * 2.47;
+    const yearlyInputs = [
+      {
+        year: 1,
+        seasons: [
+          {
+            name: "🌱 Kharif Season (Monsoon Cycle)",
+            crop: year1S1Crop,
+            inputs: [
+              {
+                item: year1S1Crop.toLowerCase().includes("dhaincha") ? "Dhaincha (Green Manure) Seeds" : year1S1Crop.toLowerCase().includes("corn") ? "High-Yield Hybrid Corn Seeds" : year1S1Crop.toLowerCase().includes("groundnut") ? "Premium Groundnut Seeds" : "Certified Paddy (Rice) Seeds",
+                dosage: year1S1Crop.toLowerCase().includes("dhaincha") ? "12 kg / acre basal" : year1S1Crop.toLowerCase().includes("corn") ? "8 kg / acre" : year1S1Crop.toLowerCase().includes("groundnut") ? "40 kg / acre" : "15 kg / acre",
+                unitCost: year1S1Crop.toLowerCase().includes("dhaincha") ? 85 : year1S1Crop.toLowerCase().includes("corn") ? 180 : year1S1Crop.toLowerCase().includes("groundnut") ? 140 : 60,
+                qty: year1S1Crop.toLowerCase().includes("dhaincha") ? "12 kg" : year1S1Crop.toLowerCase().includes("corn") ? "8 kg" : year1S1Crop.toLowerCase().includes("groundnut") ? "40 kg" : "15 kg",
+                isPerAcre: true,
+                benefits: year1S1Crop.toLowerCase().includes("dhaincha") ? "Grows high wet-biomass rapidly to be plowed back as green manure, adding up to 10 tonnes of organic matter per acre." : year1S1Crop.toLowerCase().includes("corn") ? "High-germination hybrid seeds engineered for dense vegetative development and premium market appeal." : year1S1Crop.toLowerCase().includes("groundnut") ? "Premium quality high-oil groundnut seeds for high-yield sandy loam soil adaptation." : "Pre-treated high-yield certified paddy lines adapted to regional soil types."
+              },
+              {
+                item: "Rhizobium / Azotobacter Bio-Inoculant",
+                dosage: "2 packets / acre seed-treatment",
+                unitCost: 140,
+                qty: "2 packets",
+                isPerAcre: true,
+                benefits: "Inoculates seeds with live nitrogen-fixing bacteria, reducing future urea fertilizer requirement by 25%."
+              },
+              {
+                item: "Neem Oil 1500 ppm Bio-Spray",
+                dosage: "1.5 Litres / acre foliar spray",
+                unitCost: 380,
+                qty: "1.5 Litres",
+                isPerAcre: true,
+                benefits: "Acts as an organic preventative repellent against sucking pests like aphids and jassids during early growth."
+              }
+            ]
+          },
+          {
+            name: "❄️ Rabi Season (Winter Cycle)",
+            crop: year1S2Crop,
+            inputs: [
+              {
+                item: strategy === "soil" ? "Organic Vermicompost Enricher" : strategy === "profit" ? "Chemical N-P-K Basal Booster" : "Well-Decomposed Farmyard Manure (FYM)",
+                dosage: strategy === "soil" ? "1.5 Tonnes / acre" : strategy === "profit" ? "50 kg / acre" : "1.0 Tonne / acre",
+                unitCost: strategy === "soil" ? 1200 : strategy === "profit" ? 1350 : 800,
+                qty: strategy === "soil" ? "1.5 Tonnes" : "1 Bag",
+                isPerAcre: true,
+                benefits: strategy === "soil" ? "Direct organic carbon infusion that expands soil water holding capacity and triggers native soil biology." : strategy === "profit" ? "Sourced targeted macro-nutrients to give crop spikes immediate cellular energy for early vegetative development." : "Provides essential slow-release organic nutrients to rebuild depleted soil layers safely."
+              },
+              {
+                item: year1S2Crop.toLowerCase().includes("berseem") ? "Berseem certified seeds" : year1S2Crop.toLowerCase().includes("chickpea") || year1S2Crop.toLowerCase().includes("gram") ? "Certified Chickpea (Gram) Seeds" : year1S2Crop.toLowerCase().includes("mustard") ? "Premium Mustard Seeds" : year1S2Crop.toLowerCase().includes("potato") ? "Kufri Potato Seed Tubers" : "Certified Wheat Seeds (HI-1544 / Lok-1)",
+                dosage: year1S2Crop.toLowerCase().includes("berseem") ? "10 kg / acre" : year1S2Crop.toLowerCase().includes("chickpea") || year1S2Crop.toLowerCase().includes("gram") ? "30 kg / acre" : year1S2Crop.toLowerCase().includes("mustard") ? "2.5 kg / acre" : year1S2Crop.toLowerCase().includes("potato") ? "800 kg / acre" : "40 kg / acre",
+                unitCost: year1S2Crop.toLowerCase().includes("berseem") ? 110 : year1S2Crop.toLowerCase().includes("chickpea") || year1S2Crop.toLowerCase().includes("gram") ? 75 : year1S2Crop.toLowerCase().includes("mustard") ? 210 : year1S2Crop.toLowerCase().includes("potato") ? 15 : 45,
+                qty: year1S2Crop.toLowerCase().includes("berseem") ? "10 kg" : year1S2Crop.toLowerCase().includes("chickpea") || year1S2Crop.toLowerCase().includes("gram") ? "30 kg" : year1S2Crop.toLowerCase().includes("mustard") ? "2.5 kg" : year1S2Crop.toLowerCase().includes("potato") ? "800 kg" : "40 kg",
+                isPerAcre: true,
+                benefits: "Pure line seeds certified for 98%+ genetic purity, high seedling vigor, and regional climate resilience."
+              },
+              {
+                item: "Trichoderma Fungal Bio-Control",
+                dosage: "1 kg / acre soil application",
+                unitCost: 260,
+                qty: "1 kg",
+                isPerAcre: true,
+                benefits: "Naturally parasitizes and suppresses soil-borne fungal pathogens such as root-rot, collar-rot, and fusarium wilt."
+              }
+            ]
+          },
+          {
+            name: "☀️ Zaid Season (Summer Short-Cycle)",
+            crop: year1S3Crop,
+            inputs: [
+              {
+                item: year1S3Crop.toLowerCase().includes("sesame") ? "Drought-Resistant Sesame Seeds" : "Short-Duration Green Gram Seeds (IPM-02-3)",
+                dosage: year1S3Crop.toLowerCase().includes("sesame") ? "2 kg / acre" : "8 kg / acre",
+                unitCost: year1S3Crop.toLowerCase().includes("sesame") ? 220 : 125,
+                qty: year1S3Crop.toLowerCase().includes("sesame") ? "2 kg" : "8 kg",
+                isPerAcre: true,
+                benefits: year1S3Crop.toLowerCase().includes("sesame") ? "Premium summer oilseed crop that tolerates dry heat and commands extremely high market rates." : "60-day short duration pulse crop that fixes nitrogen and produces nutrient-dense pulses during lean months."
+              },
+              {
+                item: "Pseudomonas Fluorescens Bio-Protectant",
+                dosage: "1 kg / acre soil-drench",
+                unitCost: 240,
+                qty: "1 kg",
+                isPerAcre: true,
+                benefits: "Improves plant growth and systemic resistance to high-temperature wilting and root stresses."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        year: 2,
+        seasons: [
+          {
+            name: "🌱 Kharif Season (Monsoon Cycle)",
+            crop: year2S1Crop,
+            inputs: [
+              {
+                item: year2S1Crop.toLowerCase().includes("dhaincha") ? "Dhaincha Seeds" : year2S1Crop.toLowerCase().includes("pomegranate") ? "Pomegranate Saplings (Grafted)" : "Hybrid Maize Seeds",
+                dosage: year2S1Crop.toLowerCase().includes("dhaincha") ? "12 kg / acre" : year2S1Crop.toLowerCase().includes("pomegranate") ? "160 plants / acre" : "8 kg / acre",
+                unitCost: year2S1Crop.toLowerCase().includes("dhaincha") ? 85 : year2S1Crop.toLowerCase().includes("pomegranate") ? 85 : 140,
+                qty: year2S1Crop.toLowerCase().includes("dhaincha") ? "12 kg" : year2S1Crop.toLowerCase().includes("pomegranate") ? "160 saplings" : "8 kg",
+                isPerAcre: true,
+                benefits: "Highly adapted biological lines ensuring high yield or massive restorative organic manure plowback."
+              },
+              {
+                item: "Mycorrhizal Bio-fertilizer (VAM)",
+                dosage: "4 kg / acre basal application",
+                unitCost: 150,
+                qty: "4 kg",
+                isPerAcre: true,
+                benefits: "Symbiotic fungi that grow into the crop's root cells, expanding nutrient water extraction area by 3x."
+              }
+            ]
+          },
+          {
+            name: "❄️ Rabi Season (Winter Cycle)",
+            crop: year2S2Crop,
+            inputs: [
+              {
+                item: year2S2Crop.toLowerCase().includes("lentil") ? "Certified Lentil Seeds" : year2S2Crop.toLowerCase().includes("ginger") ? "Ginger Rhizome Seed Line" : "Certified Mustard Seeds",
+                dosage: year2S2Crop.toLowerCase().includes("lentil") ? "12 kg / acre" : year2S2Crop.toLowerCase().includes("ginger") ? "600 kg / acre" : "2.5 kg / acre",
+                unitCost: year2S2Crop.toLowerCase().includes("lentil") ? 95 : year2S2Crop.toLowerCase().includes("ginger") ? 35 : 210,
+                qty: year2S2Crop.toLowerCase().includes("lentil") ? "12 kg" : year2S2Crop.toLowerCase().includes("ginger") ? "600 kg" : "2.5 kg",
+                isPerAcre: true,
+                benefits: "High genetic purity seeds selected for local cold-hardiness and disease resistance."
+              },
+              {
+                item: "De-oiled Neem Seed Cake Powder",
+                dosage: "100 kg / acre soil application",
+                unitCost: 22,
+                qty: "100 kg",
+                isPerAcre: true,
+                benefits: "Suppresses soil nematodes, limits fertilizer leaching, and provides slow-release micronutrients."
+              }
+            ]
+          },
+          {
+            name: "☀️ Zaid Season (Summer Short-Cycle)",
+            crop: year2S3Crop,
+            inputs: [
+              {
+                item: "Restorative Cowpea (Lobia) Seeds",
+                dosage: "10 kg / acre",
+                unitCost: 110,
+                qty: "10 kg",
+                isPerAcre: true,
+                benefits: "High-foliage cover crop that acts as both green fodder and a biological protective ground blanket."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        year: 3,
+        seasons: [
+          {
+            name: "🌱 Kharif Season (Monsoon Cycle)",
+            crop: year3S1Crop,
+            inputs: [
+              {
+                item: year3S1Crop.toLowerCase().includes("moong") || year3S1Crop.toLowerCase().includes("pulse") ? "Premium Moong Seeds" : year3S1Crop.toLowerCase().includes("papaya") ? "Grafted Papaya Saplings" : year3S1Crop.toLowerCase().includes("dragon") ? "Grafted Dragon Fruit Saplings" : "Certified Soybean Seeds",
+                dosage: year3S1Crop.toLowerCase().includes("moong") || year3S1Crop.toLowerCase().includes("pulse") ? "8 kg / acre" : year3S1Crop.toLowerCase().includes("papaya") ? "400 plants / acre" : year3S1Crop.toLowerCase().includes("dragon") ? "500 plants / acre" : "30 kg / acre",
+                unitCost: year3S1Crop.toLowerCase().includes("moong") || year3S1Crop.toLowerCase().includes("pulse") ? 120 : year3S1Crop.toLowerCase().includes("papaya") ? 45 : year3S1Crop.toLowerCase().includes("dragon") ? 80 : 85,
+                qty: year3S1Crop.toLowerCase().includes("moong") || year3S1Crop.toLowerCase().includes("pulse") ? "8 kg" : year3S1Crop.toLowerCase().includes("papaya") ? "400 saplings" : year3S1Crop.toLowerCase().includes("dragon") ? "500 saplings" : "30 kg",
+                isPerAcre: true,
+                benefits: "Tailored crops to maximize return or soil carbon profile based on the 3-year transition mark."
+              },
+              {
+                item: "Liquid Consortia Biofertilizers (NPK)",
+                dosage: "500 ml / acre seed-treatment",
+                unitCost: 280,
+                qty: "500 ml",
+                isPerAcre: true,
+                benefits: "Liquid bacterial formulation that solubilizes locked Nitrogen, Phosphorus, and Potassium simultaneously."
+              }
+            ]
+          },
+          {
+            name: "❄️ Rabi Season (Winter Cycle)",
+            crop: year3S2Crop,
+            inputs: [
+              {
+                item: year3S2Crop.toLowerCase().includes("gram") || year3S2Crop.toLowerCase().includes("chickpea") ? "Certified Gram Seeds" : year3S2Crop.toLowerCase().includes("garlic") || year3S2Crop.toLowerCase().includes("turmeric") || year3S2Crop.toLowerCase().includes("banana") ? "Premium Garlic Cloves / Rhizomes" : "Certified Wheat Seeds",
+                dosage: year3S2Crop.toLowerCase().includes("gram") || year3S2Crop.toLowerCase().includes("chickpea") ? "30 kg / acre" : year3S2Crop.toLowerCase().includes("garlic") || year3S2Crop.toLowerCase().includes("turmeric") || year3S2Crop.toLowerCase().includes("banana") ? "200 kg / acre" : "40 kg / acre",
+                unitCost: year3S2Crop.toLowerCase().includes("gram") || year3S2Crop.toLowerCase().includes("chickpea") ? 75 : year3S2Crop.toLowerCase().includes("garlic") || year3S2Crop.toLowerCase().includes("turmeric") || year3S2Crop.toLowerCase().includes("banana") ? 95 : 45,
+                qty: year3S2Crop.toLowerCase().includes("gram") || year3S2Crop.toLowerCase().includes("chickpea") ? "30 kg" : year3S2Crop.toLowerCase().includes("garlic") || year3S2Crop.toLowerCase().includes("turmeric") || year3S2Crop.toLowerCase().includes("banana") ? "200 kg" : "40 kg",
+                isPerAcre: true,
+                benefits: "Vigorous high-yield seed materials calibrated to local bund climate profiles."
+              },
+              {
+                item: "High-grade Organic Humic Acid Liquid",
+                dosage: "1 Litre / acre soil-drench",
+                unitCost: 420,
+                qty: "1 Litre",
+                isPerAcre: true,
+                benefits: "Extremely concentrated humus fraction that binds soil particles and stimulates root rootlets."
+              }
+            ]
+          },
+          {
+            name: "☀️ Zaid Season (Summer Short-Cycle)",
+            crop: year3S3Crop,
+            inputs: [
+              {
+                item: `${year3S3Crop} Seeds`,
+                dosage: "8 kg / acre",
+                unitCost: 120,
+                qty: "8 kg",
+                isPerAcre: true,
+                benefits: "Fills the summer fallow gap with nitrogen fixation, reducing subsequent season fertilizer costs by 20%."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        year: 5,
+        seasons: [
+          {
+            name: "🌱 Kharif Season (Monsoon Cycle)",
+            crop: year5S1Crop,
+            inputs: [
+              {
+                item: year5S1Crop.toLowerCase().includes("agroforestry") || year5S1Crop.toLowerCase().includes("neem") ? "Premium Agroforestry Tree Saplings" : year5S1Crop.toLowerCase().includes("banana") ? "Tissue-Culture Grand Naine Banana Saplings" : year5S1Crop.toLowerCase().includes("strawberry") ? "Premium Strawberry Runners & Mulch" : "Arhar & Maize Seed Pack",
+                dosage: year5S1Crop.toLowerCase().includes("agroforestry") || year5S1Crop.toLowerCase().includes("neem") ? "200 saplings / acre" : year5S1Crop.toLowerCase().includes("banana") ? "800 saplings / acre" : year5S1Crop.toLowerCase().includes("strawberry") ? "7000 runners / acre" : "12 kg / acre",
+                unitCost: year5S1Crop.toLowerCase().includes("agroforestry") || year5S1Crop.toLowerCase().includes("neem") ? 40 : year5S1Crop.toLowerCase().includes("banana") ? 35 : year5S1Crop.toLowerCase().includes("strawberry") ? 15 : 110,
+                qty: year5S1Crop.toLowerCase().includes("agroforestry") || year5S1Crop.toLowerCase().includes("neem") ? "200 saplings" : year5S1Crop.toLowerCase().includes("banana") ? "800 saplings" : year5S1Crop.toLowerCase().includes("strawberry") ? "7000 runners" : "12 kg",
+                isPerAcre: true,
+                benefits: "Establishes permanent biological and financial assets with long-term climate buffers."
+              },
+              {
+                item: "Super-Active VAM Mycorrhiza Powder",
+                dosage: "5 kg / acre basal soil treatment",
+                unitCost: 160,
+                qty: "5 kg",
+                isPerAcre: true,
+                benefits: "Fully establishes massive bio-network in mature soils, guaranteeing maximum organic efficiency."
+              }
+            ]
+          },
+          {
+            name: "❄️ Rabi Season (Winter Cycle)",
+            crop: year5S2Crop,
+            inputs: [
+              {
+                item: year5S2Crop.toLowerCase().includes("alfalfa") || year5S2Crop.toLowerCase().includes("lucerne") ? "Alfalfa Premium Seeds" : year5S2Crop.toLowerCase().includes("capsicum") || year5S2Crop.toLowerCase().includes("coloured") ? "Coloured Capsicum Seeds" : "Certified Wheat & Mustard seed combo",
+                dosage: year5S2Crop.toLowerCase().includes("alfalfa") || year5S2Crop.toLowerCase().includes("lucerne") ? "10 kg / acre" : year5S2Crop.toLowerCase().includes("capsicum") || year5S2Crop.toLowerCase().includes("coloured") ? "0.4 kg / acre" : "32 kg / acre",
+                unitCost: year5S2Crop.toLowerCase().includes("alfalfa") || year5S2Crop.toLowerCase().includes("lucerne") ? 180 : year5S2Crop.toLowerCase().includes("capsicum") || year5S2Crop.toLowerCase().includes("coloured") ? 1800 : 65,
+                qty: year5S2Crop.toLowerCase().includes("alfalfa") || year5S2Crop.toLowerCase().includes("lucerne") ? "10 kg" : year5S2Crop.toLowerCase().includes("capsicum") || year5S2Crop.toLowerCase().includes("coloured") ? "0.4 kg" : "32 kg",
+                isPerAcre: true,
+                benefits: "High-grade certified seeds tailored for high yields or intensive deep-root nitrogen enrichment."
+              }
+            ]
+          },
+          {
+            name: "☀️ Zaid Season (Summer Short-Cycle)",
+            crop: year5S3Crop,
+            inputs: [
+              {
+                item: "Cowpea Ground-Cover Seeds",
+                dosage: "10 kg / acre",
+                unitCost: 110,
+                qty: "10 kg",
+                isPerAcre: true,
+                benefits: "Suppresses moisture evaporation during peak heat wave, preserving the soil's organic structure."
+              }
+            ]
+          }
+        ]
+      }
+    ];
+
+    return {
+      ...rawPlan,
+      soilHealthScore,
+      planScore,
+      degradationRisk,
+      profitabilityIndex,
+      executiveSummary,
+      year1: {
+        ...rawPlan.year1,
+        season1: {
+          ...rawPlan.year1.season1,
+          crop: year1S1Crop
+        },
+        season2: {
+          ...rawPlan.year1.season2,
+          crop: year1S2Crop
+        }
+      },
+      partC: {
+        ...rawPlan.partC,
+        floorCrop: { ...rawPlan.partC.floorCrop, crop: floorCropName },
+        legumeCrop: { ...rawPlan.partC.legumeCrop, crop: legumeCropName },
+        growthCrop: { ...rawPlan.partC.growthCrop, crop: growthCropName }
+      },
+      partD: {
+        ...rawPlan.partD,
+        floor: { ...rawPlan.partD.floor, crop: floorCropName, clearsGate: strategy === "profit" || rawPlan.partD.floor.clearsGate },
+        legume: { ...rawPlan.partD.legume, crop: legumeCropName },
+        growth: { ...rawPlan.partD.growth, crop: growthCropName, clearsGate: strategy === "profit" || rawPlan.partD.growth.clearsGate }
+      },
+      year3Target: { ...rawPlan.year3Target, crops: year3Crops },
+      year5Target: { ...rawPlan.year5Target, crops: year5Crops },
+      yearlyInputs
+    };
+  }, [rawPlan, horizon, strategy, farmer.id, farmer.land, farmer.waterAvail]);
+
+  const plan = adaptedPlan;
+  const activePlan = plan;
+
+  const inputItems=(activePlan?.inputShoppingList||[]).map(item=>{
     const rawCost=parseFloat(String(item.cost).replace(/[^0-9.]/g,""))||0;
     const isPerAcre=String(item.qty).toLowerCase().includes("acre");
     const landAcres=farmer.land*2.47;
     return {...item,unitCost:rawCost,totalCost:isPerAcre?Math.round(rawCost*landAcres):rawCost,isPerAcre,landAcres:Math.round(landAcres*10)/10};
   });
-  const totalInputCost=inputItems.reduce((a,i)=>a+i.totalCost,0);
+
+  // Dynamic cost profile generator based on the actual crop suggested in the AI blueprint
+  const getCropCostProfile = useCallback((cropName, strategyVal) => {
+    const norm = String(cropName || "").toLowerCase();
+    
+    // Default baseline values
+    let tillage = 2000;
+    let sowing = 1800; // seeds & planting
+    let nutrition = 2500;
+    let protection = 1500;
+    let irrigation = 1200;
+    let harvest = 2200;
+    let logistics = 1500;
+    let unitQty = "kg seeds";
+    let qtyFactor = 12;
+    let details = {
+      tillage: "Standard plowing and secondary harrowing to construct flat seedbeds.",
+      sowing: "Drill sowing of certified crop seeds under optimum moisture.",
+      nutrition: "Farmyard manure (FYM) baseline application with organic starters.",
+      protection: "Mechanical hand weeding cycles and preventive botanical sprays.",
+      irrigation: "Critical stage watering aligned with crop growth peaks.",
+      harvest: "Manual sickle cutting and mechanical threshing operations.",
+      logistics: "Standard packaging and tractor-trolley transit to regional mandis."
+    };
+
+    // Concrete Crop Calibration Profiles
+    if (norm.includes("banana")) {
+      tillage = 3800;
+      sowing = 25000; // high sapling cost
+      nutrition = 11000; // heavy feeder
+      protection = 3500;
+      irrigation = 5500; // frequent watering
+      harvest = 7500;
+      logistics = 8000;
+      unitQty = "saplings";
+      qtyFactor = 800;
+      details = {
+        tillage: "Deep trenching, mechanical pit digging, and generous basal manure lining.",
+        sowing: "Disease-free tissue-culture sapling planting with root-hormone dip.",
+        nutrition: "Frequent potassium-rich composting, vermicompost, and liquid potash doses.",
+        protection: "Prevention of pseudostem weevil and foliar sigatoka leaf spot.",
+        irrigation: "High-frequency precision irrigation to sustain high vegetative mass.",
+        harvest: "Labor-intensive bunch harvesting, manual washing, and field-grading.",
+        logistics: "Padded crate packaging and immediate haulage to premium retail centers."
+      };
+    } else if (norm.includes("pomegranate")) {
+      tillage = 3500;
+      sowing = 13500;
+      nutrition = 7500;
+      protection = 4000;
+      irrigation = 4500;
+      harvest = 5500;
+      logistics = 5500;
+      unitQty = "saplings";
+      qtyFactor = 160;
+      details = {
+        tillage: "Precise layout styling, wide spacing pitting, and soil solarisation.",
+        sowing: "Planting of grafted, disease-indexed pomegranate saplings.",
+        nutrition: "Deep organic manuring combined with bio-fertilizers and micronutrients.",
+        protection: "Integrated management against fruit borer and bacterial blight.",
+        irrigation: "Targeted drip irrigation scheduled around flowering and fruit-setting.",
+        harvest: "Careful manual picking, selective stalk clipping, and size-sorting.",
+        logistics: "Corrugated box packing and direct transport to central fruit mandis."
+      };
+    } else if (norm.includes("potato")) {
+      tillage = 2800;
+      sowing = 11000; // expensive seed tubers
+      nutrition = 5500;
+      protection = 2800;
+      irrigation = 3200;
+      harvest = 4800;
+      logistics = 4800;
+      unitQty = "kg tubers";
+      qtyFactor = 800;
+      details = {
+        tillage: "Deep plowing and ridge-and-furrow formatting with disc harrows.",
+        sowing: "Pre-treated seed tuber sowing at precise depth and soil hilling.",
+        nutrition: "Balanced basal application of compost and high-nitrogen fertilizers.",
+        protection: "Foliar sprays for early and late blight disease prevention.",
+        irrigation: "Controlled furrow irrigation, ensuring even moisture without rotting.",
+        harvest: "Tractor-drawn potato harvester pass, manual picking, and sorting.",
+        logistics: "Mesh bag packing, farm-gate loading, and delivery to cold storages."
+      };
+    } else if (norm.includes("ginger") || norm.includes("turmeric")) {
+      tillage = 3500;
+      sowing = 16500; // high seed rhizome cost
+      nutrition = 6500;
+      protection = 3200;
+      irrigation = 3800;
+      harvest = 5500;
+      logistics = 4800;
+      unitQty = "kg rhizomes";
+      qtyFactor = 500;
+      details = {
+        tillage: "Raised bed construction using rotavator to facilitate rhizome growth.",
+        sowing: "Hand-planting of certified seed rhizomes pre-treated with Trichoderma.",
+        nutrition: "Heavy organic matter incorporation including neem cake and compost.",
+        protection: "Manual hand weeding and biocontrol drenching for rhizome rot.",
+        irrigation: "Regular light watering during initial rooting and tillering.",
+        harvest: "Manual digging with hand forks to prevent bruising of rhizomes.",
+        logistics: "Washing, air-curing in shade, jute sack packaging, and market shipping."
+      };
+    } else if (norm.includes("wheat")) {
+      tillage = 2200;
+      sowing = 2200; // certified seeds
+      nutrition = 3000;
+      protection = 1500;
+      irrigation = 2000;
+      harvest = 2800;
+      logistics = 2000;
+      unitQty = "kg seeds";
+      qtyFactor = 40;
+      details = {
+        tillage: "Fine seedbed tilth using standard cultivator and leveling passes.",
+        sowing: "Seed-cum-fertilizer drill sowing of certified climate-resilient wheat.",
+        nutrition: "Split nitrogen applications and zinc sulfate trace additions.",
+        protection: "Herbicide spraying for Phalaris minor (gulli danda) control.",
+        irrigation: "5-6 crucial waterings matching crown root initiation and milk stages.",
+        harvest: "Combined harvester machine operation and straw cutting.",
+        logistics: "50kg gunny bags loading and local tractor-trolley haulage to mandi."
+      };
+    } else if (norm.includes("paddy") || norm.includes("rice")) {
+      tillage = 2800; // wet puddling is costlier
+      sowing = 1800;
+      nutrition = 3400;
+      protection = 2000;
+      irrigation = 3200; // high water
+      harvest = 3200;
+      logistics = 2400;
+      unitQty = "kg seeds";
+      qtyFactor = 15;
+      details = {
+        tillage: "Primary wet plowing and rotavator puddling to create impermeable beds.",
+        sowing: "Nursery bed cultivation, seedling hand-uprooting, and transplanting.",
+        nutrition: "Split urea dosing, phosphate basal, and zinc nutrition booster.",
+        protection: "Controlling stem borer pests and manual weed clearing.",
+        irrigation: "Continuous flood irrigation maintaining water levels during vegetative phase.",
+        harvest: "Combined harvester operations, grain-winnowing, and straw bundling.",
+        logistics: "Filling in gunny bags and haulage to state procurement points."
+      };
+    } else if (norm.includes("dhaincha") || norm.includes("sesbania")) {
+      tillage = 1600;
+      sowing = 900;
+      nutrition = 600; // fixes its own nitrogen, minimal compost
+      protection = 400; // naturally fast-growing, suppresses weeds
+      irrigation = 800;
+      harvest = 1000; // disk harrow incorporation
+      logistics = 0; // zero transit cost - incorporated in-situ!
+      unitQty = "kg seeds";
+      qtyFactor = 12;
+      details = {
+        tillage: "Single shallow tractor pass to prepare seedbeds for broadcasting.",
+        sowing: "Manual broadcasting of sesbania seeds.",
+        nutrition: "Minimal starter phosphate to trigger active nitrogen fixation.",
+        protection: "Zero chemical sprays required due to highly dense foliage canopy.",
+        irrigation: "supplemental monsoon irrigation for rapid vegetative sprawl.",
+        harvest: "Mechanical tractor rotavator pass to plow and incorporate green biomass.",
+        logistics: "No transportation needed as 100% of the nutrient biomass goes directly into the soil."
+      };
+    } else if (norm.includes("berseem")) {
+      tillage = 1800;
+      sowing = 1400;
+      nutrition = 1600;
+      protection = 600;
+      irrigation = 2200; // multi-cut needs frequent irrigation
+      harvest = 2800; // multi-cut harvesting
+      logistics = 1400;
+      unitQty = "kg seeds";
+      qtyFactor = 10;
+      details = {
+        tillage: "Fine leveling and soil preparation to allow uniform water flow.",
+        sowing: "Sowing of certified fodder seeds pre-inoculated with Rhizobium.",
+        nutrition: "Periodic application of organic slurry and phosphorus enhancers.",
+        protection: "Manual rogueing of chicory weeds in early cuts.",
+        irrigation: "Watering immediately following each cut to promote regeneration.",
+        harvest: "Multi-cut manual reaping (up to 4-5 cuts across the season).",
+        logistics: "Bundling fresh green forage and delivery to domestic dairy hubs."
+      };
+    } else if (norm.includes("garlic") || norm.includes("onion")) {
+      tillage = 2600;
+      sowing = 13500; // premium seed cloves
+      nutrition = 5500;
+      protection = 2800;
+      irrigation = 2800;
+      harvest = 3800;
+      logistics = 3500;
+      unitQty = "kg cloves";
+      qtyFactor = 200;
+      details = {
+        tillage: "Pulverised double harrowing and flat bed formation.",
+        sowing: "Manual insertion of garlic cloves at precise spacing.",
+        nutrition: "Compost enrichment paired with potassium and sulfur-heavy nutrition.",
+        protection: "Managing thrips pests and preventing purple blotch leaf disease.",
+        irrigation: "Sprinkler waterings, maintaining uniform moisture but keeping dry before harvest.",
+        harvest: "Manual uprooting, shade curing on-field, and bulb cleaning.",
+        logistics: "Grade sorting, mesh bags loading, and transit to premium spice mandis."
+      };
+    } else if (norm.includes("strawberry")) {
+      tillage = 4000;
+      sowing = 22000; // plants, mulch, and micro-sprinklers
+      nutrition = 8500;
+      protection = 4500;
+      irrigation = 5500;
+      harvest = 7500;
+      logistics = 7500;
+      unitQty = "saplings";
+      qtyFactor = 7000;
+      details = {
+        tillage: "Raised bed construction, drip line laying, and black plastic mulching.",
+        sowing: "Manual sapling transplantation through mulch punctures.",
+        nutrition: "Soluble fertigation, calcium-boron foliar sprays for fruit quality.",
+        protection: "Proactive biocontrol sprays for gray mold and leaf spots.",
+        irrigation: "Automated daily drip irrigation matched with soil moisture sensors.",
+        harvest: "Early morning manual picking of premium ripe berries with stalks intact.",
+        logistics: "Tray packaging in ventilated punnets and rapid cold-chain dispatch."
+      };
+    } else if (norm.includes("capsicum") || norm.includes("chilli")) {
+      tillage = 3200;
+      sowing = 14500; // hybrid seed/seedlings + trellising
+      nutrition = 6500;
+      protection = 3600;
+      irrigation = 3600;
+      harvest = 4500;
+      logistics = 4500;
+      unitQty = "saplings";
+      qtyFactor = 1000;
+      details = {
+        tillage: "Fine-bed shaping and basal vermicompost application.",
+        sowing: "Nursery tray-raised seedling transplanting with manual support pegs.",
+        nutrition: "Precision NPK drip fertigation and calcium-nitrate inputs.",
+        protection: "Pheromone traps installation and neem-oil sprays against sucking thrips.",
+        irrigation: "Frequent light drip cycles targeted at the roots.",
+        harvest: "Hand-picking firm, blocky grade-A capsicum fruits at optimum maturity.",
+        logistics: "Carton box packaging, keeping ventilated, and hauling to urban retail markets."
+      };
+    } else if (norm.includes("mustard")) {
+      tillage = 1800;
+      sowing = 1000;
+      nutrition = 2000;
+      protection = 1200;
+      irrigation = 1200;
+      harvest = 2000;
+      logistics = 1500;
+      unitQty = "kg seeds";
+      qtyFactor = 2.5;
+      details = {
+        tillage: "Dry harrowing and light cultivator passes.",
+        sowing: "Shallow mechanical line sowing of high-oil certified mustard seeds.",
+        nutrition: "Sulfur-fortified single super phosphate application.",
+        protection: "Systemic crop protection sprays targeting aphids and white rust.",
+        irrigation: "2 critical seasonal irrigations (flowering and pod development).",
+        harvest: "Manual sickle cutting, field sun-drying, and tractor threshing.",
+        logistics: "Jute bags packaging and direct transport to local oil crushing units."
+      };
+    } else if (norm.includes("gram") || norm.includes("chickpea") || norm.includes("lentil") || norm.includes("cowpea") || norm.includes("moong") || norm.includes("pulse")) {
+      tillage = 1800;
+      sowing = 1400;
+      nutrition = 1400; // nitrogen fixers
+      protection = 1400;
+      irrigation = 1000;
+      harvest = 2000;
+      logistics = 1400;
+      unitQty = "kg seeds";
+      qtyFactor = 10;
+      details = {
+        tillage: "Minimum tillage pass to conserve soil moisture before sowing.",
+        sowing: "Seeds inoculated with Rhizobium culture and sown in lines.",
+        nutrition: "Starter phosphorus application to boost native nodule formation.",
+        protection: "Integrated pest management using pheromone traps for pod borer.",
+        irrigation: "1-2 critical waterings (pre-flowering and pod-filling).",
+        harvest: "Manual crop pulling, open yard sun drying, and winnowing.",
+        logistics: "Storage-bag packaging and transport to regional APMC mandis."
+      };
+    } else if (norm.includes("soybean")) {
+      tillage = 1900;
+      sowing = 2200;
+      nutrition = 2000;
+      protection = 1600;
+      irrigation = 1100;
+      harvest = 2200;
+      logistics = 1600;
+      unitQty = "kg seeds";
+      qtyFactor = 30;
+      details = {
+        tillage: "Standard plowing with good drainage channel layout.",
+        sowing: "Sowing on broadbeds using certified high-germination seeds.",
+        nutrition: "Application of sulfur, organic fertilizers, and rhizobium boosters.",
+        protection: "Selective herbicide application to control broadleaf weeds.",
+        irrigation: "Monsoon backup irrigation during dry spells at pod-filling.",
+        harvest: "Manual cutting followed by mechanical thresher processing.",
+        logistics: "Standard storage bags and transport to processing cooperatives."
+      };
+    } else if (norm.includes("sesame")) {
+      tillage = 1500;
+      sowing = 800;
+      nutrition = 1100;
+      protection = 900;
+      irrigation = 800;
+      harvest = 1600;
+      logistics = 1100;
+      unitQty = "kg seeds";
+      qtyFactor = 2;
+      details = {
+        tillage: "Double shallow cultivator passes for fine topsoil tilth.",
+        sowing: "Shallow broadcasting of seeds mixed with fine river sand.",
+        nutrition: "Starter compost and light potassium-enriching application.",
+        protection: "Hand weeding and biological repellent sprays for leaf rollers.",
+        irrigation: "Minimal waterings, primarily rainfed with 1 backup watering.",
+        harvest: "Manual cutting, vertical stacking for drying, and seed shaking.",
+        logistics: "Fine woven bag packaging and transit to sesame processing units."
+      };
+    } else if (norm.includes("groundnut")) {
+      tillage = 2000;
+      sowing = 4200; // expensive seeds
+      nutrition = 2800;
+      protection = 1800;
+      irrigation = 1400;
+      harvest = 2800;
+      logistics = 1800;
+      unitQty = "kg kernels";
+      qtyFactor = 40;
+      details = {
+        tillage: "Deep plowing to loosen soil, facilitating peg entry and pod growth.",
+        sowing: "Sowing of hand-shelled high-grade kernel seeds with bio-primers.",
+        nutrition: "Gypsum application to provide critical calcium for pod development.",
+        protection: "Monitoring for soil-borne white grubs and tikka leaf spot.",
+        irrigation: "Sprinkler irrigation to ensure optimal soil wetness for pegging.",
+        harvest: "Mechanical tractor digger-shaker pass and manual pod picking.",
+        logistics: "Mesh bags packing to ensure proper ventilation during mandi hauling."
+      };
+    }
+
+    // Apply Strategy Adjustments to the dynamic base rates
+    if (strategyVal === "soil") {
+      tillage = Math.round(tillage * 1.05); // conservation tillage
+      sowing = Math.round(sowing * 0.95);
+      nutrition = Math.round(nutrition * 1.25); // more organic amendments
+      protection = Math.round(protection * 0.80); // organic/biological protectants
+      irrigation = Math.round(irrigation * 0.90); // residue cover saves water
+      harvest = Math.round(harvest * 0.90);
+    } else if (strategyVal === "profit") {
+      tillage = Math.round(tillage * 0.95);
+      sowing = Math.round(sowing * 1.20); // premium hybrid seed lines
+      nutrition = Math.round(nutrition * 0.90);
+      protection = Math.round(protection * 1.15); // high intensity protection
+      irrigation = Math.round(irrigation * 1.10); // push crop limit
+      harvest = Math.round(harvest * 1.10);
+      logistics = Math.round(logistics * 1.10);
+    }
+
+    return { tillage, sowing, nutrition, protection, irrigation, harvest, logistics, unitQty, qtyFactor, details };
+  }, []);
+
+  // Function to calculate tillage-to-spoon operational costs
+  const calculateTillageToSpoon = useCallback((yearVal, strategyVal, seasonName, cropName) => {
+    const landAcres = farmer.land * 2.47;
+    
+    // Fetch the dynamic, crop-specific cost profile
+    const profile = getCropCostProfile(cropName, strategyVal);
+
+    // Apply adjustments from interactive sliders
+    const laborFactor = laborRate / 350;
+    const tractorFactor = tractorRate / 1000;
+    const distanceFactor = transportDistance / 15;
+
+    const tillageCost = Math.round(profile.tillage * tractorFactor * landAcres);
+    const sowingCost = Math.round(profile.sowing * ((laborFactor + 1) / 2) * landAcres);
+    const nutritionCost = Math.round(profile.nutrition * landAcres);
+    const protectionCost = Math.round(profile.protection * ((laborFactor + 3) / 4) * landAcres);
+    const irrigationCost = Math.round(profile.irrigation * ((tractorFactor + 1) / 2) * landAcres);
+    const harvestCost = Math.round(profile.harvest * ((laborFactor + tractorFactor) / 2) * landAcres);
+    // If dhaincha, logistics is 0. Otherwise, adjust by distance
+    const logisticsCost = profile.logistics === 0 ? 0 : Math.round(profile.logistics * distanceFactor * landAcres);
+
+    const phases = [
+      {
+        id: "tillage",
+        phase: "🚜 1. Primary Tillage & Land Prep",
+        activity: profile.details.tillage,
+        qty: `${(landAcres * 1.5).toFixed(1)} machine-hrs`,
+        rate: `₹${Math.round(profile.tillage * tractorFactor / 1.5)} / hr-acre`,
+        total: tillageCost,
+        benefits: "Aerates soil density, buries weed seeds, integrates amendments, and triggers native microbial networks."
+      },
+      {
+        id: "sowing",
+        phase: "🌱 2. Sowing & Crop Genetics",
+        activity: profile.details.sowing,
+        qty: `${(landAcres * profile.qtyFactor).toFixed(0)} ${profile.unitQty}`,
+        rate: `₹${Math.round(profile.sowing / profile.qtyFactor)} / unit-acre`,
+        total: sowingCost,
+        benefits: "Establishes a uniform plant stand using certified seeds treated with bio-primers to prevent damping-off."
+      },
+      {
+        id: "nutrition",
+        phase: "🧪 3. Soil Nutrition & Amendments",
+        activity: profile.details.nutrition,
+        qty: `${(landAcres * 1.5).toFixed(1)} metric tons`,
+        rate: `₹${Math.round(profile.nutrition / 1.5)} / ton-acre`,
+        total: nutritionCost,
+        benefits: "Restores soil organic carbon (SOC) layers, balances nutrient chemistry, and supplies vital plant energy."
+      },
+      {
+        id: "protection",
+        phase: "🛡️ 4. Integrated Crop Protection",
+        activity: profile.details.protection,
+        qty: `${(landAcres * 3).toFixed(0)} labor cycles`,
+        rate: `₹${Math.round(profile.protection * laborFactor / 3)} / cycle-acre`,
+        total: protectionCost,
+        benefits: "Suppresses critical weed competition, parasitizes root pathogens, and repels pest complexes organically."
+      },
+      {
+        id: "irrigation",
+        phase: "💧 5. Irrigation Operations",
+        activity: profile.details.irrigation,
+        qty: `${(landAcres * 4).toFixed(0)} waterings`,
+        rate: `₹${Math.round(profile.irrigation * ((tractorFactor + 1) / 2) / 4)} / watering`,
+        total: irrigationCost,
+        benefits: "Sustains optimal soil moisture tension during critical vegetative and reproductive grain-fill stages."
+      },
+      {
+        id: "harvest",
+        phase: "🌾 6. Harvest, Threshing & Grading",
+        activity: profile.details.harvest,
+        qty: `${(landAcres * 2).toFixed(0)} machine-hrs`,
+        rate: `₹${Math.round(profile.harvest * ((laborFactor + tractorFactor) / 2) / 2)} / hr-acre`,
+        total: harvestCost,
+        benefits: "Reduces post-harvest shatter loss, grading on-farm directly increases market premium of the final lot."
+      },
+      {
+        id: "logistics",
+        phase: "🚚 7. Packaging & Spoon Logistics",
+        activity: profile.details.logistics,
+        qty: profile.logistics === 0 ? "0 packages" : `${(landAcres * 30).toFixed(0)} packages`,
+        rate: profile.logistics === 0 ? "₹0 / bag-acre" : `₹${Math.round(logisticsCost / (landAcres * 30))} / bag-acre`,
+        total: logisticsCost,
+        benefits: profile.logistics === 0 ? "Green manure returned to ground directly - zero transport or market fees." : "Prevents storage decay, maintains dry-matter quality, and transports clean produce to the consumer's spoon."
+      }
+    ];
+
+    const totalCost = tillageCost + sowingCost + nutritionCost + protectionCost + irrigationCost + harvestCost + logisticsCost;
+
+    return { phases, totalCost };
+  }, [farmer.land, laborRate, tractorRate, transportDistance, getCropCostProfile]);
+
+  // Calculate real input costs based on selected planning year's detailed formulations (tillage to spoon)
+  const totalInputCost = useMemo(() => {
+    if (!activePlan) return 0;
+    const yrData = activePlan.yearlyInputs?.find(y => y.year === activeInputYear);
+    if (!yrData) return 0;
+    let total = 0;
+    yrData.seasons.forEach(s => {
+      const { totalCost } = calculateTillageToSpoon(activeInputYear, strategy, s.name, s.crop);
+      total += totalCost;
+    });
+    return total;
+  }, [activePlan, activeInputYear, strategy, calculateTillageToSpoon]);
 
   const produceItems=farmer.produce.map(p=>{
     const pricePerKg=MANDI_PER_KG[resolveCropKey(p.crop)]||30, grossRevenue=Math.round((parseFloat(p.qty)||0)*pricePerKg);
@@ -1232,7 +2138,7 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
     setLoading(true); setError(null);
     try {
       const result=await generateCropPlan(farmer);
-      setPlan(result);
+      setRawPlan(result);
       onUpdateFarmer({...farmer,plan:result,planGenerated:true,status:"Plan Generated"});
     } catch(e) { setError(e.message); }
     setLoading(false);
@@ -1322,22 +2228,128 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
                 </div>
               </div>
 
+              {/* AI DIGITAL BRAIN CALIBRATION TERMINAL */}
+              <Card style={{ background: "linear-gradient(135deg, #1C1E24 0%, #29303D 100%)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 14, padding: 18, color: "#fff" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                  <span style={{ fontSize: 18 }}>🎛️</span>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: C.goldLight, letterSpacing: "0.05em" }}>AI DIGITAL BRAIN · CUSTOM CALIBRATION TERMINAL</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1.5fr", gap: 16, marginBottom: 16 }}>
+                  {/* TIME HORIZON SELECTOR */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 8, textTransform: "uppercase" }}>Strategic Planning Horizon</div>
+                    <div style={{ display: "flex", gap: 4, background: "rgba(0,0,0,0.25)", padding: 3, borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)" }}>
+                      {[
+                        { val: 1, label: "1 Year" },
+                        { val: 3, label: "3 Years" },
+                        { val: 5, label: "5 Years" }
+                      ].map(h => (
+                        <button
+                          key={h.val}
+                          onClick={() => setHorizon(h.val)}
+                          style={{
+                            flex: 1,
+                            padding: "6px 10px",
+                            border: "none",
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            background: horizon === h.val ? C.maroon : "transparent",
+                            color: "#fff",
+                            transition: "all 0.15s"
+                          }}
+                        >
+                          {h.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* OPTIMIZATION STRATEGY SELECTOR */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 8, textTransform: "uppercase" }}>Agronomic Optimization Strategy</div>
+                    <div style={{ display: "flex", gap: 4, background: "rgba(0,0,0,0.25)", padding: 3, borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)" }}>
+                      {[
+                        { val: "profit", label: "Profitability" },
+                        { val: "soil", label: "Soil Betterment" },
+                        { val: "both", label: "Balanced Mode" }
+                      ].map(s => (
+                        <button
+                          key={s.val}
+                          onClick={() => setStrategy(s.val)}
+                          style={{
+                            flex: 1,
+                            padding: "6px 8px",
+                            border: "none",
+                            borderRadius: 6,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            background: strategy === s.val ? C.maroon : "transparent",
+                            color: "#fff",
+                            transition: "all 0.15s",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* SIMULATOR OUTPUT BENTO MATRIX */}
+                <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.goldLight, marginBottom: 8, textTransform: "uppercase", display: "flex", justifyContent: "space-between" }}>
+                    <span>🚀 Expected Dynamic Impact Simulator</span>
+                    <span style={{ color: "rgba(255,255,255,0.4)" }}>{horizon}Yr · {strategy === "profit" ? "Profit First" : strategy === "soil" ? "Soil First" : "Balanced"}</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10 }}>
+                    <div style={{ background: "rgba(0,0,0,0.15)", padding: 8, borderRadius: 6, textAlign: "center" }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Horizon Net Profit</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#2ECC71", marginTop: 2 }}>
+                        ₹{Math.round((strategy === "profit" ? 82000 : strategy === "soil" ? 48000 : 64000) * farmer.land * 2.47 * (horizon === 1 ? 1 : horizon === 3 ? 3.2 : 5.8)).toLocaleString()}
+                      </div>
+                    </div>
+                    <div style={{ background: "rgba(0,0,0,0.15)", padding: 8, borderRadius: 6, textAlign: "center" }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Soil SOC Improvement</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#3498DB", marginTop: 2 }}>
+                        +{((strategy === "soil" ? 0.18 : strategy === "profit" ? 0.05 : 0.11) * (horizon === 1 ? 1 : horizon === 3 ? 2.5 : 4.5)).toFixed(2)}%
+                      </div>
+                    </div>
+                    <div style={{ background: "rgba(0,0,0,0.15)", padding: 8, borderRadius: 6, textAlign: "center" }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Pest Risk Reduction</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#E74C3C", marginTop: 2 }}>
+                        -{strategy === "soil" ? "55%" : strategy === "profit" ? "15%" : "40%"}
+                      </div>
+                    </div>
+                    <div style={{ background: "rgba(0,0,0,0.15)", padding: 8, borderRadius: 6, textAlign: "center" }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Sustainability Score</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#F1C40F", marginTop: 2 }}>
+                        {strategy === "soil" ? "98" : strategy === "profit" ? "74" : "89"}/100
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
               {/* THREE LAYER CORE RISK RING GAUGES */}
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12 }}>
                 <Card style={{ textAlign: "center" }}>
-                  <RingGauge value={plan.soilHealthScore} max={100} color={plan.soilHealthScore > 60 ? C.green : plan.soilHealthScore > 35 ? C.orange : C.red} />
+                  <RingGauge value={activePlan.soilHealthScore} max={100} color={activePlan.soilHealthScore > 60 ? C.green : activePlan.soilHealthScore > 35 ? C.orange : C.red} />
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Soil Health Score</div>
-                  <Badge color={plan.soilHealthScore > 60 ? "green" : plan.soilHealthScore > 35 ? "gold" : "red"}>{plan.soilHealthGrade}</Badge>
+                  <Badge color={activePlan.soilHealthScore > 60 ? "green" : activePlan.soilHealthScore > 35 ? "gold" : "red"}>{activePlan.soilHealthGrade}</Badge>
                 </Card>
                 <Card style={{ textAlign: "center" }}>
-                  <RingGauge value={plan.planScore} max={100} color={C.maroon} />
+                  <RingGauge value={activePlan.planScore} max={100} color={C.maroon} />
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Plan Score</div>
-                  <Badge color="maroon">{plan.profitabilityIndex}</Badge>
+                  <Badge color="maroon">{activePlan.profitabilityIndex}</Badge>
                 </Card>
                 <Card style={{ textAlign: "center" }}>
-                  <RingGauge value={plan.soilHealthScore} max={100} color={plan.degradationRisk === "Critical" ? C.red : plan.degradationRisk === "High" ? C.orange : plan.degradationRisk === "Moderate" ? C.gold : C.green} />
+                  <RingGauge value={activePlan.soilHealthScore} max={100} color={activePlan.degradationRisk === "Critical" ? C.red : activePlan.degradationRisk === "High" ? C.orange : activePlan.degradationRisk === "Moderate" ? C.gold : C.green} />
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Degradation Risk</div>
-                  <Badge color={plan.degradationRisk === "Critical" || plan.degradationRisk === "High" ? "red" : plan.degradationRisk === "Moderate" ? "gold" : "green"}>{plan.degradationRisk}</Badge>
+                  <Badge color={activePlan.degradationRisk === "Critical" || activePlan.degradationRisk === "High" ? "red" : activePlan.degradationRisk === "Moderate" ? "gold" : "green"}>{activePlan.degradationRisk}</Badge>
                 </Card>
               </div>
 
@@ -1347,14 +2359,14 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
                   <span style={{ fontSize: 18 }}>📋</span>
                   <span style={{ fontWeight: 700, fontSize: 13, color: "#E8C77E", letterSpacing: "0.03em" }}>CLINICAL EXECUTIVE SUMMARY FOR AGRICULTURE EXPERT</span>
                 </div>
-                <div style={{ fontSize: 13.5, color: "#F0E6D6", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{plan.executiveSummary}</div>
+                <div style={{ fontSize: 13.5, color: "#F0E6D6", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{activePlan.executiveSummary}</div>
               </div>
 
               {/* EXPERT CASE STUDY RECOMMENDATIONS */}
               <Card>
                 <div style={{ fontWeight: 700, color: C.maroon, fontSize: 14, marginBottom: 12 }}>🎯 Expert Recommendations for Field Approval</div>
-                {(plan.expertRecommendations || []).map((rec, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10, paddingBottom: 10, borderBottom: i < (plan.expertRecommendations.length - 1) ? `1px dashed ${C.border}` : "none" }}>
+                {(activePlan.expertRecommendations || []).map((rec, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10, paddingBottom: 10, borderBottom: i < (activePlan.expertRecommendations.length - 1) ? `1px dashed ${C.border}` : "none" }}>
                     <span style={{ color: C.green, fontWeight: 800, fontSize: 14, flexShrink: 0 }}>▸</span>
                     <span style={{ fontSize: 13, color: C.charcoal, lineHeight: 1.5 }}>{rec}</span>
                   </div>
@@ -1564,36 +2576,240 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
       )}
 
       {tab==="inputs"&&(
-        !plan?<Card style={{textAlign:"center",padding:32}}><div style={{color:C.muted,marginBottom:16}}>Generate AI Blueprint first.</div><Btn variant="primary" onClick={()=>setTab("plan")}>Go to Blueprint →</Btn></Card>:(
+        !activePlan ? <Card style={{textAlign:"center",padding:32}}><div style={{color:C.muted,marginBottom:16}}>Generate AI Blueprint first.</div><Btn variant="primary" onClick={()=>setTab("plan")}>Go to Blueprint →</Btn></Card> : (
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
-            <Card style={{textAlign:"center",padding:12,background:"#FEF0E6"}}><div style={{fontSize:20,fontWeight:800,color:C.orange}}>₹{totalInputCost.toLocaleString()}</div><div style={{fontSize:11,color:C.muted}}>Total Input Cost</div></Card>
-            <Card style={{textAlign:"center",padding:12,background:C.soilLight}}><div style={{fontSize:20,fontWeight:800,color:C.soil}}>{(farmer.land*2.47).toFixed(1)}</div><div style={{fontSize:11,color:C.muted}}>Acres</div></Card>
-            <Card style={{textAlign:"center",padding:12,background:C.greenPale}}><div style={{fontSize:20,fontWeight:800,color:C.green}}>₹{Math.round(totalInputCost/(farmer.land*2.47)).toLocaleString()}</div><div style={{fontSize:11,color:C.muted}}>Cost/Acre</div></Card>
-          </div>
-          <Card>
-            <div style={{fontWeight:700,color:C.maroon,fontSize:14,marginBottom:12}}>🛒 Input Shopping List</div>
-            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-              <div style={{ minWidth: isMobile ? 550 : "auto" }}>
-                <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:8,padding:"6px 0",borderBottom:`1px solid ${C.border}`,marginBottom:4}}>
-                  {["Item","Qty","Unit Cost","Total","Source"].map(h=><span key={h} style={{fontSize:10,fontWeight:700,color:C.muted}}>{h}</span>)}
+          {/* INTERACTIVE REGIONAL OPERATIONS & RATE TUNER */}
+          <Card style={{ borderLeft: `5px solid ${C.maroon}`, padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 18 }}>⚙️</span>
+              <span style={{ fontWeight: 700, fontSize: 13, color: C.maroon, letterSpacing: "0.03em" }}>REGIONAL COST PARAMETERS & OPERATION TUNER</span>
+            </div>
+            <p style={{ fontSize: 12, color: C.muted, marginBottom: 16, lineHeight: 1.5 }}>
+              Fine-tune the local operational rates below. All tillage-to-spoon calculations (including diesel machinery, field labor, and marketplace transit carriage) will update instantly.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16 }}>
+              {/* Labor Slider */}
+              <div style={{ background: "#fcfaf7", padding: 12, borderRadius: 8, border: `1px solid ${C.border}55` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, fontWeight: 700, color: C.charcoal, marginBottom: 6 }}>
+                  <span>👷 Daily Labor Wage</span>
+                  <span style={{ color: C.maroon }}>₹{laborRate} / day</span>
                 </div>
-                {inputItems.map((item,i)=>(
-                  <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:8,padding:"9px 0",borderBottom:`1px solid ${C.border}`,fontSize:12,alignItems:"center"}}>
-                    <span style={{fontWeight:600}}>{item.item}</span>
-                    <span style={{color:C.muted}}>{item.qty}</span>
-                    <span>₹{item.unitCost}</span>
-                    <span style={{color:C.orange,fontWeight:700}}>₹{item.totalCost.toLocaleString()}{item.isPerAcre&&<div style={{fontSize:9,color:C.muted}}>×{item.landAcres}ac</div>}</span>
-                    <span style={{color:C.muted}}>{item.source}</span>
-                  </div>
-                ))}
+                <input
+                  type="range"
+                  min="250"
+                  max="600"
+                  step="10"
+                  value={laborRate}
+                  onChange={(e) => setLaborRate(parseInt(e.target.value))}
+                  style={{ width: "100%", accentColor: C.maroon, cursor: "pointer" }}
+                />
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>Affects hand-weeding, manual cutting, & bagging operations.</div>
+              </div>
+
+              {/* Tractor Slider */}
+              <div style={{ background: "#fcfaf7", padding: 12, borderRadius: 8, border: `1px solid ${C.border}55` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, fontWeight: 700, color: C.charcoal, marginBottom: 6 }}>
+                  <span>🚜 Tractor Custom Hire</span>
+                  <span style={{ color: C.maroon }}>₹{tractorRate} / hour</span>
+                </div>
+                <input
+                  type="range"
+                  min="700"
+                  max="1500"
+                  step="50"
+                  value={tractorRate}
+                  onChange={(e) => setTractorRate(parseInt(e.target.value))}
+                  style={{ width: "100%", accentColor: C.maroon, cursor: "pointer" }}
+                />
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>Affects moldboard plowing, rotavators, & threshing.</div>
+              </div>
+
+              {/* Distance Slider */}
+              <div style={{ background: "#fcfaf7", padding: 12, borderRadius: 8, border: `1px solid ${C.border}55` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, fontWeight: 700, color: C.charcoal, marginBottom: 6 }}>
+                  <span>🚚 Mandi / Retail Distance</span>
+                  <span style={{ color: C.maroon }}>{transportDistance} km</span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="100"
+                  step="5"
+                  value={transportDistance}
+                  onChange={(e) => setTransportDistance(parseInt(e.target.value))}
+                  style={{ width: "100%", accentColor: C.maroon, cursor: "pointer" }}
+                />
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>Affects tractor-trolley hauling fuel & transit labor fees.</div>
               </div>
             </div>
-            <div style={{display:"flex",justifyContent:"flex-end",padding:"10px 0",borderTop:`2px solid ${C.maroon}`,marginTop:4}}><span style={{fontWeight:700,fontSize:14,color:C.maroon}}>Total: ₹{totalInputCost.toLocaleString()}</span></div>
           </Card>
+
+          {/* YEAR SELECTION FOR INPUTS */}
+          <Card style={{ padding: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.03em" }}>📅 Select Planning Year Horizon</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {[
+                { val: 1, label: "Year 1 (Immediate Transition)" },
+                { val: 2, label: "Year 2 (Soil Reconstruction)" },
+                { val: 3, label: "Year 3 (Biological Stabilization)" },
+                { val: 5, label: "Year 5 (Sustained Yield Maturity)" }
+              ].map(yr => {
+                const isSelected = activeInputYear === yr.val;
+                const isAvailable = yr.val <= horizon;
+                return (
+                  <button
+                    key={yr.val}
+                    disabled={!isAvailable}
+                    onClick={() => setActiveInputYear(yr.val)}
+                    style={{
+                      flex: isMobile ? "1 0 45%" : "1",
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: isSelected ? `2.5px solid ${C.maroon}` : `1px solid ${C.border}`,
+                      background: isSelected ? `${C.maroon}0C` : isAvailable ? "#fff" : "#f5f5f5",
+                      color: isSelected ? C.maroon : isAvailable ? C.charcoal : "#b0b0b0",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: isAvailable ? "pointer" : "not-allowed",
+                      textAlign: "center",
+                      opacity: isAvailable ? 1 : 0.5,
+                      transition: "all 0.15s"
+                    }}
+                  >
+                    <div style={{ fontSize: 10, color: isSelected ? C.maroon : C.muted, fontWeight: 500 }}>Horizon Year</div>
+                    {yr.val === 1 ? "Year 1" : yr.val === 2 ? "Year 2" : yr.val === 3 ? "Year 3" : "Year 5"}
+                    {!isAvailable && <span style={{ marginLeft: 4, fontSize: 10 }}>🔒</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* DYNAMIC METRIC CARDS FOR SELECTED YEAR */}
+          <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr 1fr",gap:10}}>
+            <Card style={{textAlign:"center",padding:12,background:"#FEF0E6"}}>
+              <div style={{fontSize:20,fontWeight:800,color:C.orange}}>₹{totalInputCost.toLocaleString()}</div>
+              <div style={{fontSize:11,color:C.muted}}>Year {activeInputYear} Est. Operational Budget</div>
+            </Card>
+            <Card style={{textAlign:"center",padding:12,background:C.soilLight}}>
+              <div style={{fontSize:20,fontWeight:800,color:C.soil}}>{(farmer.land*2.47).toFixed(1)}</div>
+              <div style={{fontSize:11,color:C.muted}}>Land Size (Acres)</div>
+            </Card>
+            <Card style={{textAlign:"center",padding:12,background:C.greenPale}}>
+              <div style={{fontSize:20,fontWeight:800,color:C.green}}>₹{Math.round(totalInputCost/(farmer.land*2.47)).toLocaleString()}</div>
+              <div style={{fontSize:11,color:C.muted}}>Tillage-to-Spoon Cost / Acre</div>
+            </Card>
+          </div>
+
+          {/* TILLAGE TO SPOON FLOW VISUALIZER MAP */}
+          <Card style={{ padding: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 12, letterSpacing: "0.03em" }}>🔄 THE TILLAGE-TO-SPOON COMPREHENSIVE COST PIPELINE</div>
+            <div style={{ display: "flex", gap: 4, height: 16, borderRadius: 8, overflow: "hidden", background: "#f0f0f0", marginBottom: 10 }}>
+              {[
+                { name: "Tillage", pct: 15, color: "#8B5A2B" },
+                { name: "Sowing", pct: 13, color: C.green },
+                { name: "Nutrition", pct: 23, color: C.gold },
+                { name: "Protection", pct: 11, color: C.red },
+                { name: "Irrigation", pct: 9, color: C.blue },
+                { name: "Harvest", pct: 16, color: C.maroon },
+                { name: "Logistics", pct: 13, color: "#6c757d" }
+              ].map((chunk, idx) => (
+                <div
+                  key={idx}
+                  style={{ width: `${chunk.pct}%`, background: chunk.color, height: "100%", transition: "all 0.3s" }}
+                  title={`${chunk.name}: ~${chunk.pct}% of seasonal expenses`}
+                />
+              ))}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "space-between" }}>
+              {[
+                { label: "🚜 Land Prep", color: "#8B5A2B" },
+                { label: "🌱 Seed & Sowing", color: C.green },
+                { label: "🧪 Nutrition", color: C.gold },
+                { label: "🛡️ Protection", color: C.red },
+                { label: "💧 Irrigation", color: C.blue },
+                { label: "🌾 Harvesting", color: C.maroon },
+                { label: "🚚 Logistics & Spoon", color: "#6c757d" }
+              ].map((legend, idx) => (
+                <div key={idx} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 2, background: legend.color }} />
+                  <span style={{ fontWeight: 600, color: C.charcoal }}>{legend.label}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* SEASONAL SUB-CATEGORIES COMPREHENSIVE LEDGER */}
+          {(() => {
+            const currentYearData = activePlan.yearlyInputs?.find(y => y.year === activeInputYear);
+            if (!currentYearData) {
+              return <Card style={{ textAlign: "center", color: C.muted }}>No inputs formulated for Year {activeInputYear}. Select a different horizon.</Card>;
+            }
+
+            const landAcres = farmer.land * 2.47;
+
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {currentYearData.seasons.map((season, sIdx) => {
+                  const { phases, totalCost: seasonTillageToSpoonTotal } = calculateTillageToSpoon(activeInputYear, strategy, season.name, season.crop);
+                  
+                  return (
+                    <Card key={sIdx} style={{ borderLeft: `5px solid ${sIdx === 0 ? C.green : sIdx === 1 ? C.blue : C.gold}` }}>
+                      {/* SEASON HEADER WITH COMPLETE OPERATIONS EXPENSE */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${C.border}`, paddingBottom: 10, marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: 14.5, color: C.charcoal }}>{season.name}</div>
+                          <div style={{ fontSize: 11.5, color: C.muted, marginTop: 1 }}>Target Crop Strategy: <strong style={{ color: C.maroon }}>{season.crop}</strong></div>
+                        </div>
+                        <div style={{ background: C.cream, border: `1px solid ${C.border}`, padding: "6px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, color: C.maroon }}>
+                          💰 Est. Tillage-to-Spoon Cost: <span style={{ color: C.green }}>₹{seasonTillageToSpoonTotal.toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      {/* DETAILED TILLAGE-TO-SPOON OPERATION STEPS */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                        {phases.map((phase, pIdx) => {
+                          return (
+                            <div key={pIdx} style={{ background: "#fcfaf7", borderRadius: 8, border: `1px solid ${C.border}44`, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 1.5fr 1fr", gap: 12, alignItems: "center" }}>
+                                <div>
+                                  <div style={{ fontWeight: 700, fontSize: 13, color: C.maroon }}>{phase.phase}</div>
+                                  <div style={{ fontSize: 12, color: C.charcoal, marginTop: 3 }}>{phase.activity}</div>
+                                </div>
+                                <div style={{ borderLeft: isMobile ? "none" : `1px solid ${C.border}`, paddingLeft: isMobile ? 0 : 12, fontSize: 11.5, color: C.muted }}>
+                                  <div>🚜 Volume: <strong>{phase.qty}</strong></div>
+                                  <div style={{ marginTop: 2 }}>⚡ Rate Model: <strong>{phase.rate}</strong></div>
+                                </div>
+                                <div style={{ textAlign: isMobile ? "left" : "right" }}>
+                                  <div style={{ fontSize: 10, color: C.muted }}>Operation Cost</div>
+                                  <div style={{ fontSize: 15, fontWeight: 800, color: C.orange, marginTop: 2 }}>₹{phase.total.toLocaleString()}</div>
+                                  <div style={{ fontSize: 9, color: C.muted }}>for {landAcres.toFixed(1)} acres</div>
+                                </div>
+                              </div>
+                              {/* Clinical Soil & Yield Impact Explainer Banner */}
+                              <div style={{ background: "#fff", borderLeft: `3px solid ${C.green}`, padding: "6px 10px", borderRadius: 4, fontSize: 11, color: C.charcoal, fontStyle: "italic", lineHeight: 1.4 }}>
+                                💡 <strong>Clinical Soil & Yield Impact:</strong> {phase.benefits}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* SEASON TOTAL BANNER */}
+                      <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", fontSize: 12, fontWeight: 700, color: C.maroon }}>
+                        <span>Estimated Total Investment ({season.crop}): ₹{seasonTillageToSpoonTotal.toLocaleString()}</span>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {/* FERTILIZER PRESCRIPTION BLOCK */}
           <Card>
-            <div style={{fontWeight:700,color:C.maroon,fontSize:14,marginBottom:12}}>🧪 Fertilizer Prescription</div>
-            {[["Organic",plan.fertilizerPrescription?.organic],["Bio",plan.fertilizerPrescription?.bio],["Chemical",plan.fertilizerPrescription?.chemical],["Schedule",plan.fertilizerPrescription?.schedule]].map(([k,v])=>(
+            <div style={{fontWeight:700,color:C.maroon,fontSize:14,marginBottom:12}}>🧪 State-Calibrated Fertilizer Prescription Matrix</div>
+            {[["Organic",activePlan.fertilizerPrescription?.organic],["Bio",activePlan.fertilizerPrescription?.bio],["Chemical",activePlan.fertilizerPrescription?.chemical],["Schedule",activePlan.fertilizerPrescription?.schedule]].map(([k,v])=>(
               <div key={k} style={{marginBottom:10}}><div style={{fontSize:12,fontWeight:700,color:C.maroon}}>{k}</div><div style={{fontSize:13,color:C.charcoal}}>{v}</div></div>
             ))}
           </Card>
@@ -1602,8 +2818,127 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
 
       {tab==="produce"&&(
         <div>
+          {/* AI-DRIVEN MULTITEMPORAL YIELD PROJECTIONS BOARD */}
+          {activePlan && (
+            <Card style={{ marginBottom: 16, borderLeft: `5px solid ${C.green}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <span style={{ fontSize: 18 }}>🔮</span>
+                <span style={{ fontWeight: 700, fontSize: 13, color: C.maroon, letterSpacing: "0.03em" }}>AI-DRIVEN DYNAMIC MULTI-YEAR YIELD PROJECTIONS</span>
+              </div>
+              <p style={{ fontSize: 12, color: C.muted, marginBottom: 14, lineHeight: 1.5 }}>
+                Calibrated yield projections for the suggested crops and upcoming crop rotations, modeled on the selected <strong>{strategy === "both" ? "Balanced Restorative" : strategy === "soil" ? "Soil Betterment" : "Max Profitability"}</strong> strategy over a <strong>{horizon}-year</strong> horizon.
+              </p>
+
+              {/* Projections Grid */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* Year 1 Projections */}
+                <div style={{ background: "#fcfaf7", padding: 12, borderRadius: 8, border: `1px solid ${C.border}77` }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.02em" }}>📅 Year 1 Suggested Crops</div>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
+                    {[
+                      { season: "🌱 Kharif Season", crop: activePlan.year1?.season1?.crop || "Paddy" },
+                      { season: "❄️ Rabi Season", crop: activePlan.year1?.season2?.crop || "Wheat" }
+                    ].map((item, idx) => {
+                      const landAcres = farmer.land * 2.47;
+                      const yieldPerAc = getProjectedYieldPerAcre(item.crop);
+                      const totalYieldKg = Math.round(yieldPerAc * landAcres);
+                      const cropPrice = MANDI_PER_KG[resolveCropKey(item.crop)] || 30;
+                      const estValuation = totalYieldKg * cropPrice;
+
+                      return (
+                        <div key={idx} style={{ background: "#fff", padding: 10, borderRadius: 6, border: `1px solid ${C.border}` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: idx === 0 ? C.green : C.blue }}>{item.season}</span>
+                            <Badge color={idx === 0 ? "green" : "blue"}>Suggested</Badge>
+                          </div>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal, marginTop: 4 }}>{item.crop}</div>
+                          
+                          {/* Capacity visual bar */}
+                          <div style={{ height: 6, background: "#f0f0f0", borderRadius: 3, marginTop: 8, overflow: "hidden" }}>
+                            <div style={{ width: `${Math.min(100, (yieldPerAc / 15000) * 100)}%`, height: "100%", background: idx === 0 ? C.green : C.blue }} />
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 11, flexWrap: "wrap", gap: 4 }}>
+                            <div>
+                              <span style={{ color: C.muted }}>Proj. Yield: </span>
+                              <strong style={{ color: C.charcoal }}>{totalYieldKg.toLocaleString()} kg</strong>
+                              <span style={{ color: C.muted, fontSize: 9.5 }}> ({(totalYieldKg / 1000).toFixed(1)} MT)</span>
+                            </div>
+                            <div style={{ textAlign: isMobile ? "left" : "right" }}>
+                              <span style={{ color: C.muted }}>Est. Value: </span>
+                              <strong style={{ color: C.green }}>₹{estValuation.toLocaleString()}</strong>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Upcoming Plan Rotations (Years 3 & 5) */}
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
+                  {/* Year 3 Projections */}
+                  <div style={{ background: "#fcfaf7", padding: 12, borderRadius: 8, border: `1px solid ${C.border}77` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.02em" }}>📅 Year 3 Plan Rotations</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {(activePlan.year3Target?.crops || []).map((crop, idx) => {
+                        const landAcres = farmer.land * 2.47;
+                        const yieldPerAc = getProjectedYieldPerAcre(crop);
+                        // SOC increase improves yield by 12% in Year 3
+                        const totalYieldKg = Math.round(yieldPerAc * landAcres * 1.12);
+                        const cropPrice = MANDI_PER_KG[resolveCropKey(crop)] || 30;
+                        const estValuation = totalYieldKg * cropPrice;
+
+                        return (
+                          <div key={idx} style={{ background: "#fff", padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                            <div>
+                              <div style={{ fontWeight: 600, color: C.charcoal }}>{crop}</div>
+                              <div style={{ fontSize: 10, color: C.muted }}>Yield: {totalYieldKg.toLocaleString()} kg <span style={{ color: C.green, fontWeight: 600 }}>(+12% SOC gain)</span></div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              <div style={{ fontWeight: 700, color: C.green }}>₹{estValuation.toLocaleString()}</div>
+                              <div style={{ fontSize: 9.5, color: C.muted }}>Est. Value</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Year 5 Projections */}
+                  <div style={{ background: "#fcfaf7", padding: 12, borderRadius: 8, border: `1px solid ${C.border}77` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.02em" }}>📅 Year 5 Sustained Maturity</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {(activePlan.year5Target?.crops || []).map((crop, idx) => {
+                        const landAcres = farmer.land * 2.47;
+                        const yieldPerAc = getProjectedYieldPerAcre(crop);
+                        // SOC increase improves yield by 24% in Year 5
+                        const totalYieldKg = Math.round(yieldPerAc * landAcres * 1.24);
+                        const cropPrice = MANDI_PER_KG[resolveCropKey(crop)] || 30;
+                        const estValuation = totalYieldKg * cropPrice;
+
+                        return (
+                          <div key={idx} style={{ background: "#fff", padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                            <div>
+                              <div style={{ fontWeight: 600, color: C.charcoal }}>{crop}</div>
+                              <div style={{ fontSize: 10, color: C.muted }}>Yield: {totalYieldKg.toLocaleString()} kg <span style={{ color: C.green, fontWeight: 600 }}>(+24% SOC gain)</span></div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              <div style={{ fontWeight: 700, color: C.green }}>₹{estValuation.toLocaleString()}</div>
+                              <div style={{ fontSize: 9.5, color: C.muted }}>Est. Value</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <div style={{fontWeight:700,color:C.charcoal}}>Produce Entries</div>
+            <div style={{fontWeight:700,color:C.charcoal}}>Actual Harvested Produce Logs</div>
             <Btn small variant="green" onClick={()=>setAddingProduce(true)}>+ Add Produce</Btn>
           </div>
           {farmer.produce.length>0&&(
@@ -1666,6 +3001,7 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
       {tab==="machinery"&&<MachineryTab isMobile={isMobile} farmer={farmer} rentals={farmerRentals} onAddRental={onAddRental}/>}
 
       {tab === "economics" && (
+        !activePlan ? <Card style={{textAlign:"center",padding:32}}><div style={{color:C.muted,marginBottom:16}}>Generate AI Blueprint first.</div><Btn variant="primary" onClick={()=>setTab("plan")}>Go to Blueprint →</Btn></Card> : (
         <div>
           {/* Sub-navigation Switcher inside the Economics Main Tab */}
           <div style={{ display: "flex", gap: 2, borderBottom: `2px solid ${C.border}`, marginBottom: 18 }}>
@@ -1707,6 +3043,7 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
             />
           )}
         </div>
+        )
       )}
     </div>
   );
