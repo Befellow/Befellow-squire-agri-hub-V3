@@ -1184,13 +1184,22 @@ function MachineryTab({ isMobile, farmer, rentals, onAddRental }) {
 }
 
 // ─── FARMER DETAIL ───────────────────────────────────────────────
-function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAddRental }) {
-  const [tab, setTab] = useState("soil");
+function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAddRental, initialTab = "soil" }) {
+  const [tab, setTab] = useState(initialTab);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab, farmer.id]);
   
   // ADD THIS LINE — Declares sub-routing state for the Economics Terminal toggle
   const [ecoSubTab, setEcoSubTab] = useState("terminal");
   
   const [plan, setPlan] = useState(farmer.plan || null);
+
+  useEffect(() => {
+    setPlan(farmer.plan || null);
+  }, [farmer.id, farmer.plan]);
+  
   const [loading, setLoading] = useState(false);  
   const [error, setError] = useState(null);
   const [newProduce, setNewProduce] = useState({ crop: "", qty: "", stage: "", buyer: "", harvestDate: "" });
@@ -1300,11 +1309,16 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               
               {/* BRAND HEADER CONTAINER */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 24 }}>🧠</span>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 18, color: C.charcoal }}>AI Digital Brain · Executive Case File Summary</div>
-                  <div style={{ fontSize: 12, color: C.muted }}>Every metric below is computed by our deterministic engine — the AI writes narrative interpretation only.</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 24 }}>🧠</span>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 18, color: C.charcoal }}>AI Digital Brain · Executive Case File Summary</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>Every metric below is computed by our deterministic engine — the AI writes narrative interpretation only.</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#DCEEE1", color: "#2F6B45", padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                  <span>💾</span> Saved to Profile & Local Storage
                 </div>
               </div>
 
@@ -2895,10 +2909,606 @@ const getFallbackSpeculation = (crop, season) => {
   };
 };
 
+// ─── OPERATIONS COMMAND CENTER ──────────────────────────────────
+function OperationsCommand({
+  isMobile,
+  farmers,
+  onUpdateFarmer,
+  coldStorageDeposits,
+  setColdStorageDeposits,
+  seedInventory,
+  setSeedInventory,
+  salesLedger,
+  setSalesLedger,
+  visitorLogs,
+  setVisitorLogs,
+  rentals,
+  onAddRental,
+  transactions,
+  setTransactions,
+  setDashboardTab
+}) {
+  const [log, setLog] = useState([
+    "Squire Bundelkhand Command Deck initialized at " + new Date().toLocaleTimeString(),
+    "All telemetry systems online. Fleet tracker connected.",
+    "Cold storage sensor array: Normal (Potato Locker: 3.8°C)"
+  ]);
+  const [simActive, setSimActive] = useState(false);
+
+  const addLog = (msg) => {
+    setLog(prev => [new Date().toLocaleTimeString() + " - " + msg, ...prev.slice(0, 19)]);
+  };
+
+  // Fleet occupancy
+  const totalFleet = EQUIPMENT_LIST.length;
+  const activeBookingsCount = rentals.filter(r => r.status === "Confirmed").length;
+  const fleetUtilization = Math.round((activeBookingsCount / totalFleet) * 100) || 25;
+
+  // Cold Storage Vault
+  const totalBagsStored = coldStorageDeposits.reduce((sum, item) => item.status === "Active" ? sum + item.bags : 0, 0);
+  const maxBags = 1000;
+  const vaultLoadFactor = Math.round((totalBagsStored / maxBags) * 100);
+
+  // Input inventory healthy vs total
+  const lowItems = seedInventory.filter(item => item.stock <= item.threshold).length;
+  const totalItems = seedInventory.length;
+  const orderBookPercent = Math.round(((totalItems - lowItems) / totalItems) * 100);
+
+  // 1. Dynamic Dispatch Matchmaker Recommendations
+  const dispatchRecommendations = useMemo(() => {
+    const list = [];
+    const planningFarmers = farmers.filter(f => f.planGenerated);
+    
+    planningFarmers.forEach((farmer, idx) => {
+      const landAcres = (farmer.land * 2.47).toFixed(1);
+      let recommendedMachine = "Rotavator";
+      let task = "Tillage & Land Bed Preparation";
+      
+      if (farmer.cropHistory?.toLowerCase().includes("wheat")) {
+        recommendedMachine = "Multi-crop Seeder";
+        task = "Precision Wheat Row Sowing";
+      } else if (farmer.cropHistory?.toLowerCase().includes("potato")) {
+        recommendedMachine = "Mini Tractor (25HP)";
+        task = "Sub-surface Ridge Forming";
+      } else if (farmer.cropHistory?.toLowerCase().includes("mustard")) {
+        recommendedMachine = "Bio-Shredder";
+        task = "Crop Residue Incorporation";
+      }
+      
+      const machineObj = EQUIPMENT_LIST.find(e => e.name === recommendedMachine);
+      const isAvailable = machineObj?.available;
+      
+      list.push({
+        id: "REC-" + (100 + idx),
+        farmer,
+        machineName: recommendedMachine,
+        task,
+        rate: machineObj?.ratePerHour || 200,
+        isAvailable,
+        acres: landAcres
+      });
+    });
+    
+    return list.slice(0, 3);
+  }, [farmers]);
+
+  const handleAutoDispatch = (rec) => {
+    const today = new Date().toISOString().split("T")[0];
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 3);
+    const endStr = nextWeek.toISOString().split("T")[0];
+    const hrs = Math.round(rec.farmer.land * 8);
+    const cost = hrs * rec.rate;
+
+    const newBooking = {
+      id: "R" + Date.now().toString().slice(-5),
+      farmerId: rec.farmer.id,
+      farmerName: rec.farmer.name,
+      equipment: rec.machineName,
+      startDate: today,
+      endDate: endStr,
+      hours: hrs,
+      ratePerHour: rec.rate,
+      totalCost: cost,
+      status: "Confirmed"
+    };
+
+    onAddRental(newBooking);
+    addLog(`⚡ Auto-Dispatched ${rec.machineName} to ${rec.farmer.name} for ${hrs} hours (${rec.task})`);
+  };
+
+  const handleLiquidateCS = (deposit) => {
+    let currentPriceQtl = 1500;
+    let premiumPriceQtl = 1950;
+    
+    if (deposit.crop.toLowerCase().includes("potato")) {
+      currentPriceQtl = 1400;
+      premiumPriceQtl = 1820;
+    } else if (deposit.crop.toLowerCase().includes("mustard")) {
+      currentPriceQtl = 5800;
+      premiumPriceQtl = 7100;
+    } else if (deposit.crop.toLowerCase().includes("gram") || deposit.crop.toLowerCase().includes("chickpea")) {
+      currentPriceQtl = 5100;
+      premiumPriceQtl = 6250;
+    } else if (deposit.crop.toLowerCase().includes("onion")) {
+      currentPriceQtl = 2200;
+      premiumPriceQtl = 3100;
+    }
+
+    const weightQtl = parseFloat(deposit.weight) || (deposit.bags * 0.5);
+    const grossVal = Math.round(weightQtl * premiumPriceQtl);
+    const commission = Math.round(grossVal * 0.02);
+    const netPayout = grossVal - deposit.feePaid - commission;
+
+    setColdStorageDeposits(prev => prev.map(item => {
+      if (item.id === deposit.id) {
+        return { ...item, status: "Liquidated" };
+      }
+      return item;
+    }));
+
+    const newTxnId = "TXN-ARB" + Date.now().toString().slice(-4);
+    const todayStr = new Date().toISOString().split("T")[0];
+    
+    const newTxn = {
+      id: newTxnId,
+      date: todayStr,
+      farmerName: deposit.farmerName,
+      itemName: `CS Arbitrage Release: ${deposit.crop}`,
+      category: "Cold Storage Release",
+      quantity: weightQtl,
+      unit: "Qtl",
+      amount: grossVal,
+      paymentMode: "Direct Bank Transfer",
+      status: "Completed"
+    };
+    
+    setSalesLedger(prev => [newTxn, ...prev]);
+
+    const generalTxn = {
+      name: deposit.farmerName,
+      crop: deposit.crop,
+      qty: `${weightQtl} Qtl`,
+      price: `₹${grossVal.toLocaleString()}`,
+      mandi: "Squire Premium Outlet",
+      status: "sold"
+    };
+    setTransactions(prev => [generalTxn, ...prev]);
+
+    const matchedFarmer = farmers.find(f => f.name === deposit.farmerName);
+    if (matchedFarmer && onUpdateFarmer) {
+      const newProduceEntry = {
+        id: "PRD-" + Math.floor(600 + Math.random() * 300),
+        crop: deposit.crop.replace(" Seeds", ""),
+        qty: weightQtl * 100,
+        pricePerKg: Math.round(premiumPriceQtl / 100),
+        grossRevenue: grossVal,
+        commission: commission,
+        netRevenue: netPayout,
+        stage: "Sold",
+        buyer: "Squire Premium Hub",
+        harvestDate: deposit.date,
+        qrGenerated: true
+      };
+
+      const updatedFarmer = {
+        ...matchedFarmer,
+        produce: [...matchedFarmer.produce, newProduceEntry]
+      };
+      onUpdateFarmer(updatedFarmer);
+    }
+
+    addLog(`💰 Liquidated CS-${deposit.id} for ${deposit.farmerName}. Gross: ₹${grossVal.toLocaleString()}, Net Disbursed: ₹${netPayout.toLocaleString()} (Captured +${Math.round((premiumPriceQtl/currentPriceQtl - 1)*100)}% premium!)`);
+  };
+
+  const groupOrderReqs = useMemo(() => {
+    let seedTotal = 0;
+    let fertTotal = 0;
+    let bioTotal = 0;
+
+    farmers.forEach(f => {
+      const scale = f.land || 1;
+      seedTotal += scale * 12;
+      fertTotal += scale * 8;
+      bioTotal += scale * 4;
+    });
+
+    return {
+      seeds: Math.round(seedTotal),
+      fertilizers: Math.round(fertTotal),
+      bioInputs: Math.round(bioTotal),
+      totalBags: Math.round(seedTotal + fertTotal)
+    };
+  }, [farmers]);
+
+  const handleRefillStock = () => {
+    setSeedInventory(prev => prev.map(item => {
+      if (item.stock <= item.threshold) {
+        return { ...item, stock: Math.round(item.threshold * 2.5), status: "healthy" };
+      }
+      return item;
+    }));
+    addLog(`🚚 Cooperative Logistics: Consolidated truck arrived from Kanpur! Replenished all low stock items at the Squire Outlet.`);
+  };
+
+  const handleRunSimulationTick = () => {
+    setSimActive(true);
+    setTimeout(() => {
+      setSimActive(false);
+      
+      const eventType = Math.floor(Math.random() * 4);
+      if (eventType === 0) {
+        const walkInNames = ["Hari Prasad", "Om Prakash", "Keshvi Devi", "Ram Singh", "Dinesh Verma"];
+        const purposes = ["Input Purchase", "Machinery Rental", "Soil Advice"];
+        const rName = walkInNames[Math.floor(Math.random() * walkInNames.length)];
+        const rPurp = purposes[Math.floor(Math.random() * purposes.length)];
+        
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const newV = {
+          id: "REG-" + Math.floor(310 + Math.random() * 90),
+          name: rName,
+          time: timeStr,
+          purpose: rPurp,
+          officer: "Squire Digital Assistant",
+          notes: rPurp === "Soil Advice" ? "Enquired about NPK testing" : "Logged via Operations Simulator",
+          status: rPurp === "Soil Advice" ? "Pending" : "Resolved"
+        };
+        setVisitorLogs(prev => [newV, ...prev]);
+        addLog(`👣 [SIM] Walk-in farmer logged: ${rName} came for ${rPurp}`);
+      } else if (eventType === 1) {
+        const confirmedRentals = rentals.filter(r => r.status === "Confirmed");
+        if (confirmedRentals.length > 0) {
+          const target = confirmedRentals[Math.floor(Math.random() * confirmedRentals.length)];
+          target.status = "Completed";
+          addLog(`🚜 [SIM] Machinery Rental Completed: ${target.farmerName} returned ${target.equipment}. Collected ₹${target.totalCost.toLocaleString()}`);
+        } else {
+          const rFarmer = farmers[Math.floor(Math.random() * farmers.length)];
+          const rEq = EQUIPMENT_LIST[Math.floor(Math.random() * EQUIPMENT_LIST.length)];
+          const hrs = Math.floor(4 + Math.random() * 8);
+          const cost = hrs * rEq.ratePerHour;
+          const newBooking = {
+            id: "R" + Date.now().toString().slice(-5),
+            farmerId: rFarmer.id,
+            farmerName: rFarmer.name,
+            equipment: rEq.name,
+            startDate: new Date().toISOString().split("T")[0],
+            endDate: new Date().toISOString().split("T")[0],
+            hours: hrs,
+            ratePerHour: rEq.ratePerHour,
+            totalCost: cost,
+            status: "Confirmed"
+          };
+          onAddRental(newBooking);
+          addLog(`🚜 [SIM] New Rental Booked: ${rFarmer.name} scheduled ${rEq.name} for ${hrs} hours.`);
+        }
+      } else if (eventType === 2) {
+        const rFarmer = farmers[Math.floor(Math.random() * farmers.length)];
+        const crops = ["Potatoes", "Mustard Seeds", "Chickpeas / Gram"];
+        const rCrop = crops[Math.floor(Math.random() * crops.length)];
+        const bags = Math.floor(30 + Math.random() * 80);
+        const weightQ = (bags * 0.5).toFixed(1) + " Qtl";
+        const fee = bags * 3 * 10;
+        
+        const newDeposit = {
+          id: "CS-" + Math.floor(110 + Math.random() * 80),
+          farmerName: rFarmer.name,
+          crop: rCrop,
+          bags: bags,
+          weight: weightQ,
+          temp: "3.9°C",
+          date: new Date().toISOString().split("T")[0],
+          duration: 3,
+          feePaid: fee,
+          status: "Active"
+        };
+        setColdStorageDeposits(prev => [...prev, newDeposit]);
+        addLog(`❄️ [SIM] Cold Storage Deposit: ${rFarmer.name} deposited ${bags} bags of ${rCrop} (${weightQ})`);
+      } else {
+        setSeedInventory(prev => prev.map(item => {
+          if (item.stock > item.threshold) {
+            const dec = Math.round((2 + Math.random() * 6) * 10) / 10;
+            const newStock = Math.max(0, Math.round((item.stock - dec) * 10) / 10);
+            return { ...item, stock: newStock, status: newStock <= item.threshold ? "low" : "healthy" };
+          }
+          return item;
+        }));
+        addLog(`🌾 [SIM] Inventory depleted: Local seed/bio-input shopping draft updated stock counts.`);
+      }
+    }, 700);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 22px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+        <div>
+          <h2 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 21, color: C.charcoal, margin: 0 }}>🎛️ Squire Bundelkhand Operations Control Center</h2>
+          <div style={{ fontSize: 12.5, color: C.muted, marginTop: 4 }}>
+            Unified command deck connecting fleet scheduling, cooperative cold-vault liquidations, and real-time farmer cost-grounding.
+          </div>
+        </div>
+        <button
+          onClick={handleRunSimulationTick}
+          disabled={simActive}
+          style={{
+            padding: "10px 18px",
+            background: "linear-gradient(135deg, #6B1E3B 0%, #241509 100%)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            fontWeight: 700,
+            fontSize: 12.5,
+            cursor: "pointer",
+            boxShadow: "0 4px 10px rgba(107,30,59,0.15)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            transition: "transform 0.15s",
+            opacity: simActive ? 0.6 : 1
+          }}
+        >
+          {simActive ? "Running..." : "⏳ Run Operations Tick"}
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12 }}>
+        {[
+          { label: "Fleet Utilization", val: `${fleetUtilization}%`, sub: `${activeBookingsCount} of ${totalFleet} units active`, color: C.blue, bg: "#EBF5FB" },
+          { label: "Cold Vault Load Factor", val: `${vaultLoadFactor}%`, sub: `${totalBagsStored} of ${maxBags} bags max`, color: C.maroon, bg: "#FCE4E4" },
+          { label: "Coop Order Book Stock", val: `${orderBookPercent}%`, sub: `${totalItems - lowItems} of ${totalItems} items healthy`, color: C.green, bg: "#DCEEE1" },
+          { label: "Mandi Arbitrage Captured", val: "+24% Avg Premium", sub: "Bypassed local distress margins", color: C.soil, bg: C.soilLight }
+        ].map(kpi => (
+          <Card key={kpi.label} style={{ padding: 14, background: kpi.bg, border: `1px solid ${kpi.color}1e` }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>{kpi.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: kpi.color, margin: "6px 0 2px" }}>{kpi.val}</div>
+            <div style={{ fontSize: 11, color: C.muted }}>{kpi.sub}</div>
+          </Card>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: 18 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <strong style={{ fontSize: 14, color: C.charcoal, display: "flex", alignItems: "center", gap: 8 }}>
+                🚜 Smart Tillage Fleet Dispatch Matchmaker
+              </strong>
+              <Badge color="green">AI Recommendations</Badge>
+            </div>
+            <p style={{ fontSize: 11.5, color: C.muted, margin: "0 0 14px", lineHeight: 1.4 }}>
+              System parses farmer crop schedules and land sizes from the network to recommend dispatching ready equipment.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {dispatchRecommendations.map(rec => (
+                <div key={rec.id} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, background: C.cream }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                    <div>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.maroon, background: "#fff", padding: "1px 6px", borderRadius: 4, border: `1px solid ${C.border}` }}>
+                        {rec.id}
+                      </span>
+                      <strong style={{ fontSize: 13, color: C.charcoal, marginLeft: 8 }}>{rec.farmer.name}</strong>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                        District: <strong>{rec.farmer.district}</strong> • Land size: <strong>{rec.acres} Acres</strong>
+                      </div>
+                    </div>
+                    <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: rec.isAvailable ? "#DCEEE1" : "#F7E8C9", color: rec.isAvailable ? "#2F6B45" : "#8A5A12" }}>
+                      {rec.isAvailable ? "Unit Ready" : "Occupied"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${C.border}` }}>
+                    <div>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: C.charcoal }}>
+                        Recommended: <span style={{ color: C.maroon }}>{rec.machineName}</span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: C.muted, marginTop: 1 }}>
+                        Task: {rec.task} (@ ₹{rec.rate}/hr)
+                      </div>
+                    </div>
+                    <button
+                      disabled={!rec.isAvailable}
+                      onClick={() => handleAutoDispatch(rec)}
+                      style={{
+                        padding: "5px 12px",
+                        background: rec.isAvailable ? C.green : "#ccc",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 6,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: rec.isAvailable ? "pointer" : "not-allowed",
+                        transition: "all 0.15s"
+                      }}
+                    >
+                      Auto-Dispatch ⚡
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setDashboardTab("machinery")}
+              style={{ width: "100%", padding: 9, background: "none", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 11.5, fontWeight: 700, color: C.maroon, cursor: "pointer", marginTop: 12 }}
+            >
+              Go to Custom Hiring Bay Fleet List →
+            </button>
+          </div>
+
+          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+            <strong style={{ fontSize: 14, color: C.charcoal, display: "block", marginBottom: 12 }}>
+              🌱 Cooperative Input Procurement & Refill
+            </strong>
+            <p style={{ fontSize: 11.5, color: C.muted, margin: "0 0 14px", lineHeight: 1.4 }}>
+              Consolidates total input volumes required by all onboarded farmers in the cluster to buy bulk direct from Kanpur manufacturers.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, background: C.cream, padding: 12, borderRadius: 10, marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase" }}>Consolidated Seed Demand</div>
+                <strong style={{ fontSize: 15, color: C.charcoal, fontFamily: "monospace" }}>{groupOrderReqs.seeds} Bags</strong>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase" }}>Consolidated Fertilizers</div>
+                <strong style={{ fontSize: 15, color: C.charcoal, fontFamily: "monospace" }}>{groupOrderReqs.fertilizers} Bags</strong>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+              <div style={{ fontSize: 11.5, color: C.muted }}>
+                Total low stock items: <strong style={{ color: C.orange }}>{lowItems} items</strong>
+              </div>
+              <button
+                onClick={handleRefillStock}
+                disabled={lowItems === 0}
+                style={{
+                  padding: "7px 14px",
+                  background: lowItems > 0 ? C.maroon : "#ccc",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  cursor: lowItems > 0 ? "pointer" : "not-allowed"
+                }}
+              >
+                🚚 Simulate Bulk Supplier Refill
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+            <strong style={{ fontSize: 14, color: C.charcoal, display: "block", marginBottom: 12 }}>
+              ❄️ Cold Vault Price Arbitrage Liquidation
+            </strong>
+            <p style={{ fontSize: 11.5, color: C.muted, margin: "0 0 14px", lineHeight: 1.4 }}>
+              Liquidate stored farmer crops during off-season high spikes. This immediately grounds the farmer's Year 1 projection with real cash receipts!
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {coldStorageDeposits.filter(d => d.status === "Active").length === 0 ? (
+                <div style={{ textAlign: "center", padding: "20px 0", fontSize: 12, color: C.muted, border: `1.5px dashed ${C.border}`, borderRadius: 10 }}>
+                  No active cold storage deposits to liquidate. Register deposits in Squire Outlets.
+                </div>
+              ) : (
+                coldStorageDeposits.filter(d => d.status === "Active").map(deposit => {
+                  let cropKey = deposit.crop.includes("Potato") ? "Potatoes" : "Mustard";
+                  let markupPct = cropKey === "Potatoes" ? "+30% Late Premium" : "+22% Late Premium";
+                  
+                  return (
+                    <div key={deposit.id} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, background: "#fff" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <strong style={{ fontSize: 12.5, color: C.charcoal }}>{deposit.farmerName}</strong>
+                          <span style={{ fontSize: 11, color: C.muted, marginLeft: 8 }}>({deposit.crop})</span>
+                        </div>
+                        <Badge color="blue">{markupPct}</Badge>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 10, marginTop: 8, fontSize: 11 }}>
+                        <div>Stored: <strong>{deposit.bags} bags</strong> ({deposit.weight})</div>
+                        <div style={{ textAlign: "right" }}>Vault Fee: <strong style={{ color: C.orange }}>₹{deposit.feePaid}</strong></div>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 8, borderTop: `1.5px dashed ${C.border}` }}>
+                        <div style={{ fontSize: 10.5, color: C.muted }}>Locker ID: <strong>{deposit.id}</strong></div>
+                        <button
+                          onClick={() => handleLiquidateCS(deposit)}
+                          style={{
+                            padding: "4px 10px",
+                            background: C.orange,
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 6,
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            transition: "background 0.15s"
+                          }}
+                        >
+                          Liquidate & Disburse 💰
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <button
+              onClick={() => setDashboardTab("outlets")}
+              style={{ width: "100%", padding: 9, background: "none", border: `1.5px solid ${C.border}`, borderRadius: 8, fontSize: 11.5, fontWeight: 700, color: C.maroon, cursor: "pointer", marginTop: 12 }}
+            >
+              Go to Cold Storage Chambers →
+            </button>
+          </div>
+
+          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+            <strong style={{ fontSize: 14, color: C.charcoal, display: "block", marginBottom: 12 }}>
+              📡 Bundelkhand Operations Telemetry Logs
+            </strong>
+            <div style={{ 
+              background: "#1E1E1E", 
+              borderRadius: 10, 
+              padding: "12px 14px", 
+              fontFamily: "monospace", 
+              fontSize: 11, 
+              color: "#39FF14", 
+              height: 200, 
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6
+            }}>
+              {log.map((entry, idx) => (
+                <div key={idx} style={{ opacity: idx === 0 ? 1 : idx === 1 ? 0.8 : 0.6, lineHeight: 1.4 }}>
+                  &gt; {entry}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── DASHBOARD TERMINAL MODULE ───────────────────────────────────
-function Dashboard({ isMobile, activeSection, farmers, onSelect, onNew, onViewReports, onViewMachinery, rentals = [], onAddRental }) {
+function Dashboard({ isMobile, activeSection, setDashboardTab, farmers, onSelect, onNew, onUpdateFarmer, rentals = [], onAddRental }) {
   const [mandiRange, setMandiRange] = useState("7D");
   const [searchQ, setSearchQ] = useState("");
+
+  // Farmer Network Tab filters
+  const [farmerDistrictFilter, setFarmerDistrictFilter] = useState("All");
+  const [farmerLandFilter, setFarmerLandFilter] = useState("All");
+  const [farmerStatusFilter, setFarmerStatusFilter] = useState("All");
+
+  const filteredFarmersList = useMemo(() => {
+    return farmers.filter(f => {
+      // Search term match
+      const matchesSearch = !searchQ || `${f.name} ${f.village} ${f.district} ${f.cropHistory} ${f.soilType}`.toLowerCase().includes(searchQ.toLowerCase());
+      
+      // District match
+      const matchesDistrict = farmerDistrictFilter === "All" || f.district === farmerDistrictFilter;
+      
+      // Land Holding match
+      let matchesLand = true;
+      if (farmerLandFilter !== "All") {
+        if (farmerLandFilter === "Marginal") {
+          matchesLand = f.land < 1.0;
+        } else if (farmerLandFilter === "Small") {
+          matchesLand = f.land >= 1.0 && f.land <= 2.0;
+        } else if (farmerLandFilter === "Semi-Medium") {
+          matchesLand = f.land > 2.0;
+        }
+      }
+      
+      // Status match
+      let matchesStatus = true;
+      if (farmerStatusFilter !== "All") {
+        if (farmerStatusFilter === "Plan") {
+          matchesStatus = f.planGenerated;
+        } else if (farmerStatusFilter === "Soil") {
+          matchesStatus = !f.planGenerated;
+        }
+      }
+      
+      return matchesSearch && matchesDistrict && matchesLand && matchesStatus;
+    });
+  }, [farmers, searchQ, farmerDistrictFilter, farmerLandFilter, farmerStatusFilter]);
 
   // Search, sort, and lazy-loading pagination for 148+ crops
   const [invSearch, setInvSearch] = useState("");
@@ -4611,16 +5221,525 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
 
         {/* 4. FARMER NETWORK PAGE VIEWPORT */}
         {activeSection === "farmers" && (
-          <div style={{ background: "#fff", border: "1px solid #E8DFD2", borderRadius: 14, padding: 20 }}>
-            <h3 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 16, marginBottom: 14 }}>Village Cluster Champion Network Records</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {filteredFarmers.map(f => (
-                <div key={f.id} onClick={() => onSelect(f)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#FAF6EF", borderRadius: 10, cursor: "pointer", border: "1px solid #E8DFD2" }}>
-                  <div><div style={{ fontWeight: 700, fontSize: 14, color: "#2B211B" }}>{f.name}</div><div style={{ fontSize: 12, color: "#8A7C6C" }}>{f.village}, {f.district} · {f.land}ha · {f.soilType}</div></div>
-                  <span style={{ background: f.planGenerated ? "#DCEEE1" : "#F7E8C9", color: f.planGenerated ? "#2F6B45" : "#8A5A12", fontSize: 10.5, fontWeight: 700, padding: "4px 10px", borderRadius: 20 }}>{f.status}</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            
+            {/* Header Block */}
+            <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 22px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ fontFamily: "serif", fontWeight: 600, fontSize: 21, color: C.charcoal, margin: 0 }}>👥 Squire Village Cluster Champion Network</h2>
+                  <div style={{ fontSize: 12.5, color: C.muted, marginTop: 4 }}>
+                    Onboarding and managing smallholder agricultural collectives across Bundelkhand. Monitoring regional soil profiles, land holding distributions, and agro-economic transition plans.
+                  </div>
                 </div>
+                <button
+                  onClick={onNew}
+                  style={{
+                    padding: "9px 16px",
+                    background: C.maroon,
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    fontWeight: 700,
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    transition: "transform 0.1s"
+                  }}
+                >
+                  ➕ Onboard New Champion
+                </button>
+              </div>
+            </div>
+
+            {/* Cluster KPIs Row */}
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12 }}>
+              {[
+                { 
+                  label: "Active Champions", 
+                  val: filteredFarmersList.length, 
+                  sub: `of ${farmers.length} total registered`, 
+                  color: C.maroon, 
+                  bg: "#FAF0F0" 
+                },
+                { 
+                  label: "Managed Acreage", 
+                  val: `${(filteredFarmersList.reduce((sum, f) => sum + f.land, 0) * 2.471).toFixed(1)} Ac`, 
+                  sub: `${filteredFarmersList.reduce((sum, f) => sum + f.land, 0).toFixed(1)} Hectares total`, 
+                  color: C.soil, 
+                  bg: C.soilLight 
+                },
+                { 
+                  label: "Avg Soil Organic Carbon", 
+                  val: `${(filteredFarmersList.reduce((sum, f) => sum + (parseFloat(f.soc) || 0), 0) / (filteredFarmersList.length || 1)).toFixed(2)}%`, 
+                  sub: filteredFarmersList.length > 0 ? "Target benchmark: 0.60%+" : "No champions selected", 
+                  color: C.green, 
+                  bg: "#E8F5ED" 
+                },
+                { 
+                  label: "Transition Rate", 
+                  val: `${Math.round((filteredFarmersList.filter(f => f.planGenerated).length / (filteredFarmersList.length || 1)) * 100)}%`, 
+                  sub: `${filteredFarmersList.filter(f => f.planGenerated).length} of ${filteredFarmersList.length} have blueprints`, 
+                  color: C.blue, 
+                  bg: "#EBF5FB" 
+                }
+              ].map(kpi => (
+                <Card key={kpi.label} style={{ padding: 14, background: kpi.bg, border: `1px solid ${kpi.color}18` }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>{kpi.label}</div>
+                  <div style={{ fontSize: 19, fontWeight: 800, color: kpi.color, margin: "6px 0 2px" }}>{kpi.val}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{kpi.sub}</div>
+                </Card>
               ))}
             </div>
+
+            {/* Quick Multi-dimensional Filter Bar */}
+            <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 18px", display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 200, flex: 1 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>District Filter:</span>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  {["All", "Hamirpur", "Jhansi", "Banda"].map(dist => (
+                    <button
+                      key={dist}
+                      onClick={() => setFarmerDistrictFilter(dist)}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 6,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        border: `1px solid ${farmerDistrictFilter === dist ? C.maroon : C.border}`,
+                        background: farmerDistrictFilter === dist ? C.maroon : C.cream,
+                        color: farmerDistrictFilter === dist ? C.white : C.charcoal,
+                        transition: "all 0.1s ease"
+                      }}
+                    >
+                      {dist === "All" ? "📍 All Areas" : dist}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Scale:</span>
+                <div style={{ display: "flex", gap: 5 }}>
+                  {[
+                    { id: "All", label: "All Holdings" },
+                    { id: "Marginal", label: "Marginal (<1ha)" },
+                    { id: "Small", label: "Small (1-2ha)" },
+                    { id: "Semi-Medium", label: "Semi-Medium (>2ha)" }
+                  ].map(hold => (
+                    <button
+                      key={hold.id}
+                      onClick={() => setFarmerLandFilter(hold.id)}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 6,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        border: `1px solid ${farmerLandFilter === hold.id ? C.soil : C.border}`,
+                        background: farmerLandFilter === hold.id ? C.soil : C.cream,
+                        color: farmerLandFilter === hold.id ? C.white : C.charcoal,
+                        transition: "all 0.1s"
+                      }}
+                    >
+                      {hold.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Status:</span>
+                <div style={{ display: "flex", gap: 5 }}>
+                  {[
+                    { id: "All", label: "All Status" },
+                    { id: "Plan", label: "With Blueprints" },
+                    { id: "Soil", label: "Pending Plan" }
+                  ].map(stat => (
+                    <button
+                      key={stat.id}
+                      onClick={() => setFarmerStatusFilter(stat.id)}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 6,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        border: `1px solid ${farmerStatusFilter === stat.id ? C.green : C.border}`,
+                        background: farmerStatusFilter === stat.id ? C.green : C.cream,
+                        color: farmerStatusFilter === stat.id ? C.white : C.charcoal,
+                        transition: "all 0.1s"
+                      }}
+                    >
+                      {stat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Split Grid Viewport */}
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.6fr", gap: 18 }}>
+              
+              {/* Left Column: SVG Cluster Network Map & Cooperative Overview */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                
+                {/* SVG Visual map card */}
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <strong style={{ fontSize: 13.5, color: C.charcoal, display: "flex", alignItems: "center", gap: 6 }}>
+                      🗺️ Bundelkhand Regional Cluster Nodes
+                    </strong>
+                    <span style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase" }}>Interactive Hubs</span>
+                  </div>
+                  <p style={{ fontSize: 11.5, color: C.muted, margin: "0 0 14px", lineHeight: 1.4 }}>
+                    Interactive telemetry mapping. Click on a hub circle to instantly filter the list below, or click again to clear the district filter.
+                  </p>
+                  
+                  {/* SVG drawing */}
+                  <div style={{ background: C.cream, borderRadius: 10, padding: 10, display: "flex", justifyContent: "center", border: `1px solid ${C.border}` }}>
+                    <svg viewBox="0 0 320 220" style={{ width: "100%", height: "auto", display: "block" }}>
+                      
+                      {/* Grid background markers */}
+                      <pattern id="mapGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#E6DEC9" strokeWidth="0.5" opacity="0.4" />
+                      </pattern>
+                      <rect width="320" height="220" fill="url(#mapGrid)" rx="6" />
+
+                      {/* Region borders indicator */}
+                      <path d="M 30,120 Q 90,30 200,50 T 290,130 Q 230,190 120,180 Z" fill="none" stroke="#E3DAC5" strokeWidth="2.5" strokeDasharray="4 4" />
+                      
+                      {/* Hub connecting trails representing logistics pipelines */}
+                      <line x1="80" y1="120" x2="170" y2="150" stroke={C.soil} strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
+                      <line x1="170" y1="150" x2="240" y2="80" stroke={C.soil} strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
+                      <line x1="80" y1="120" x2="240" y2="80" stroke={C.soil} strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
+                      
+                      {/* Labels and Circles for Hubs */}
+                      {[
+                        { id: "Jhansi", name: "Jhansi Hub", x: 80, y: 120, color: "#2980B9", baseCount: 1, textOffset: { x: -10, y: 22 } },
+                        { id: "Banda", name: "Banda Hub", x: 170, y: 150, color: "#8B6914", baseCount: 1, textOffset: { x: 0, y: 24 } },
+                        { id: "Hamirpur", name: "Hamirpur Hub", x: 240, y: 80, color: "#6B1E3B", baseCount: 1, textOffset: { x: 10, y: -14 } }
+                      ].map(hub => {
+                        const count = farmers.filter(f => f.district === hub.id).length;
+                        const isSelected = farmerDistrictFilter === hub.id;
+                        
+                        return (
+                          <g 
+                            key={hub.id} 
+                            onClick={() => setFarmerDistrictFilter(isSelected ? "All" : hub.id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            {/* Selected Hub Outer Glow */}
+                            {isSelected && (
+                              <circle cx={hub.x} cy={hub.y} r="22" fill="none" stroke={hub.color} strokeWidth="2" opacity="0.5">
+                                <animate attributeName="r" values="16;25;16" dur="2.5s" repeatCount="indefinite" />
+                              </circle>
+                            )}
+
+                            {/* Outer translucent radar ring */}
+                            <circle cx={hub.x} cy={hub.y} r="14" fill={hub.color} opacity="0.15" />
+                            
+                            {/* Core interactive hub bubble */}
+                            <circle 
+                              cx={hub.x} 
+                              cy={hub.y} 
+                              r={isSelected ? "9" : "7"} 
+                              fill={hub.color} 
+                              stroke="#fff" 
+                              strokeWidth="2" 
+                              style={{ transition: "all 0.15s ease" }}
+                            />
+
+                            {/* Hub Label Text */}
+                            <text 
+                              x={hub.x + hub.textOffset.x} 
+                              y={hub.y + hub.textOffset.y} 
+                              textAnchor="middle" 
+                              style={{ 
+                                fontSize: "10.5px", 
+                                fontWeight: isSelected ? 800 : 600, 
+                                fill: isSelected ? hub.color : C.charcoal,
+                                fontFamily: "sans-serif"
+                              }}
+                            >
+                              {hub.name} ({count})
+                            </text>
+                            
+                            <text 
+                              x={hub.x + hub.textOffset.x} 
+                              y={hub.y + hub.textOffset.y + 11} 
+                              textAnchor="middle" 
+                              style={{ 
+                                fontSize: "9px", 
+                                fill: C.muted,
+                                fontFamily: "sans-serif"
+                              }}
+                            >
+                              {hub.id === "Jhansi" ? "Clay Soils" : hub.id === "Banda" ? "Clay Loam" : "Sandy Loam"}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                  
+                  {farmerDistrictFilter !== "All" && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, background: "#EBF5FB", padding: "6px 12px", borderRadius: 8, border: "1px solid #AED6F1" }}>
+                      <span style={{ fontSize: 11.5, color: "#1F618D", fontWeight: 600 }}>
+                        Filtering cluster records to <strong>{farmerDistrictFilter}</strong>
+                      </span>
+                      <button 
+                        onClick={() => setFarmerDistrictFilter("All")}
+                        style={{ border: "none", background: "none", color: "#1F618D", fontSize: 11, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}
+                      >
+                        Clear Filter
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Network Onboarding Insights Card */}
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+                  <strong style={{ fontSize: 13.5, color: C.charcoal, display: "block", marginBottom: 10 }}>
+                    📈 Network Transition Metrics
+                  </strong>
+                  <p style={{ fontSize: 11.5, color: C.muted, margin: "0 0 12px", lineHeight: 1.4 }}>
+                    Champions onboarded receive dynamic cost-risk optimized crop blueprints matching the local C2+50% cushion guarantee.
+                  </p>
+                  
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, background: C.cream, padding: 12, borderRadius: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 11.5, color: C.charcoal }}>Total Land Monitored</span>
+                      <strong style={{ fontSize: 12.5, color: C.soil }}>
+                        {farmers.reduce((sum, f) => sum + f.land, 0).toFixed(1)} Hectares ({(farmers.reduce((sum, f) => sum + f.land, 0) * 2.471).toFixed(0)} Acres)
+                      </strong>
+                    </div>
+                    <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 11.5, color: C.charcoal }}>Plan Implementation Rate</span>
+                      <strong style={{ fontSize: 12.5, color: C.green }}>
+                        {Math.round((farmers.filter(f => f.planGenerated).length / farmers.length) * 100)}% Complete
+                      </strong>
+                    </div>
+                    <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 11.5, color: C.charcoal }}>Critical Low Organic Carbon (&lt;0.3%)</span>
+                      <strong style={{ fontSize: 12.5, color: C.red }}>
+                        {farmers.filter(f => (parseFloat(f.soc) || 0) < 0.3).length} Champions
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Right Column: Detailed Farmer Cards List */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                
+                {/* Search Bar specific to this column */}
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 14 }}>🔍</span>
+                  <input
+                    type="text"
+                    value={searchQ}
+                    onChange={e => setSearchQ(e.target.value)}
+                    placeholder="Search champion names, villages, crop history, soil..."
+                    style={{ border: "none", outline: "none", background: "transparent", fontSize: 12.5, width: "100%", color: C.charcoal }}
+                  />
+                  {searchQ && (
+                    <button onClick={() => setSearchQ("")} style={{ border: "none", background: "none", color: C.muted, cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {filteredFarmersList.length === 0 ? (
+                  <Card style={{ padding: "40px 20px", textAlign: "center", color: C.muted }}>
+                    <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
+                    <strong style={{ fontSize: 14, color: C.charcoal }}>No champions match filters</strong>
+                    <p style={{ fontSize: 12, color: C.muted, marginTop: 4, marginBottom: 16 }}>
+                      Try adjusting your district, land size, or status filters to view the registered records.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setFarmerDistrictFilter("All");
+                        setFarmerLandFilter("All");
+                        setFarmerStatusFilter("All");
+                        setSearchQ("");
+                      }}
+                      style={{
+                        padding: "6px 14px",
+                        background: C.maroon,
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer"
+                      }}
+                    >
+                      Reset All Filters
+                    </button>
+                  </Card>
+                ) : (
+                  filteredFarmersList.map(f => {
+                    const initials = f.name ? f.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "FC";
+                    const socVal = parseFloat(f.soc) || 0;
+                    
+                    let socBadgeColor = C.green;
+                    let socBadgeBg = "#F3FAF5";
+                    let socLabel = "Healthy";
+                    if (socVal < 0.3) {
+                      socBadgeColor = C.red;
+                      socBadgeBg = "#FDF2F2";
+                      socLabel = "Critical";
+                    } else if (socVal < 0.5) {
+                      socBadgeColor = C.orange;
+                      socBadgeBg = "#FEF9F2";
+                      socLabel = "Moderate/Low";
+                    }
+
+                    return (
+                      <div 
+                        key={f.id}
+                        onClick={() => onSelect(f, "soil")}
+                        style={{
+                          background: C.white,
+                          border: `1.5px solid ${C.border}`,
+                          borderRadius: 12,
+                          padding: 16,
+                          cursor: "pointer",
+                          transition: "transform 0.15s, box-shadow 0.15s",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 12
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.transform = "translateY(-1px)";
+                          e.currentTarget.style.boxShadow = "0 4px 10px rgba(107,30,59,0.05)";
+                          e.currentTarget.style.borderColor = C.maroon;
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.transform = "none";
+                          e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.02)";
+                          e.currentTarget.style.borderColor = C.border;
+                        }}
+                      >
+                        {/* Upper row: Initials Avatar + Name + Status */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            {/* Initials circle avatar */}
+                            <div style={{
+                              width: 38,
+                              height: 38,
+                              borderRadius: "50%",
+                              background: f.planGenerated ? "linear-gradient(135deg, #1E824C 0%, #2ECC71 100%)" : "linear-gradient(135deg, #6B1E3B 0%, #B83B5E 100%)",
+                              color: "#fff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 13.5,
+                              fontWeight: 800,
+                              letterSpacing: 0.5,
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.06)"
+                            }}>
+                              {initials}
+                            </div>
+                            
+                            <div>
+                              <strong style={{ fontSize: 14.5, color: C.charcoal }}>{f.name}</strong>
+                              <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                                📍 {f.village}, <strong>{f.district}</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          <span style={{ 
+                            background: f.planGenerated ? "#DCEEE1" : "#FDF2F2", 
+                            color: f.planGenerated ? "#2F6B45" : "#C0392B", 
+                            fontSize: 10, 
+                            fontWeight: 700, 
+                            padding: "3px 8px", 
+                            borderRadius: 6,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.3
+                          }}>
+                            {f.status}
+                          </span>
+                        </div>
+
+                        {/* Middle metadata block */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 10, background: C.cream, padding: 10, borderRadius: 8, fontSize: 11.5 }}>
+                          <div>
+                            <div style={{ color: C.muted, fontSize: 9.5, textTransform: "uppercase", fontWeight: 700, letterSpacing: 0.2 }}>Holding Area</div>
+                            <strong style={{ color: C.charcoal }}>{f.land} Hectares</strong>
+                            <span style={{ color: C.muted, marginLeft: 4 }}>({(f.land * 2.471).toFixed(1)} Ac)</span>
+                          </div>
+                          <div>
+                            <div style={{ color: C.muted, fontSize: 9.5, textTransform: "uppercase", fontWeight: 700, letterSpacing: 0.2 }}>Soil organic carbon (SOC)</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 1 }}>
+                              <strong style={{ color: C.charcoal }}>{f.soc}%</strong>
+                              <span style={{ background: socBadgeBg, color: socBadgeColor, padding: "1px 5px", borderRadius: 4, fontSize: 9, fontWeight: 700 }}>
+                                {socLabel}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Soil health bar */}
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: C.muted, marginBottom: 3 }}>
+                            <span>Soil Organic Carbon Health Indicator</span>
+                            <span>{f.soc}%</span>
+                          </div>
+                          <div style={{ width: "100%", height: 5, background: "#EAE6DF", borderRadius: 3, overflow: "hidden" }}>
+                            <div style={{ width: `${Math.min(100, socVal * 100)}%`, height: "100%", background: socBadgeColor, borderRadius: 3 }} />
+                          </div>
+                        </div>
+
+                        {/* Lower Action row */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${C.border}`, paddingTop: 10, marginTop: 2 }}>
+                          <span style={{ fontSize: 11.5, color: C.muted }}>
+                            Primary crops: <strong style={{ color: C.charcoal }}>{f.cropHistory?.split(", ")[0] || "None registered"}</strong>
+                          </span>
+                          <span 
+                            onClick={(e) => { e.stopPropagation(); onSelect(f, "plan"); }}
+                            style={{ 
+                              fontSize: 11, 
+                              fontWeight: 700, 
+                              color: C.maroon, 
+                              display: "flex", 
+                              alignItems: "center", 
+                              gap: 4,
+                              background: "rgba(107,30,59,0.06)",
+                              padding: "4px 8px",
+                              borderRadius: 6,
+                              transition: "all 0.1s"
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = C.maroon;
+                              e.currentTarget.style.color = "#fff";
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = "rgba(107,30,59,0.06)";
+                              e.currentTarget.style.color = C.maroon;
+                            }}
+                          >
+                            Open Case File & Blueprint ➔
+                          </span>
+                        </div>
+
+                      </div>
+                    );
+                  })
+                )}
+
+              </div>
+
+            </div>
+
           </div>
         )}
 
@@ -5931,6 +7050,47 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
             </div>
           );
         })()}
+
+        {activeSection === "operations" && (
+          <OperationsCommand
+            isMobile={isMobile}
+            farmers={farmers}
+            onUpdateFarmer={onUpdateFarmer}
+            coldStorageDeposits={coldStorageDeposits}
+            setColdStorageDeposits={setColdStorageDeposits}
+            seedInventory={seedInventory}
+            setSeedInventory={setSeedInventory}
+            salesLedger={salesLedger}
+            setSalesLedger={setSalesLedger}
+            visitorLogs={visitorLogs}
+            setVisitorLogs={setVisitorLogs}
+            rentals={rentals}
+            onAddRental={onAddRental}
+            transactions={transactions}
+            setTransactions={setTransactions}
+            setDashboardTab={setDashboardTab}
+          />
+        )}
+
+        {activeSection === "machinery" && (
+          <MachineryHub
+            isMobile={isMobile}
+            rentals={rentals}
+            onBack={() => setDashboardTab("overview")}
+            onAddRental={onAddRental}
+            farmers={farmers}
+          />
+        )}
+
+        {activeSection === "reports" && (
+          <Reports
+            isMobile={isMobile}
+            farmers={farmers}
+            rentals={rentals}
+            onBack={() => setDashboardTab("overview")}
+          />
+        )}
+
       </div>
   );
 }
@@ -6279,12 +7439,43 @@ export default function App() {
 
   const [view, setView] = useState("dashboard"); 
   const [dashboardTab, setDashboardTab] = useState("overview"); // Handles main menu state changes cleanly
-  const [farmers, setFarmers] = useState(INITIAL_FARMERS);
+  const [farmers, setFarmers] = useState(() => {
+    const saved = localStorage.getItem("squire_farmers");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse saved farmers", e);
+      }
+    }
+    return INITIAL_FARMERS;
+  });
   const [selected, setSelected] = useState(null);
-  const [rentals, setRentals] = useState(INITIAL_RENTALS);
+  const [selectedTab, setSelectedTab] = useState("soil");
+  const [rentals, setRentals] = useState(() => {
+    const saved = localStorage.getItem("squire_rentals");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse saved rentals", e);
+      }
+    }
+    return INITIAL_RENTALS;
+  });
   
   // Sidebar persistent toggle state configuration matrix
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+
+  // Sync farmers to local storage
+  useEffect(() => {
+    localStorage.setItem("squire_farmers", JSON.stringify(farmers));
+  }, [farmers]);
+
+  // Sync rentals to local storage
+  useEffect(() => {
+    localStorage.setItem("squire_rentals", JSON.stringify(rentals));
+  }, [rentals]);
 
   // Automatically adjust drawer when resizing or rotating screen
   useEffect(() => {
@@ -6297,7 +7488,7 @@ export default function App() {
 
   const handleSaveFarmer = f => { setFarmers(prev => [...prev, f]); setView("dashboard"); setDashboardTab("farmers"); };
   const handleUpdateFarmer = u => { setFarmers(prev => prev.map(f => f.id === u.id ? u : f)); setSelected(u); };
-  const handleSelectFarmer = f => { setSelected(f); setView("detail"); };
+  const handleSelectFarmer = (f, tab = "soil") => { setSelected(f); setSelectedTab(tab); setView("detail"); };
   const handleAddRental = r => setRentals(prev => [...prev, r]);
   const liveSelected = selected ? farmers.find(f => f.id === selected.id) || selected : null;
 
@@ -6308,7 +7499,10 @@ export default function App() {
     { id: "farmers", icon: "👥", label: "Farmer Network" },
     { id: "brain", icon: "🧠", label: "Digital Brain" },
     { id: "outlets", icon: "🏪", label: "Squire Outlets" },
-    { id: "sales", icon: "📊", label: "Sales & Growth" }
+    { id: "sales", icon: "📊", label: "Sales & Growth" },
+    { id: "machinery", icon: "🚜", label: "Custom Hiring Bay" },
+    { id: "reports", icon: "📋", label: "Statistical Reports" },
+    { id: "operations", icon: "🎛️", label: "Operations Command" }
   ];
 
   return (
@@ -6352,8 +7546,29 @@ export default function App() {
         </nav>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "20px 0", minWidth: 212 }}>
           <button onClick={() => { setView("onboard"); if (isMobile) setSidebarOpen(false); }} style={{ background: C.maroon, color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Onboard Farmer</button>
-          <button onClick={() => { setView("reports"); if (isMobile) setSidebarOpen(false); }} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>📊 Statistical Reports</button>
-          <button onClick={() => { setView("machinery"); if (isMobile) setSidebarOpen(false); }} style={{ background: "rgba(255,255,255,.07)", color: "#E9DFD2", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>🚜 Custom Hiring Bay</button>
+          <button 
+            onClick={() => { 
+              if (window.confirm("Are you sure you want to reset all app data? This will clear all generated blueprints and newly onboarded farmers.")) {
+                localStorage.removeItem("squire_farmers");
+                localStorage.removeItem("squire_rentals");
+                window.location.reload();
+              }
+            }} 
+            style={{ 
+              background: "rgba(255,255,255,.05)", 
+              color: "rgba(233,223,210,.7)", 
+              border: "1px dashed rgba(255,255,255,.15)", 
+              borderRadius: 8, 
+              padding: "7px 14px", 
+              fontSize: 11, 
+              fontWeight: 500, 
+              cursor: "pointer", 
+              textAlign: "left",
+              marginTop: 6
+            }}
+          >
+            🔄 Reset App Data
+          </button>
         </div>
         <div style={{ marginTop: "auto", paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10, minWidth: 212 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#6B1E3B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#fff" }}>HV</div>
@@ -6379,19 +7594,23 @@ export default function App() {
         {/* Render Engine Content Outlet */}
         <main style={{ padding: isMobile ? "16px 16px 60px" : "30px 38px 60px", width: "100%", boxSizing: "border-box" }}>
           {view === "dashboard" && (
-            <Dashboard isMobile={isMobile} farmers={farmers} activeSection={dashboardTab} onSelect={handleSelectFarmer} onNew={() => setView("onboard")} onViewReports={() => setView("reports")} onViewMachinery={() => setView("machinery")} rentals={rentals} onAddRental={handleAddRental} />
+            <Dashboard 
+              isMobile={isMobile} 
+              farmers={farmers} 
+              activeSection={dashboardTab} 
+              setDashboardTab={setDashboardTab} 
+              onSelect={handleSelectFarmer} 
+              onNew={() => setView("onboard")} 
+              onUpdateFarmer={handleUpdateFarmer}
+              rentals={rentals} 
+              onAddRental={handleAddRental} 
+            />
           )}
           {view === "onboard" && (
             <><div style={{ fontWeight: 800, fontSize: 20, color: C.charcoal, marginBottom: 20 }}>Onboard New Farmer Champion</div><OnboardForm isMobile={isMobile} onSave={handleSaveFarmer} onCancel={() => setView("dashboard")} /></>
           )}
           {view === "detail" && liveSelected && (
-            <FarmerDetail isMobile={isMobile} farmer={liveSelected} onBack={() => setView("dashboard")} onUpdateFarmer={handleUpdateFarmer} rentals={rentals} onAddRental={handleAddRental} />
-          )}
-          {view === "reports" && (
-            <Reports isMobile={isMobile} farmers={farmers} rentals={rentals} onBack={() => setView("dashboard")} />
-          )}
-          {view === "machinery" && (
-            <MachineryHub isMobile={isMobile} rentals={rentals} onBack={() => setView("dashboard")} onAddRental={handleAddRental} farmers={farmers} />
+            <FarmerDetail isMobile={isMobile} farmer={liveSelected} onBack={() => setView("dashboard")} onUpdateFarmer={handleUpdateFarmer} rentals={rentals} onAddRental={handleAddRental} initialTab={selectedTab} />
           )}
         </main>
       </div>
