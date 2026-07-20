@@ -43,7 +43,7 @@ app.post("/api/gemini", async (req, res) => {
     if (interaction.steps) {
       for (const step of interaction.steps) {
         if (step.type === "model_output") {
-          const textContent = step.content?.find((c: any) => c.type === "text");
+          const textContent: any = step.content?.find((c: any) => c.type === "text");
           if (textContent && textContent.text) {
             text += textContent.text;
           }
