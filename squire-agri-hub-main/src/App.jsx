@@ -35,9 +35,9 @@ const C = {
 
 // ─── STATIC DATA ─────────────────────────────────────────────────
 const INITIAL_FARMERS = [
-  { id: "F001", name: "Ramesh Yadav", village: "Mataundh", district: "Hamirpur", land: 1.5, soilType: "Sandy Loam", nitrogen: 180, phosphorus: 28, potassium: 210, soc: 0.38, waterAvail: "Borewell (seasonal)", cropHistory: "Wheat, Wheat, Wheat", economicProfile: "Marginal (<1ha)", status: "Plan Generated", planGenerated: true, produce: [{ id: "P001", crop: "Mustard", qty: 180, stage: "Cold Storage", buyer: "Mandi Sell", qrGenerated: true, harvestDate: "2026-03-10" }], plan: null },
-  { id: "F002", name: "Sita Devi", village: "Jhansi", district: "Jhansi", land: 0.8, soilType: "Clay", nitrogen: 140, phosphorus: 18, potassium: 185, soc: 0.21, waterAvail: "Rainfed only", cropHistory: "Paddy, Paddy, Wheat", economicProfile: "Marginal (<1ha)", status: "Soil Assessed", planGenerated: false, produce: [], plan: null },
-  { id: "F003", name: "Mohan Patel", village: "Banda", district: "Banda", land: 2.2, soilType: "Clay Loam", nitrogen: 210, phosphorus: 35, potassium: 240, soc: 0.52, waterAvail: "Canal irrigation", cropHistory: "Gram, Wheat, Mustard", economicProfile: "Small (1–2ha)", status: "Plan Generated", planGenerated: true, produce: [{ id: "P002", crop: "Gram", qty: 320, stage: "Buyer Matched", buyer: "B2B Buyer", qrGenerated: true, harvestDate: "2026-02-18" }, { id: "P003", crop: "Wheat", qty: 410, stage: "Sold", buyer: "Mandi Sell", qrGenerated: true, harvestDate: "2026-04-02" }], plan: null },
+  { id: "F001", name: "Ramesh Yadav", village: "Mataundh", district: "Hamirpur", land: 1.5, soilType: "Sandy Loam", nitrogen: 180, phosphorus: 28, potassium: 210, soc: 0.38, waterAvail: "Borewell (seasonal)", cropHistory: "Wheat, Wheat, Wheat", economicProfile: "Marginal (<1ha)", landSlope: "Flat (<2%)", soilPH: 7.2, microbiomeStatus: "Moderate Bio-Flora", status: "Plan Generated", planGenerated: true, produce: [{ id: "P001", crop: "Mustard", qty: 180, stage: "Cold Storage", buyer: "Mandi Sell", qrGenerated: true, harvestDate: "2026-03-10" }], plan: null },
+  { id: "F002", name: "Sita Devi", village: "Jhansi", district: "Jhansi", land: 0.8, soilType: "Clay", nitrogen: 140, phosphorus: 18, potassium: 185, soc: 0.21, waterAvail: "Rainfed only", cropHistory: "Paddy, Paddy, Wheat", economicProfile: "Marginal (<1ha)", landSlope: "Moderate Slope (2–5%)", soilPH: 8.1, microbiomeStatus: "Degraded / Low Activity", status: "Soil Assessed", planGenerated: false, produce: [], plan: null },
+  { id: "F003", name: "Mohan Patel", village: "Banda", district: "Banda", land: 2.2, soilType: "Clay Loam", nitrogen: 210, phosphorus: 35, potassium: 240, soc: 0.52, waterAvail: "Canal irrigation", cropHistory: "Gram, Wheat, Mustard", economicProfile: "Small (1–2ha)", landSlope: "Flat (<2%)", soilPH: 6.8, microbiomeStatus: "Rich / Active Microbiome", status: "Plan Generated", planGenerated: true, produce: [{ id: "P002", crop: "Gram", qty: 320, stage: "Buyer Matched", buyer: "B2B Buyer", qrGenerated: true, harvestDate: "2026-02-18" }, { id: "P003", crop: "Wheat", qty: 410, stage: "Sold", buyer: "Mandi Sell", qrGenerated: true, harvestDate: "2026-04-02" }], plan: null },
 ];
 
 const INITIAL_RENTALS = [
@@ -94,6 +94,8 @@ const CROP_OPTIONS = {
   ]
 };
 const SOIL_TYPES = ["Sandy Loam","Clay Loam","Red Laterite","Black Cotton","Sandy","Clay","Silty Loam"];
+const SLOPE_OPTIONS = ["Flat (<2%)", "Moderate Slope (2–5%)", "Steep Slope (>5%)"];
+const MICROBIOME_OPTIONS = ["Degraded / Low Activity", "Moderate Bio-Flora", "Rich / Active Microbiome"];
 const WATER_OPTIONS = ["Canal irrigation","Borewell (seasonal)","Borewell (perennial)","Rainfed only","Check dam nearby","Drip irrigation"];
 const DISTRICTS = ["Hamirpur","Jhansi","Banda","Mahoba","Lalitpur","Chitrakoot","Kanpur Dehat","Kanpur Nagar"];
 const ECO_PROFILES = ["Marginal (<1ha)","Small (1–2ha)","Semi-medium (2–4ha)","Medium (4–10ha)"];
@@ -250,6 +252,92 @@ function buildDeterministicBlueprint(farmer) {
   const year5Pool = [...rankCropCandidates(highValuePool, farmer, usedSoFar), ...aromaticRanked].sort((a,b)=>b.cushion-a.cushion).slice(0,3).map(x=>x.crop);
 
   // ── PART A — Farm Diagnostic Profile & Baseline ──
+  const landSlope = farmer.landSlope || "Flat (<2%)";
+  const soilPH = farmer.soilPH !== undefined ? parseFloat(farmer.soilPH) : 7.2;
+  const microbiomeStatus = farmer.microbiomeStatus || "Moderate Bio-Flora";
+  const isSlopeRisk = landSlope.includes("Moderate") || landSlope.includes("Steep");
+
+  let nutrientLockupNote = "";
+  if (soilPH > 7.8) {
+    nutrientLockupNote = `High pH alkaline soil (${soilPH}) binds Phosphorus & Zinc; apply PSB bio-fertilizer, ZnSO4, or band-placed DAP rather than broadcast.`;
+  } else if (soilPH < 6.0) {
+    nutrientLockupNote = `Acidic soil (${soilPH}) locks Phosphates & Magnesium; apply agricultural lime or rock phosphate with organic manure.`;
+  } else {
+    nutrientLockupNote = `Optimal soil pH (${soilPH}); macro and micro-nutrients are freely bioavailable.`;
+  }
+
+  const slopeImpactNote = isSlopeRisk
+    ? `High Runoff & Leaching Risk (${landSlope}). Basal N reduced by 20%; remaining N split into 3–4 micro-applications every 12–15 days.`
+    : `Flat topography (${landSlope}). Low runoff risk; standard split-dosing schedule applied.`;
+
+  const bioRemediationNote = microbiomeStatus.includes("Degraded")
+    ? `Bio-Remediation Protocol Injected: Low micro-flora detected. Inoculate with Mycorrhizae (VAM) + Trichoderma (5kg/acre) & Vermicompost baseline (2t/acre) pre-sowing.`
+    : microbiomeStatus.includes("Moderate")
+      ? `Moderate soil flora. Maintain Azotobacter & PSB bio-fertilizer inoculants with each seasonal sowing.`
+      : `Rich / Active microbiome. Soil biology is healthy; maintain organic carbon additions.`;
+
+  const precisionDosingSchedule = isSlopeRisk ? [
+    {
+      timing: "Pre-Sowing / Land Prep (0 Days)",
+      nutrientInput: microbiomeStatus.includes("Degraded")
+        ? "Bio-Remediation Inoculant (Mycorrhizae + Trichoderma + Vermicompost)"
+        : "Vermicompost / Organic Base",
+      adjustedDose: microbiomeStatus.includes("Degraded") ? "5 kg VAM + 2 tonnes/acre" : "1.5 tonnes/acre",
+      method: "Soil Drenching / Pre-plough incorporation"
+    },
+    {
+      timing: "Basal at Sowing (0 DAS)",
+      nutrientInput: "DAP + Reduced Basal N (-20% for slope runoff)",
+      adjustedDose: "40 kg DAP + 12 kg Urea/acre",
+      method: soilPH > 7.8 ? "Band placement 5cm beside seed row (prevents P lockup)" : "Band placement along seed line"
+    },
+    {
+      timing: "Micro-Split 1 (12–15 DAS)",
+      nutrientInput: "Top-Dress Nitrogen (Micro-Split #1)",
+      adjustedDose: "10 kg Urea/acre + Micronutrients",
+      method: "Foliar Spray or Side-dressing near root zone"
+    },
+    {
+      timing: "Micro-Split 2 (25–30 DAS)",
+      nutrientInput: "Top-Dress Nitrogen (Micro-Split #2) + Zinc",
+      adjustedDose: "10 kg Urea + 5 kg ZnSO4/acre",
+      method: "Side-dressing with light soil covering"
+    },
+    {
+      timing: "Micro-Split 3 (40–45 DAS / Flowering)",
+      nutrientInput: "Top-Dress Nitrogen (Micro-Split #3) + Potash",
+      adjustedDose: "10 kg Urea + 15 kg MOP/acre",
+      method: "Foliar Spray / Root zone placement before irrigation"
+    }
+  ] : [
+    {
+      timing: "Pre-Sowing / Land Prep (0 Days)",
+      nutrientInput: microbiomeStatus.includes("Degraded")
+        ? "Bio-Remediation Protocol (Mycorrhizae + Trichoderma + Vermicompost)"
+        : "Vermicompost / Organic Base (2t/ac)",
+      adjustedDose: microbiomeStatus.includes("Degraded") ? "5 kg VAM + 2 tonnes/acre" : "2 tonnes/acre",
+      method: "Soil incorporation during last ploughing"
+    },
+    {
+      timing: "Basal at Sowing (0 DAS)",
+      nutrientInput: "DAP + Zinc & Bio-inoculants",
+      adjustedDose: "50 kg DAP + 10 kg ZnSO4/acre",
+      method: soilPH > 7.8 ? "Band placement beside seed row (bypasses high pH alkaline lockup)" : "Broadcast & shallow soil mix"
+    },
+    {
+      timing: "Split 1 — Active Vegetative (25 DAS)",
+      nutrientInput: "Nitrogen Top-Dress #1",
+      adjustedDose: "25 kg Urea/acre",
+      method: "Broadcast before planned irrigation"
+    },
+    {
+      timing: "Split 2 — Pre-Flowering (45 DAS)",
+      nutrientInput: "Nitrogen Top-Dress #2 + Potash (MOP)",
+      adjustedDose: "20 kg Urea + 15 kg MOP/acre",
+      method: "Broadcast / Top-dressing at moist soil stage"
+    }
+  ];
+
   const partA = {
     location: `${farmer.village}, ${farmer.district}`,
     landHa: farmer.land, landAcres,
@@ -262,6 +350,9 @@ function buildDeterministicBlueprint(farmer) {
       ? `${cropHistoryArr.length} consecutive seasons of ${cropHistoryArr[0]} — a textbook monocropping pattern`
       : `${uniqueCropCount} distinct crops across the last ${cropHistoryArr.length} recorded seasons`,
     drs,
+    landSlope,
+    soilPH,
+    microbiomeStatus,
   };
 
   // ── PART B — 5-Year Soil Health Restoration Roadmap (phase from SOC) ──
@@ -277,8 +368,21 @@ function buildDeterministicBlueprint(farmer) {
       actions:["Target organic carbon 0.3–0.5% above original baseline","Cut chemical fertilizer to need-based top-up only","Run Integrated Nutrient Management (INM) as the steady-state approach"],
       expectedYieldEffect:"+5% to +15% above original degraded baseline, at lower input cost" },
   };
+
+  const actionsList = [...PHASE_DATA[socPhase].actions];
+  if (microbiomeStatus.includes("Degraded")) {
+    actionsList.unshift("BIO-REMEDIATION PROTOCOL: Inoculate soil with Mycorrhizae/Trichoderma (5kg/acre) + Vermicompost pre-sowing due to degraded microbiome");
+  }
+  if (isSlopeRisk) {
+    actionsList.push(`SLOPE CONSERVATION: Implement 3-4 micro-split fertilizer applications to mitigate runoff on ${landSlope} terrain`);
+  }
+  if (soilPH > 7.8 || soilPH < 6.0) {
+    actionsList.push(`PH NUTRIENT MANAGEMENT: ${nutrientLockupNote}`);
+  }
+
   const partB = {
     currentPhase: socPhase, ...PHASE_DATA[socPhase],
+    actions: actionsList,
     currentSOC: farmer.soc,
     targetSOC: parseFloat((farmer.soc + (socPhase===1?0.05:socPhase===2?0.15:0.35)).toFixed(2)),
     agroforestrySpecies: ["Ber","Aonla","Khejri","Babool","Subabul"],
@@ -389,10 +493,22 @@ function buildDeterministicBlueprint(farmer) {
     year3Target: { socImprovement:"+0.40–0.50%", profitIncrease:"+45–60%", crops:year3Pool },
     year5Target: { socImprovement:"+0.85–1.00%", profitIncrease:"+95–120%", crops:year5Pool },
     fertilizerPrescription: {
-      organic: "Vermicompost 2t/acre pre-sowing to lift Soil Organic Carbon",
-      bio: "Rhizobium + PSB seed inoculant at sowing for legume rotation crop",
-      chemical: farmer.nitrogen<200?"DAP 50kg/acre basal only; avoid urea top-dress this cycle":"Minimal chemical top-up; soil N reserves adequate",
-      schedule: "Organic pre-sow, bio-inoculant at seed treatment, chemical basal only",
+      organic: microbiomeStatus.includes("Degraded") 
+        ? "MANDATORY BIO-REMEDIATION: Vermicompost 2t/acre + Mycorrhizae/Trichoderma inoculants to revive degraded soil biology" 
+        : "Vermicompost 2t/acre pre-sowing to lift Soil Organic Carbon",
+      bio: soilPH > 7.8 
+        ? "PSB (Phosphorus Solubilizing Bacteria) + Azotobacter seed treatment (High pH >7.8 requires PSB to solubilize fixed P)"
+        : "Rhizobium + PSB seed inoculant at sowing for legume rotation crop",
+      chemical: isSlopeRisk 
+        ? "SLOPE RUNOFF PROTOCOL: Basal N reduced by 20% (40kg DAP/ac). Remaining N split into 3-4 micro-doses every 12-15 days" 
+        : (farmer.nitrogen < 200 ? "DAP 50kg/acre basal; 2-stage split top-dress Urea" : "Minimal chemical top-up; soil N reserves adequate"),
+      schedule: isSlopeRisk 
+        ? "4-Stage Micro-Split Dosing: Pre-sow bio, Basal at 0 DAS, Micro-splits at 15 DAS, 30 DAS, and 45 DAS" 
+        : "3-Stage Split Dosing: Pre-sow bio, Basal at 0 DAS, Top-dress at 25 DAS and 45 DAS",
+      nutrientLockupNote,
+      slopeImpactNote,
+      bioRemediationNote,
+      precisionDosingSchedule,
     },
     pestAlert: { riskLevel: pest.grade, likely: pest.pests, bioIntervention: "Neem oil 3ml/L at 30 DAS; monitor weekly through flowering" },
     weatherLogic: { sowingWindow:"Oct 15 – Nov 10 (regional Markov window)", irrigationSchedule: constrainedWater?"2x supplemental: flowering + pod-fill stage only":"Standard 3x: crown, flowering, pod-fill stages", harvestWindow:"Feb 15 – Mar 10" },
@@ -424,17 +540,25 @@ async function generateCropPlan(farmer) {
   const avgCushion = parseFloat((fiveYear.reduce((a,y)=>a+y.cushionRatio,0)/5).toFixed(2));
   const planScore = Math.max(0, Math.min(100, Math.round(50 + avgCushion*20 - (pest.pct*0.15))));
 
+  const landSlope = farmer.landSlope || "Flat (<2%)";
+  const soilPH = farmer.soilPH !== undefined ? parseFloat(farmer.soilPH) : 7.2;
+  const microbiomeStatus = farmer.microbiomeStatus || "Moderate Bio-Flora";
+
   // ── PHASE 2: Ask the AI ONLY to interpret this fixed dataset. ──
   const prompt = `You are Squire Digital Brain — an expert analytical assistant writing an Executive Briefing Note for an Agriculture Field Expert.
 
-You will be provided with a complete set of deterministic statistical reports, soil risk metrics, and multi-year financial balance sheets calculated by our mathematical core engine.
+You will be provided with a complete set of deterministic statistical reports, soil risk metrics, plot-level micro-surveys, and multi-year financial balance sheets calculated by our mathematical core engine.
 
 YOUR ADVISORY MISSION:
-Analyze these inputs to write a concise, highly clinical multi-paragraph executive summary. Do not synthesize or fake new numbers. Highlight why the farmer is structurally stuck under current patterns, point out hidden constraints in their soil/logistics matrices, and write expert recommendations on how the field manager should customize their physical restorative plan on the ground.
+Analyze these inputs to write a concise, highly clinical multi-paragraph executive summary. Do not synthesize or fake new numbers. Highlight why the farmer is structurally stuck under current patterns, point out hidden constraints in their soil/logistics matrices, and write expert recommendations on how the field manager should customize their physical restorative plan on the ground. Explicitly reference how the land slope (${landSlope}) and soil pH (${soilPH}) dictated the specific split-dosing intervals and application methods in your clinical brief.
 
-=== CALCULATED SOIL RISK PROFILE (Deterministic DRS Engine) ===
+=== CALCULATED SOIL & PLOT-LEVEL SURVEY METRICS ===
 Degradation Risk Score: ${drs.drs}/100 (${drs.grade})
 N-P-K: ${farmer.nitrogen}-${farmer.phosphorus}-${farmer.potassium} kg/ha | SOC: ${farmer.soc}% | Soil Type: ${farmer.soilType}
+Plot Micro-Survey: Land Slope: ${landSlope} | Soil pH Scale: ${soilPH} | Microbiome Status: ${microbiomeStatus}
+Nutrient Bioavailability / Lockup: ${blueprint.fertilizerPrescription.nutrientLockupNote}
+Slope & Runoff Impact: ${blueprint.fertilizerPrescription.slopeImpactNote}
+Microbiome Bio-Remediation Note: ${blueprint.fertilizerPrescription.bioRemediationNote}
 
 === CALCULATED PEST RISK PROFILE (Stochastic Index Engine) ===
 Infestation Probability: ${pest.pct}% (${pest.grade}) | Driven by: ${pest.lastCrop} monocrop history | Likely pests: ${pest.pests.join(", ")}
@@ -878,14 +1002,36 @@ function calcWeather(f) {
 // ─── ONBOARD FORM ────────────────────────────────────────────────
 function OnboardForm({ isMobile, onSave, onCancel }) {
   const [step, setStep]=useState(0);
-  const [form, setForm]=useState({name:"",village:"",district:"",land:"",economicProfile:"",cropHistory:"",soilType:"",nitrogen:"",phosphorus:"",potassium:"",soc:"",waterAvail:""});
+  const [form, setForm]=useState({
+    name:"",village:"",district:"",land:"",economicProfile:"",cropHistory:"",soilType:"",
+    nitrogen:"",phosphorus:"",potassium:"",soc:"",waterAvail:"",
+    landSlope:"Flat (<2%)",soilPH:"7.2",microbiomeStatus:"Moderate Bio-Flora"
+  });
   const set=k=>v=>setForm(f=>({...f,[k]:v}));
-  const canNext=[form.name&&form.village&&form.district&&form.land&&form.economicProfile,!!form.cropHistory,form.soilType&&form.nitrogen&&form.phosphorus&&form.potassium&&form.soc&&form.waterAvail][step];
+  const canNext=[
+    form.name&&form.village&&form.district&&form.land&&form.economicProfile,
+    !!form.cropHistory,
+    form.soilType&&form.nitrogen&&form.phosphorus&&form.potassium&&form.soc&&form.waterAvail&&form.landSlope&&form.soilPH&&form.microbiomeStatus
+  ][step];
   const steps=["Farmer Identity","Crop History","Soil & Water"];
   const content=[
     <><Inp label="Farmer Name" value={form.name} onChange={set("name")} required/><Inp label="Village" value={form.village} onChange={set("village")} required/><Inp label="District" value={form.district} onChange={set("district")} options={DISTRICTS} required/><Inp label="Land (Ha)" value={form.land} onChange={set("land")} type="number" required hint="e.g. 1.5"/><Inp label="Economic Profile" value={form.economicProfile} onChange={set("economicProfile")} options={ECO_PROFILES} required/></>,
     <><Inp label="Crop History (last 3 seasons)" value={form.cropHistory} onChange={set("cropHistory")} required hint="e.g. Wheat, Wheat, Paddy"/></>,
-    <><Inp label="Soil Type" value={form.soilType} onChange={set("soilType")} options={SOIL_TYPES} required/><div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr",gap:12}}><Inp label="Nitrogen (kg/ha)" value={form.nitrogen} onChange={set("nitrogen")} type="number" required/><Inp label="Phosphorus (kg/ha)" value={form.phosphorus} onChange={set("phosphorus")} type="number" required/><Inp label="Potassium (kg/ha)" value={form.potassium} onChange={set("potassium")} type="number" required/><Inp label="SOC (%)" value={form.soc} onChange={set("soc")} type="number" required hint="Soil Organic Carbon"/></div><Inp label="Water Availability" value={form.waterAvail} onChange={set("waterAvail")} options={WATER_OPTIONS} required/></>
+    <>
+      <Inp label="Soil Type" value={form.soilType} onChange={set("soilType")} options={SOIL_TYPES} required/>
+      <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr",gap:12}}>
+        <Inp label="Nitrogen (kg/ha)" value={form.nitrogen} onChange={set("nitrogen")} type="number" required/>
+        <Inp label="Phosphorus (kg/ha)" value={form.phosphorus} onChange={set("phosphorus")} type="number" required/>
+        <Inp label="Potassium (kg/ha)" value={form.potassium} onChange={set("potassium")} type="number" required/>
+        <Inp label="SOC (%)" value={form.soc} onChange={set("soc")} type="number" required hint="Soil Organic Carbon"/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr 1fr",gap:12}}>
+        <Inp label="Land Slope" value={form.landSlope} onChange={set("landSlope")} options={SLOPE_OPTIONS} required/>
+        <Inp label="Soil pH (pH Scale)" value={form.soilPH} onChange={set("soilPH")} type="number" required hint="e.g. 6.5, 7.8, 8.2"/>
+        <Inp label="Soil Microbiome Status" value={form.microbiomeStatus} onChange={set("microbiomeStatus")} options={MICROBIOME_OPTIONS} required/>
+      </div>
+      <Inp label="Water Availability" value={form.waterAvail} onChange={set("waterAvail")} options={WATER_OPTIONS} required/>
+    </>
   ];
   return (
     <div>
@@ -897,7 +1043,22 @@ function OnboardForm({ isMobile, onSave, onCancel }) {
           {step>0&&<Btn variant="ghost" onClick={()=>setStep(s=>s-1)}>← Back</Btn>}
           <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
           {step<2?<Btn variant="primary" onClick={()=>setStep(s=>s+1)} disabled={!canNext}>Next →</Btn>
-            :<Btn variant="green" onClick={()=>onSave({...form,id:"F"+Date.now().toString().slice(-4),land:parseFloat(form.land),nitrogen:parseFloat(form.nitrogen),phosphorus:parseFloat(form.phosphorus),potassium:parseFloat(form.potassium),soc:parseFloat(form.soc),status:"Soil Assessed",planGenerated:false,produce:[],plan:null})} disabled={!canNext}>✓ Save Farmer</Btn>}
+            :<Btn variant="green" onClick={()=>onSave({
+                ...form,
+                id:"F"+Date.now().toString().slice(-4),
+                land:parseFloat(form.land),
+                nitrogen:parseFloat(form.nitrogen),
+                phosphorus:parseFloat(form.phosphorus),
+                potassium:parseFloat(form.potassium),
+                soc:parseFloat(form.soc),
+                soilPH:parseFloat(form.soilPH)||7.2,
+                landSlope:form.landSlope||"Flat (<2%)",
+                microbiomeStatus:form.microbiomeStatus||"Moderate Bio-Flora",
+                status:"Soil Assessed",
+                planGenerated:false,
+                produce:[],
+                plan:null
+              })} disabled={!canNext}>✓ Save Farmer</Btn>}
         </div>
       </Card>
     </div>
@@ -1224,6 +1385,7 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
   const [ecoSubTab, setEcoSubTab] = useState("terminal");
   
   const [rawPlan, setRawPlan] = useState(farmer.plan || null);
+  const [showHindiPrint, setShowHindiPrint] = useState(false);
 
   useEffect(() => {
     setRawPlan(farmer.plan || null);
@@ -2181,8 +2343,15 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
             <SoilBar label="Soil Organic Carbon" value={farmer.soc*10} max={10} unit="%" color={farmer.soc<0.3?C.red:farmer.soc<0.5?C.orange:C.green}/>
           </Card>
           <Card>
-            <div style={{fontWeight:700,color:C.maroon,marginBottom:12,fontSize:15}}>🌾 Field Profile</div>
-            {[["Soil Type",farmer.soilType],["Water Availability",farmer.waterAvail],["Crop History",farmer.cropHistory]].map(([k,v])=>(
+            <div style={{fontWeight:700,color:C.maroon,marginBottom:12,fontSize:15}}>🌾 Field & Plot Micro-Survey Profile</div>
+            {[
+              ["Soil Type", farmer.soilType],
+              ["Land Slope", farmer.landSlope || "Flat (<2%)"],
+              ["Soil pH Scale", `pH ${farmer.soilPH ?? 7.2}`],
+              ["Microbiome Status", farmer.microbiomeStatus || "Moderate Bio-Flora"],
+              ["Water Availability", farmer.waterAvail],
+              ["Crop History", farmer.cropHistory]
+            ].map(([k,v])=>(
               <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}`,fontSize:14}}>
                 <span style={{color:C.muted}}>{k}</span><span style={{color:C.charcoal,fontWeight:600,textAlign:"right",maxWidth:"60%"}}>{v}</span>
               </div>
@@ -2223,8 +2392,32 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
                     <div style={{ fontSize: 12, color: C.muted }}>Every metric below is computed by our deterministic engine — the AI writes narrative interpretation only.</div>
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#DCEEE1", color: "#2F6B45", padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
-                  <span>💾</span> Saved to Profile & Local Storage
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <button 
+                    onClick={() => setShowHindiPrint(true)} 
+                    style={{ 
+                      display: "flex", 
+                      alignItems: "center", 
+                      gap: 6, 
+                      background: C.maroon, 
+                      color: "#fff", 
+                      padding: "8px 16px", 
+                      borderRadius: 8, 
+                      fontSize: 12, 
+                      fontWeight: 700,
+                      border: "none",
+                      cursor: "pointer",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                      transition: "all 0.15s"
+                    }}
+                    onMouseOver={e => e.currentTarget.style.filter = "brightness(1.1)"}
+                    onMouseOut={e => e.currentTarget.style.filter = "none"}
+                  >
+                    <span>🖨️</span> प्रिंट हिंदी योजना पत्र
+                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#DCEEE1", color: "#2F6B45", padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                    <span>💾</span> Saved to Profile & Local Storage
+                  </div>
                 </div>
               </div>
 
@@ -2375,12 +2568,15 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
 
               {/* PART A — Farm Diagnostic Profile & Baseline Assessment */}
               <Card>
-                <PartHeader letter="A" title="Farm Diagnostic Profile & Baseline Assessment" subtitle="Every downstream recommendation is only as accurate as this baseline"/>
-                <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr",gap:16,marginBottom:14}}>
-                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Location</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.location}</div></div>
-                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Land Holding</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.landHa} Ha ({plan.partA.landAcres} acres)</div></div>
-                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Soil Type</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.soilType}</div></div>
-                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Water Source</div><div style={{fontWeight:700,fontSize:14}}>{plan.partA.waterSource}</div></div>
+                <PartHeader letter="A" title="Farm Diagnostic Profile & Baseline Assessment" subtitle="Plot-level micro-survey metrics & physical baseline assessment"/>
+                <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr",gap:12,marginBottom:14}}>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Location</div><div style={{fontWeight:700,fontSize:13}}>{plan.partA.location}</div></div>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Land Holding</div><div style={{fontWeight:700,fontSize:13}}>{plan.partA.landHa} Ha ({plan.partA.landAcres} acres)</div></div>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Soil Type</div><div style={{fontWeight:700,fontSize:13}}>{plan.partA.soilType}</div></div>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Water Source</div><div style={{fontWeight:700,fontSize:13}}>{plan.partA.waterSource}</div></div>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Land Slope</div><div style={{fontWeight:700,fontSize:13,color:plan.partA.landSlope?.includes("Flat")?C.green:C.red}}>⛰️ {plan.partA.landSlope || "Flat (<2%)"}</div></div>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Soil pH Scale</div><div style={{fontWeight:700,fontSize:13,color:(plan.partA.soilPH>7.8||plan.partA.soilPH<6.0)?C.orange:C.green}}>🧪 pH {plan.partA.soilPH ?? 7.2}</div></div>
+                  <div><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Microbiome Status</div><div style={{fontWeight:700,fontSize:13,color:plan.partA.microbiomeStatus?.includes("Degraded")?C.red:C.green}}>🦠 {plan.partA.microbiomeStatus || "Moderate Bio-Flora"}</div></div>
                 </div>
                 <StatBar label="Soil Organic Carbon (SOC)" value={plan.partA.soc} max={1.2} color={plan.partA.soc<0.35?C.red:plan.partA.soc<0.55?C.orange:C.green} suffix="%"/>
                 <StatBar label="Nitrogen (N)" value={plan.partA.npk.n} max={400} color={C.blue} suffix=" kg/ha"/>
@@ -2393,9 +2589,9 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
                 <div style={{marginTop:10,fontSize:12,color:C.muted}}>Degradation Risk Score: <strong style={{color:plan.partA.drs.color}}>{plan.partA.drs.drs}/100 ({plan.partA.drs.grade})</strong></div>
               </Card>
 
-              {/* PART B — Soil Health Restoration Roadmap */}
+              {/* PART B — Soil Health Restoration Roadmap & Precision Split-Dosing Schedule */}
               <Card>
-                <PartHeader letter="B" title="Soil Health Restoration Roadmap" subtitle="5-Year Phased Plan — reversing degradation is a biological rebuild, not a single input swap"/>
+                <PartHeader letter="B" title="Soil Health Restoration Roadmap & Precision Split-Dosing" subtitle="5-Year Phased Plan with plot-specific micro-dosing and bio-remediation protocols"/>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,flexWrap:"wrap"}}>
                   <Badge color="maroon">{plan.partB.label}</Badge>
                   <span style={{fontSize:12,color:C.muted}}>{plan.partB.yearLabel} · Current SOC {plan.partB.currentSOC}% → Target {plan.partB.targetSOC}%</span>
@@ -2408,6 +2604,51 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
                   <div><div style={{fontSize:11,color:C.muted,marginBottom:3}}>Agroforestry Species (boundary planting)</div><div style={{fontSize:12.5}}>{plan.partB.agroforestrySpecies.join(", ")}</div></div>
                   <div><div style={{fontSize:11,color:C.muted,marginBottom:3}}>Nitrogen-Fixing Pulses</div><div style={{fontSize:12.5}}>{plan.partB.nitrogenFixingPulses.join(", ")}</div></div>
                 </div>
+
+                {/* Micro-Survey Precision Split-Dosing Schedule Table */}
+                <div style={{ marginTop: 18, borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+                  <div style={{ fontWeight: 700, color: C.maroon, fontSize: 13.5, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>🧪</span> Precision Split-Dosing Schedule (Calibrated for Slope: {plan.partA.landSlope || "Flat"}, pH {plan.partA.soilPH ?? 7.2}, Microbiome: {plan.partA.microbiomeStatus || "Moderate Bio-Flora"})
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+                    <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", padding: "8px 10px", borderRadius: 6, fontSize: 11.5 }}>
+                      <strong style={{ color: C.maroon }}>⛰️ Slope Impact:</strong> {activePlan.fertilizerPrescription?.slopeImpactNote}
+                    </div>
+                    <div style={{ background: "#FFFDF9", border: "1px solid #FEF3C7", padding: "8px 10px", borderRadius: 6, fontSize: 11.5 }}>
+                      <strong style={{ color: "#B45309" }}>🧪 pH Lockup Note:</strong> {activePlan.fertilizerPrescription?.nutrientLockupNote}
+                    </div>
+                    <div style={{ background: "#F0FDF4", border: "1px solid #DCFCE7", padding: "8px 10px", borderRadius: 6, fontSize: 11.5 }}>
+                      <strong style={{ color: "#166534" }}>🦠 Microbiome Note:</strong> {activePlan.fertilizerPrescription?.bioRemediationNote}
+                    </div>
+                  </div>
+
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, textAlign: "left" }}>
+                      <thead>
+                        <tr style={{ background: "#F1F5F9", borderBottom: "2px solid #CBD5E1", color: C.maroon }}>
+                          <th style={{ padding: "8px 10px", fontWeight: 700 }}>Timing / Interval</th>
+                          <th style={{ padding: "8px 10px", fontWeight: 700 }}>Nutrient & Input</th>
+                          <th style={{ padding: "8px 10px", fontWeight: 700 }}>Adjusted Dose</th>
+                          <th style={{ padding: "8px 10px", fontWeight: 700 }}>Application Method</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(activePlan.fertilizerPrescription?.precisionDosingSchedule || []).map((row, idx) => (
+                          <tr key={idx} style={{ borderBottom: "1px solid #E2E8F0", background: idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC" }}>
+                            <td style={{ padding: "8px 10px", fontWeight: 700, color: C.charcoal, whiteSpace: "nowrap" }}>{row.timing}</td>
+                            <td style={{ padding: "8px 10px", fontWeight: 600, color: C.blue }}>{row.nutrientInput}</td>
+                            <td style={{ padding: "8px 10px", fontWeight: 700, color: C.green, whiteSpace: "nowrap" }}>{row.adjustedDose}</td>
+                            <td style={{ padding: "8px 10px", color: C.charcoal, fontSize: 11.5 }}>
+                              <span style={{ background: "#E2E8F0", padding: "2px 6px", borderRadius: 4, fontWeight: 600 }}>{row.method}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
                 <div style={{marginTop:12,padding:"10px 12px",background:"#FEF0E6",borderRadius:8,fontSize:11.5,color:C.orange,fontStyle:"italic"}}>⚠️ {plan.partB.economicsWarning}</div>
               </Card>
 
@@ -2808,9 +3049,55 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
 
           {/* FERTILIZER PRESCRIPTION BLOCK */}
           <Card>
-            <div style={{fontWeight:700,color:C.maroon,fontSize:14,marginBottom:12}}>🧪 State-Calibrated Fertilizer Prescription Matrix</div>
-            {[["Organic",activePlan.fertilizerPrescription?.organic],["Bio",activePlan.fertilizerPrescription?.bio],["Chemical",activePlan.fertilizerPrescription?.chemical],["Schedule",activePlan.fertilizerPrescription?.schedule]].map(([k,v])=>(
-              <div key={k} style={{marginBottom:10}}><div style={{fontSize:12,fontWeight:700,color:C.maroon}}>{k}</div><div style={{fontSize:13,color:C.charcoal}}>{v}</div></div>
+            <div style={{fontWeight:700,color:C.maroon,fontSize:15,marginBottom:12,display:"flex",alignItems:"center",gap:6}}>
+              <span>🧪</span> Hyper-Local Precision Split-Dosing & Fertilizer Prescription Matrix
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:isMobile ? "1fr" : "1fr 1fr 1fr",gap:10,marginBottom:14}}>
+              <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",padding:"10px 12px",borderRadius:8,fontSize:12}}>
+                <div style={{fontWeight:700,color:C.maroon,marginBottom:2}}>⛰️ Slope Impact</div>
+                <div style={{color:C.charcoal,fontSize:11.5}}>{activePlan.fertilizerPrescription?.slopeImpactNote}</div>
+              </div>
+              <div style={{background:"#FFFDF9",border:"1px solid #FEF3C7",padding:"10px 12px",borderRadius:8,fontSize:12}}>
+                <div style={{fontWeight:700,color:"#B45309",marginBottom:2}}>🧪 pH & Bioavailability</div>
+                <div style={{color:C.charcoal,fontSize:11.5}}>{activePlan.fertilizerPrescription?.nutrientLockupNote}</div>
+              </div>
+              <div style={{background:"#F0FDF4",border:"1px solid #DCFCE7",padding:"10px 12px",borderRadius:8,fontSize:12}}>
+                <div style={{fontWeight:700,color:"#166534",marginBottom:2}}>🦠 Microbiome Protocol</div>
+                <div style={{color:C.charcoal,fontSize:11.5}}>{activePlan.fertilizerPrescription?.bioRemediationNote}</div>
+              </div>
+            </div>
+
+            <div style={{overflowX:"auto",marginBottom:14}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,textAlign:"left"}}>
+                <thead>
+                  <tr style={{background:"#F1F5F9",borderBottom:"2px solid #CBD5E1",color:C.maroon}}>
+                    <th style={{padding:"8px 10px",fontWeight:700}}>Timing / Interval</th>
+                    <th style={{padding:"8px 10px",fontWeight:700}}>Nutrient & Input</th>
+                    <th style={{padding:"8px 10px",fontWeight:700}}>Adjusted Dose</th>
+                    <th style={{padding:"8px 10px",fontWeight:700}}>Application Method</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(activePlan.fertilizerPrescription?.precisionDosingSchedule || []).map((row, idx) => (
+                    <tr key={idx} style={{borderBottom:"1px solid #E2E8F0",background:idx%2===0?"#FFFFFF":"#F8FAFC"}}>
+                      <td style={{padding:"8px 10px",fontWeight:700,color:C.charcoal,whiteSpace:"nowrap"}}>{row.timing}</td>
+                      <td style={{padding:"8px 10px",fontWeight:600,color:C.blue}}>{row.nutrientInput}</td>
+                      <td style={{padding:"8px 10px",fontWeight:700,color:C.green,whiteSpace:"nowrap"}}>{row.adjustedDose}</td>
+                      <td style={{padding:"8px 10px",color:C.charcoal,fontSize:11.5}}>
+                        <span style={{background:"#E2E8F0",padding:"2px 6px",borderRadius:4,fontWeight:600}}>{row.method}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {[["Organic Base",activePlan.fertilizerPrescription?.organic],["Bio Inoculant",activePlan.fertilizerPrescription?.bio],["Chemical Dosing",activePlan.fertilizerPrescription?.chemical],["Schedule Strategy",activePlan.fertilizerPrescription?.schedule]].map(([k,v])=>(
+              <div key={k} style={{marginBottom:8,paddingTop:6,borderTop:`1px dashed ${C.border}`}}>
+                <span style={{fontSize:12,fontWeight:700,color:C.maroon,marginRight:8}}>{k}:</span>
+                <span style={{fontSize:12.5,color:C.charcoal}}>{v}</span>
+              </div>
             ))}
           </Card>
         </div>)
@@ -3044,6 +3331,343 @@ function FarmerDetail({ isMobile, farmer, onBack, onUpdateFarmer, rentals, onAdd
           )}
         </div>
         )
+      )}
+
+      {/* HINDI PRINT PREVIEW MODAL */}
+      {showHindiPrint && activePlan && (
+        <div 
+          className="no-print"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(15, 23, 42, 0.85)",
+            zIndex: 9999,
+            overflowY: "auto",
+            display: "flex",
+            justifyContent: "center",
+            padding: "40px 20px"
+          }}
+        >
+          {/* Inject temporary CSS rule for printing */}
+          <style>{`
+            @media print {
+              body * {
+                visibility: hidden !important;
+              }
+              .printable-paper, .printable-paper * {
+                visibility: visible !important;
+              }
+              .printable-paper {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                color: black !important;
+                background: white !important;
+              }
+              .no-print {
+                display: none !important;
+              }
+            }
+          `}</style>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 0, width: "100%", maxWidth: "800px" }}>
+            {/* Modal Controls Toolbar */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1E293B", padding: "14px 20px", borderRadius: "12px 12px 0 0", color: "#fff", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 20 }}>🖨️</span>
+                <div>
+                  <span style={{ fontWeight: 700, fontSize: 14, display: "block" }}>कृषक उन्नत फसल योजना पत्र (A4 प्रिंट प्रीव्यू)</span>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", display: "block" }}>व्यापारिक रहस्यों को सुरक्षित रखते हुए किसान उपयोग हेतु प्रमाणित रिपोर्ट</span>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button 
+                  onClick={() => window.print()}
+                  style={{
+                    background: "#10B981",
+                    color: "#fff",
+                    border: "none",
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                    transition: "all 0.15s"
+                  }}
+                  onMouseOver={e => e.currentTarget.style.filter = "brightness(1.08)"}
+                  onMouseOut={e => e.currentTarget.style.filter = "none"}
+                >
+                  🖨️ प्रिंट करें
+                </button>
+                <button 
+                  onClick={() => setShowHindiPrint(false)}
+                  style={{
+                    background: "rgba(255,255,255,0.15)",
+                    color: "#fff",
+                    border: "none",
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 0.15s"
+                  }}
+                  onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.25)"}
+                  onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
+                >
+                  बंद करें (Close)
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Paper Document */}
+            <div 
+              className="printable-paper"
+              style={{
+                background: "#fff",
+                color: "#1E293B",
+                padding: "50px",
+                borderRadius: "0 0 12px 12px",
+                boxShadow: "0 20px 25px -5px rgba(0,0,0,0.3)",
+                fontFamily: "Noto Sans, system-ui, sans-serif",
+                fontSize: "14px",
+                lineHeight: "1.6",
+                minHeight: "11in",
+                boxSizing: "border-box"
+              }}
+            >
+              {/* Report Header */}
+              <div style={{ borderBottom: "3px double #C8963E", paddingBottom: "18px", marginBottom: "24px", textAlign: "center" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div style={{ fontSize: "11px", fontWeight: "bold", color: "#C8963E", textTransform: "uppercase", letterSpacing: "1px" }}>संजनी उन्नत कृषि सेवाएँ</div>
+                  <div style={{ fontSize: "11px", fontWeight: "bold", color: "#64748B" }}>दिनांक: {new Date().toLocaleDateString('hi-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                </div>
+                <h1 style={{ fontSize: "26px", fontWeight: 800, color: C.maroon, margin: "0 0 8px 0", letterSpacing: "-0.5px" }}>कृषक उन्नत वार्षिक फसल चक्र योजना पत्र</h1>
+                <p style={{ fontSize: "14px", color: "#475569", margin: 0, fontWeight: 500 }}>स Squire डिजिटल कृषि मस्तिष्क द्वारा प्रमाणित · प्रथम वर्ष के लिए कार्य योजना</p>
+              </div>
+
+              {/* Profile Details (Grid of Farmer info) */}
+              <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 10, padding: "18px", marginBottom: "24px", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "12px 24px" }}>
+                <div>
+                  <span style={{ fontWeight: "bold", color: "#64748B" }}>किसान का नाम:</span>
+                  <span style={{ marginLeft: "8px", fontWeight: 700, color: "#0F172A", fontSize: "15px" }}>{farmer.name}</span>
+                </div>
+                <div>
+                  <span style={{ fontWeight: "bold", color: "#64748B" }}>कुल भूमि क्षेत्र:</span>
+                  <span style={{ marginLeft: "8px", fontWeight: 700, color: "#0F172A" }}>{farmer.land} हेक्टेयर (लगभग {(farmer.land * 2.47).toFixed(1)} एकड़)</span>
+                </div>
+                <div>
+                  <span style={{ fontWeight: "bold", color: "#64748B" }}>गाँव और जिला:</span>
+                  <span style={{ marginLeft: "8px", fontWeight: 600, color: "#334155" }}>{farmer.village}, {farmer.district}</span>
+                </div>
+                <div>
+                  <span style={{ fontWeight: "bold", color: "#64748B" }}>मृदा स्वास्थ्य सूचकांक:</span>
+                  <span style={{ marginLeft: "8px", fontWeight: 700, color: C.green, fontSize: "15px" }}>प्रमाणित एवं संतुलित</span>
+                </div>
+              </div>
+
+              {/* Soil Metrics Sub-Card */}
+              <div style={{ border: "1px solid #E2E8F0", borderRadius: 10, padding: "16px", marginBottom: "24px", background: "#FFFDF9" }}>
+                <h3 style={{ fontSize: "14px", fontWeight: "bold", color: C.maroon, marginTop: 0, marginBottom: "12px", borderBottom: "1px solid #F1F5F9", paddingBottom: "8px", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>🧪</span> खेत की वर्तमान मृदा स्वास्थ्य स्थिति (Soil Health Report)
+                </h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", textAlign: "center" }}>
+                  <div style={{ background: "#FEF3C7", padding: "10px", borderRadius: 8, border: "1px solid #FDE68A" }}>
+                    <div style={{ fontSize: "11px", color: "#92400E", fontWeight: "bold", marginBottom: "2px" }}>नाइट्रोजन (N)</div>
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: "#78350F" }}>{farmer.nitrogen} kg/Ha</div>
+                  </div>
+                  <div style={{ background: "#D1FAE5", padding: "10px", borderRadius: 8, border: "1px solid #A7F3D0" }}>
+                    <div style={{ fontSize: "11px", color: "#065F46", fontWeight: "bold", marginBottom: "2px" }}>फास्फोरस (P)</div>
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: "#047857" }}>{farmer.phosphorus} kg/Ha</div>
+                  </div>
+                  <div style={{ background: "#DBEAFE", padding: "10px", borderRadius: 8, border: "1px solid #BFDBFE" }}>
+                    <div style={{ fontSize: "11px", color: "#1E40AF", fontWeight: "bold", marginBottom: "2px" }}>पोटैशियम (K)</div>
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: "#1D4ED8" }}>{farmer.potassium} kg/Ha</div>
+                  </div>
+                  <div style={{ background: "#FCE7F3", padding: "10px", borderRadius: 8, border: "1px solid #FBCFE8" }}>
+                    <div style={{ fontSize: "11px", color: "#9D174D", fontWeight: "bold", marginBottom: "2px" }}>जैविक कार्बन %</div>
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: "#BE185D" }}>{farmer.soc}%</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Year 1 Seasonal Cycles */}
+              <h2 style={{ fontSize: "17px", fontWeight: "bold", color: "#0F172A", borderLeft: "4px solid " + C.maroon, paddingLeft: "10px", marginBottom: "16px", marginTop: "28px" }}>📅 प्रथम वर्ष के लिए अनुशंसित त्रि-फसली चक्र योजना (Crop Calendar)</h2>
+              
+              {(() => {
+                const translateCropName = (name) => {
+                  if (!name) return "";
+                  const l = name.toLowerCase();
+                  if (l.includes("paddy") || l.includes("rice")) return "धान (चावल)";
+                  if (l.includes("wheat")) return "उन्नत गेहूँ";
+                  if (l.includes("mustard")) return "सरसों (पीली/काली)";
+                  if (l.includes("potato")) return "आलू (नकद फसल)";
+                  if (l.includes("soybean")) return "सोयाबीन (दलहन/तिलहन)";
+                  if (l.includes("chickpea") || l.includes("gram")) return "चना (देशी)";
+                  if (l.includes("berseem")) return "बरसीम (हरा चारा)";
+                  if (l.includes("dhaincha") || l.includes("sesbania")) return "ढैंचा (हरी खाद)";
+                  if (l.includes("groundnut")) return "मूँगफली";
+                  if (l.includes("baby corn")) return "बेबी कॉर्न (उच्च मूल्य)";
+                  if (l.includes("corn") || l.includes("maize")) return "मक्का";
+                  if (l.includes("moong") || l.includes("green gram")) return "मूँग (हरी)";
+                  if (l.includes("sesame")) return "तिल (तिलहन)";
+                  if (l.includes("cowpea") || l.includes("lobia")) return "लोबिया (ग्रीष्म चारा)";
+                  return name;
+                };
+
+                const year1Inputs = activePlan.yearlyInputs?.find(y => y.year === 1);
+                if (!year1Inputs) return <div style={{ color: "#64748B", fontStyle: "italic" }}>फसल चक्र डेटा लोड हो रहा है...</div>;
+
+                return year1Inputs.seasons.map((season, sIdx) => {
+                  const { phases, totalCost: seasonCost } = calculateTillageToSpoon(1, strategy, season.name, season.crop);
+                  const translatedSeason = season.name.includes("Kharif") ? "🌱 खरीफ सीजन (वर्षा ऋतु)" : season.name.includes("Rabi") ? "❄️ रबी सीजन (शीतकालीन ऋतु)" : "☀️ जायद सीजन (ग्रीष्मकालीन चक्र)";
+                  const translatedCrop = translateCropName(season.crop);
+
+                  return (
+                    <div key={sIdx} style={{ marginBottom: "28px", border: "1px solid #E2E8F0", borderRadius: 10, overflow: "hidden", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+                      {/* Season Banner Header */}
+                      <div style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontWeight: "bold", color: C.maroon, fontSize: "14px" }}>{translatedSeason}</span>
+                        <span style={{ fontWeight: 800, color: "#1E293B", background: "#ECE9E2", padding: "4px 12px", borderRadius: 16, fontSize: "12px" }}>सुझाई गई फसल: {translatedCrop}</span>
+                      </div>
+
+                      <div style={{ padding: "16px" }}>
+                        {/* Seed inputs details */}
+                        <div style={{ marginBottom: "16px" }}>
+                          <div style={{ fontWeight: "bold", fontSize: "12px", color: "#64748B", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>🌾 अनुशंसित बीज एवं जैव-उपचार (Premium Inputs & Seed Prescriptions)</div>
+                          {season.inputs && season.inputs.length > 0 ? (
+                            <div style={{ background: "#FFFDF9", border: "1px solid #FEF3C7", borderRadius: 8, padding: "12px", fontSize: "13px" }}>
+                              {season.inputs.map((inp, inpIdx) => (
+                                <div key={inpIdx} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: inpIdx === season.inputs.length - 1 ? "none" : "1px dashed #FEF3C7" }}>
+                                  <div>
+                                    <strong style={{ color: "#B45309" }}>• {inp.item}:</strong> 
+                                    <span style={{ marginLeft: 6, color: "#475569" }}>{inp.dosage} (कुल मात्रा: {inp.qty})</span>
+                                  </div>
+                                  <span style={{ fontWeight: 700, color: "#78350F" }}>₹{Math.round(inp.unitCost * (inp.isPerAcre ? farmer.land * 2.47 : 1)).toLocaleString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ color: "#64748B", fontStyle: "italic", fontSize: "12px" }}>कोई विशेष बीज इनपुट नहीं है।</div>
+                          )}
+                        </div>
+
+                        {/* Step-by-Step Agronomic Action Plan */}
+                        <div>
+                          <div style={{ fontWeight: "bold", fontSize: "12px", color: "#64748B", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>🚜 जुताई से कटाई तक की कार्यविधि (Agronomic Step-by-Step Schedule)</div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            {phases.map((ph, phIdx) => {
+                              let hindiPhase = ph.phase;
+                              if (ph.id === "tillage") hindiPhase = "🚜 खेत की तैयारी और गहरी जुताई (Primary Tillage)";
+                              else if (ph.id === "sowing") hindiPhase = "🌱 बुवाई एवं बीज उपचार (Sowing & Genetics)";
+                              else if (ph.id === "nutrition") hindiPhase = "🧪 जैविक व रासायनिक पोषण (Soil Nutrition)";
+                              else if (ph.id === "protection") hindiPhase = "🛡️ रोग व कीट प्रबंधन (Crop Protection)";
+                              else if (ph.id === "irrigation") hindiPhase = "💧 संतुलित सिंचाई चक्र (Irrigation)";
+                              else if (ph.id === "harvest") hindiPhase = "🌾 कटाई एवं मड़ाई (Harvesting)";
+                              else if (ph.id === "logistics") hindiPhase = "🚚 मंडी परिवहन एवं शीत गृह भंडारण (Logistics)";
+
+                              return (
+                                <div key={phIdx} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", background: "#F8FAFC", padding: "10px 14px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: "12.5px" }}>
+                                  <div style={{ flex: 1, paddingRight: 12 }}>
+                                    <div style={{ fontWeight: "bold", color: "#1F2937" }}>{hindiPhase}</div>
+                                    <div style={{ color: "#4B5563", fontSize: "11.5px", marginTop: "3px" }}><strong>कार्यविधि:</strong> {ph.activity}</div>
+                                    <div style={{ color: "#059669", fontSize: "11px", marginTop: "2px" }}><strong>मृदा लाभ:</strong> {ph.benefits}</div>
+                                  </div>
+                                  <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                                    <div style={{ fontWeight: 800, color: "#111827", fontSize: "13px" }}>₹{ph.total.toLocaleString()}</div>
+                                    <div style={{ fontSize: "10.5px", color: "#6B7280" }}>{ph.qty}</div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Season summary cost */}
+                        <div style={{ borderTop: "1px solid #E2E8F0", marginTop: "16px", paddingTop: "10px", display: "flex", justifyContent: "flex-end", fontWeight: "bold", color: C.maroon, fontSize: "13.5px" }}>
+                          <span>इस फसल चक्र का कुल अनुमानित परिचालन बजट: ₹{seasonCost.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+
+              {/* State Calibrated Fertilizer prescription */}
+              <h2 style={{ fontSize: "17px", fontWeight: "bold", color: "#0F172A", borderLeft: "4px solid " + C.maroon, paddingLeft: "10px", marginBottom: "16px", marginTop: "28px" }}>🧪 राज्य-कैलिब्रेटेड उर्वरक एवं जैविक पोषण पर्चा</h2>
+              <div style={{ border: "1px solid #CBD5E1", borderRadius: 10, padding: "18px", background: "#FFFDF9", display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div>
+                  <strong style={{ color: "#B45309", fontSize: "13px" }}>🌿 जैविक पोषण (Organic Nutrition):</strong>
+                  <p style={{ margin: "4px 0 0 14px", fontSize: "13px", color: "#334155" }}>{activePlan.fertilizerPrescription?.organic || "योजना के अनुसार संतुलित कम्पोस्ट/केंचुआ खाद का उपयोग करें।"}</p>
+                </div>
+                <div style={{ borderTop: "1px dotted #CBD5E1", paddingTop: "12px" }}>
+                  <strong style={{ color: "#047857", fontSize: "13px" }}>🧬 जैव-उर्वरक उपचार (Bio-fertilizer treatment):</strong>
+                  <p style={{ margin: "4px 0 0 14px", fontSize: "13px", color: "#334155" }}>{activePlan.fertilizerPrescription?.bio || "बीज उपचार के समय राइजोबियम या पीएसबी कल्चर का प्रयोग अवश्य करें।"}</p>
+                </div>
+                <div style={{ borderTop: "1px dotted #CBD5E1", paddingTop: "12px" }}>
+                  <strong style={{ color: "#1D4ED8", fontSize: "13px" }}>🧪 रासायनिक उर्वरक संतुलित मात्रा (Chemical Fertilizer Balance):</strong>
+                  <p style={{ margin: "4px 0 0 14px", fontSize: "13px", color: "#334155" }}>{activePlan.fertilizerPrescription?.chemical || "मृदा स्वास्थ्य अनुरूप नाइट्रोजन व अन्य खादों की संतुलित मात्रा छिड़कें।"}</p>
+                </div>
+                <div style={{ borderTop: "1px dotted #CBD5E1", paddingTop: "12px" }}>
+                  <strong style={{ color: C.maroon, fontSize: "13px" }}>🕒 प्रयोग समय सारणी (Application Schedule):</strong>
+                  <p style={{ margin: "4px 0 0 14px", fontSize: "13px", color: "#334155" }}>{activePlan.fertilizerPrescription?.schedule || "अनुशंसित समय व बुवाई के तुरंत बाद उचित अंतराल पर प्रयोग करें।"}</p>
+                </div>
+              </div>
+
+              {/* Precautionary and Weather logic */}
+              <h2 style={{ fontSize: "17px", fontWeight: "bold", color: "#0F172A", borderLeft: "4px solid " + C.maroon, paddingLeft: "10px", marginBottom: "16px", marginTop: "28px" }}>🛡️ सुरक्षा, मौसम एवं बुवाई-कटाई परामर्श (Precautionary Advisory)</h2>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: "30px" }}>
+                <div style={{ background: "#FEF2F2", border: "1px solid #FEE2E2", borderRadius: 10, padding: "16px" }}>
+                  <div style={{ fontWeight: "bold", color: "#991B1B", marginBottom: "8px", fontSize: "13.5px", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>🐛</span> कीट व रोग सुरक्षा सलाह (Pest Advisory)
+                  </div>
+                  <div style={{ fontSize: "13px", color: "#7F1D1D" }}>
+                    <p style={{ margin: "0 0 8px 0" }}><strong>जोखिम स्तर:</strong> {activePlan.pestAlert?.riskLevel === "High" ? "उच्च जोखिम (High)" : activePlan.pestAlert?.riskLevel === "Moderate" ? "मध्यम जोखिम (Moderate)" : "कम जोखिम (Low)"}</p>
+                    <p style={{ margin: "0 0 8px 0" }}><strong>संभावित कीट/रोग:</strong> {activePlan.pestAlert?.likely || "कोई गंभीर संक्रमण नहीं"}</p>
+                    <p style={{ margin: "0", fontSize: "12px", background: "rgba(255,255,255,0.75)", padding: "8px", borderRadius: 6, borderLeft: "4px solid #EF4444", lineHeight: "1.5" }}><strong>निवारक उपाय:</strong> {activePlan.pestAlert?.bioIntervention}</p>
+                  </div>
+                </div>
+                <div style={{ background: "#F0FDF4", border: "1px solid #DCFCE7", borderRadius: 10, padding: "16px" }}>
+                  <div style={{ fontWeight: "bold", color: "#166534", marginBottom: "8px", fontSize: "13.5px", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>🌦️</span> मौसम व बुवाई-सिंचाई परामर्श (Weather & Irrigation Advisory)
+                  </div>
+                  <div style={{ fontSize: "13px", color: "#14532D" }}>
+                    <p style={{ margin: "0 0 8px 0" }}><strong>बुवाई की सही अवधि:</strong> {activePlan.weatherLogic?.sowingWindow}</p>
+                    <p style={{ margin: "0 0 8px 0" }}><strong>सिंचाई चक्र अनुसूची:</strong> {activePlan.weatherLogic?.irrigationSchedule}</p>
+                    <p style={{ margin: "0" }}><strong>कटाई की सही अवधि:</strong> {activePlan.weatherLogic?.harvestWindow}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Professional Disclaimer / Signatures */}
+              <div style={{ borderTop: "2px solid #E2E8F0", paddingTop: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", color: "#475569", marginTop: "40px" }}>
+                <div>
+                  <p style={{ margin: "0 0 6px 0", fontWeight: "bold" }}>कृषि प्रसार अधिकारी हस्ताक्षर</p>
+                  <div style={{ borderBottom: "1px dashed #94A3B8", width: "150px", height: "40px" }}></div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <p style={{ margin: "0 0 6px 0", fontWeight: "bold" }}>कृषक स्व-सहमति हस्ताक्षर</p>
+                  <div style={{ borderBottom: "1px dashed #94A3B8", width: "150px", height: "40px", float: "right" }}></div>
+                </div>
+              </div>
+              
+              <div style={{ textAlign: "center", fontSize: "11px", color: "#94A3B8", marginTop: "40px", borderTop: "1px solid #F1F5F9", paddingTop: "14px" }}>
+                यह पत्र संजनी उन्नत कृषि प्रणाली द्वारा स्वतः उत्पन्न किया गया है। इसका उद्देश्य कृषकों को वैज्ञानिक और व्यावहारिक मार्गदर्शन प्रदान करना है।
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -6634,7 +7258,7 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
             {/* Quick Multi-dimensional Filter Bar */}
             <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 18px", display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 200, flex: 1 }}>
-                <span style={{ fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>District Filter:</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>District Filter:</span>
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                   {["All", "Hamirpur", "Jhansi", "Banda"].map(dist => (
                     <button
@@ -6659,7 +7283,7 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Scale:</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Scale:</span>
                 <div style={{ display: "flex", gap: 5 }}>
                   {[
                     { id: "All", label: "All Holdings" },
@@ -6689,7 +7313,7 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Status:</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Status:</span>
                 <div style={{ display: "flex", gap: 5 }}>
                   {[
                     { id: "All", label: "All Status" },
