@@ -7258,7 +7258,7 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
             {/* Quick Multi-dimensional Filter Bar */}
             <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 18px", display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 200, flex: 1 }}>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>District Filter:</span>
+                <span style={{ fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>District Filter:</span>
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                   {["All", "Hamirpur", "Jhansi", "Banda"].map(dist => (
                     <button
@@ -7283,7 +7283,7 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Scale:</span>
+                <span style={{ fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Scale:</span>
                 <div style={{ display: "flex", gap: 5 }}>
                   {[
                     { id: "All", label: "All Holdings" },
@@ -7313,7 +7313,7 @@ Return ONLY a valid, raw JSON object matching this schema. Do not include markdo
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Status:</span>
+                <span style={{ fontWeight: 700, color: C.charcoal, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Status:</span>
                 <div style={{ display: "flex", gap: 5 }}>
                   {[
                     { id: "All", label: "All Status" },
